@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeFlow - System Rozpoznawania Typów Kont</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .demo-accounts {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .demo-accounts h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .account-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .account-option:hover {
+            border-color: #ff8a30;
+            transform: translateY(-2px);
+        }
+        
+        .account-info {
+            flex: 1;
+        }
+        
+        .account-email {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .account-type {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .account-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .badge-business {
+            background: #ff8a30;
+            color: white;
+        }
+        
+        .badge-private {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .login-result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .panel-preview {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .btn {
+            background: #ff8a30;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #e67e22;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .feature-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .feature-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="header">
+            <h1>🔄 FreeFlow</h1>
+            <p>System Inteligentnego Rozpoznawania Typów Kont</p>
+        </div>
+        
+        <div class="demo-accounts">
+            <h3>Wybierz typ konta do przetestowania:</h3>
+            
+            <div class="account-option" onclick="testLogin('business')">
+                <div class="account-info">
+                    <div class="account-email">ndoemo02@gmail.com</div>
+                    <div class="account-type">Właściciel restauracji</div>
+                </div>
+                <div class="account-badge badge-business">BIZNES</div>
+            </div>
+            
+            <div class="account-option" onclick="testLogin('private')">
+                <div class="account-info">
+                    <div class="account-email">user@example.com</div>
+                    <div class="account-type">Klient prywatny</div>
+                </div>
+                <div class="account-badge badge-private">PRYWATNE</div>
+            </div>
+        </div>
+        
+        <div id="loginResult" class="login-result"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3006/api';
+        
+        async function testLogin(accountType) {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'login-result';
+            resultDiv.innerHTML = '<div>Sprawdzanie typu konta...</div>';
+            
+            if (accountType === 'business') {
+                // Test konta biznesowego
+                try {
+                    const response = await fetch(`${API_BASE}/business-panel?user_id=66051f90-6486-4ce3-b771-f51d3d39a8e9`);
+                    const data = await response.json();
+                    
+                    if (data.ok) {
+                        resultDiv.className = 'login-result result-success';
+                        resultDiv.innerHTML = `
+                            <h4>✅ Wykryto Konto Biznesowe!</h4>
+                            <p><strong>Użytkownik:</strong> ${data.data.user.email}</p>
+                            <p><strong>Restauracja:</strong> ${data.data.business.name}</p>
+                            <p><strong>Typ:</strong> ${data.data.user.user_type}</p>
+                            <p><strong>Rola:</strong> ${data.data.user.business_role}</p>
+                            
+                            <div class="panel-preview">
+                                <h5>🏪 Panel Biznesowy - Podgląd</h5>
+                                <div class="features-grid">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">📋</div>
+                                        <div class="feature-title">${data.data.statistics.total_orders}</div>
+                                        <div class="feature-desc">Zamówienia</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-icon">⏳</div>
+                                        <div class="feature-title">${data.data.statistics.pending_orders}</div>
+                                        <div class="feature-desc">Oczekujące</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-title">💰 ${data.data.statistics.today_revenue.toFixed(2)} PLN</div>
+                                        <div class="feature-desc">Przychód dzienny</div>
+                                    </div>
+                                </div>
+                                <a href="business-panel-demo.html" class="btn">Otwórz Pełny Panel Biznesowy</a>
+                            </div>
+                        `;
+                    } else if (data.error === 'NOT_BUSINESS_ACCOUNT') {
+                        // Konto nie jest biznesowe
+                        resultDiv.className = 'login-result result-error';
+                        resultDiv.innerHTML = `
+                            <h4>💵 Wykryto Konto Prywatne</h4>
+                            <p>Typ konta: ${data.data.user_type}</p>
+                            <p>Przekierowywanie do panelu prywatnego...</p>
+                            
+                            <div class="panel-preview">
+                                <h5>📱 Panel Prywatny - Podgląd</h5>
+                                <div class="features-grid">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">🍕</div>
+                                        <div class="feature-title">Zamów</div>
+                                        <div class="feature-desc">Głosem</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-icon">🚖</div>
+                                        <div class="feature-title">Taxi</div>
+                                        <div class="feature-desc">Zamów przejazd</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-icon">🏨</div>
+                                        <div class="feature-title">Hotel</div>
+                                        <div class="feature-desc">Rezerwacje</div>
+                                    </div>
+                                </div>
+                                <div class="btn">Panel Prywatny (Demo)</div>
+                            </div>
+                        `;
+                    } else {
+                        throw new Error(data.message);
+                    }
+                } catch (error) {
+                    resultDiv.className = 'login-result result-error';
+                    resultDiv.innerHTML = `
+                        <h4>❌ Błąd połączenia</h4>
+                        <p>${error.message}</p>
+                        <p>Sprawdź czy backend działa na porcie 3006</p>
+                    `;
+                }
+            } else {
+                // Symulacja konta prywatnego
+                resultDiv.className = 'login-result result-success';
+                resultDiv.innerHTML = `
+                    <h4>💵 Wykryto Konto Prywatne!</h4>
+                    <p><strong>Użytkownik:</strong> user@example.com</p>
+                    <p><strong>Typ:</strong> customer</p>
+                    
+                    <div class="panel-preview">
+                        <h5>📱 Panel Prywatny</h5>
+                        <p>Dostęp do funkcji zamawiania i usług dla klientów</p>
+                        
+                        <div class="features-grid">
+                            <div class="feature-card">
+                                <div class="feature-icon">🍕</div>
+                                <div class="feature-title">Zamów Jedzenie</div>
+                                <div class="feature-desc">Głosowe zamawianie</div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">🚖</div>
+                                <div class="feature-title">Zamów Taxi</div>
+                                <div class="feature-desc">Szybki transport</div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">🏨</div>
+                                <div class="feature-title">Zarezerwuj Hotel</div>
+                                <div class="feature-desc">Noclegi i pobyty</div>
+                            </div>
+                        </div>
+                        
+                        <div class="btn">Panel Prywatny (Demo)</div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
