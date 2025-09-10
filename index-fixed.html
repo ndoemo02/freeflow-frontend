@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="pl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>FreeFlow — Voice to Order</title>
+  <meta name="description" content="Zamów głosem - restauracje, taxi, hotele" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#ff8a30" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FreeFlow" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="/images/Freeflow-logo.png" />
+  <link rel="apple-touch-icon" href="/images/Freeflowlogo.png" />
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="/images/Background.png" as="image" />
+  <link rel="preload" href="/images/Freeflowlogo.png" as="image" />
+  
+  <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .header {
+        background: #ff8a30;
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .header h1 {
+        font-size: 2.2rem;
+        margin-bottom: 10px;
+    }
+    
+    .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+    
+    .form-container {
+        padding: 40px;
+    }
+    
+    .success-info {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .success-info h3 {
+        margin-bottom: 10px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .required {
+        color: #e74c3c;
+    }
+    
+    .optional {
+        color: #95a5a6;
+        font-weight: normal;
+        font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #ff8a30;
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .nip-section {
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .nip-info {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+    
+    .btn {
+        background: #ff8a30;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.1rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        width: 100%;
+        margin-top: 20px;
+    }
+    
+    .btn:hover {
+        background: #e67e22;
+        transform: translateY(-2px);
+    }
+    
+    .btn:disabled {
+        background: #bdc3c7;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        margin-top: 10px;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .error {
+        color: #dc3545;
+        background: #f8d7da;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 15px 0;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .success {
+        color: #155724;
+        background: #d4edda;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 15px 0;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .result-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: none;
+    }
+    
+    .result-section h3 {
+        color: #333;
+        margin-bottom: 15px;
+    }
+    
+    .user-info {
+        background: white;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 10px 0;
+    }
+    
+    .user-info strong {
+        color: #ff8a30;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e1e8ed;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    
+    .step.active .step-number {
+        background: #ff8a30;
+        color: white;
+    }
+    
+    .step.completed .step-number {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-title {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .step.active .step-title {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    .demo-users {
+        background: #e3f2fd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .demo-users h4 {
+        margin-bottom: 15px;
+        color: #1976d2;
+    }
+    
+    .demo-user {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+        margin: 8px 0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .demo-user:hover {
+        background: #f8f9fa;
+        transform: translateX(5px);
+    }
+    
+    .demo-user-info {
+        flex: 1;
+    }
+    
+    .demo-user-email {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .demo-user-type {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .demo-user-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .badge-customer {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    #minimax-floating-ball {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 12px;
+      background: #222222;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      color: #F8F8F8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      z-index: 9999;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    
+    #minimax-floating-ball:hover {
+      transform: translateY(-2px);
+      background: #383838;
+    }
+    .minimax-ball-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .minimax-logo-wave {
+      width: 26px;
+      height: 22px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='22' viewBox='0 0 26 22' fill='none'%3E%3Cg clip-path='url(%23clip0_3442_102412)'%3E%3Cpath d='M12.8405 14.6775C12.8405 14.9897 13.0932 15.2424 13.4055 15.2424C13.7178 15.2424 13.9705 14.9897 13.9705 14.6775V2.98254C13.9705 1.88957 13.0809 1 11.9879 1C10.895 1 10.0054 1.88957 10.0054 2.98254V11.566V17.1068C10.0054 17.5773 9.62327 17.9594 9.1528 17.9594C8.68233 17.9594 8.30021 17.5773 8.30021 17.1068V8.04469C8.30021 6.95172 7.41063 6.06215 6.31767 6.06215C5.22471 6.06215 4.33513 6.95172 4.33513 8.04469V11.8855C4.33513 12.3559 3.953 12.7381 3.48254 12.7381C3.01207 12.7381 2.62994 12.3559 2.62994 11.8855V10.4936C2.62994 10.1813 2.37725 9.92861 2.06497 9.92861C1.7527 9.92861 1.5 10.1813 1.5 10.4936V11.8855C1.5 12.9784 2.38957 13.868 3.48254 13.868C4.5755 13.868 5.46508 12.9784 5.46508 11.8855V8.04469C5.46508 7.57422 5.8472 7.19209 6.31767 7.19209C6.78814 7.19209 7.17026 7.57422 7.17026 8.04469V17.1068C7.17026 18.1998 8.05984 19.0894 9.1528 19.0894C10.2458 19.0894 11.1353 18.1998 11.1353 17.1068V2.98254C11.1353 2.51207 11.5175 2.12994 11.9879 2.12994C12.4584 2.12994 12.8405 2.51207 12.8405 2.98254V14.6775Z' fill='%23F8F8F8'/%3E%3Cpath d='M23.3278 6.06215C22.2348 6.06215 21.3452 6.95172 21.3452 8.04469V15.6143C21.3452 16.0847 20.9631 16.4669 20.4926 16.4669C20.0222 16.4669 19.6401 16.0847 19.6401 15.6143V2.98254C19.6401 1.88957 18.7505 1 17.6575 1C16.5645 1 15.675 1.88957 15.675 2.98254V19.0175C15.675 19.4879 15.2928 19.8701 14.8224 19.8701C14.3519 19.8701 13.9698 19.4879 13.9698 19.0175V17.0329C13.9698 16.7206 13.7171 16.4679 13.4048 16.4679C13.0925 16.4679 12.8398 16.7206 12.8398 17.0329V19.0175C12.8398 20.1104 13.7294 21 14.8224 21C15.9153 21 16.8049 20.1104 16.8049 19.0175V2.98254C16.8049 2.51207 17.187 2.12994 17.6575 2.12994C18.128 2.12994 18.5101 2.51207 18.5101 2.98254V15.6143C18.5101 16.7072 19.3997 17.5968 20.4926 17.5968C21.5856 17.5968 22.4752 16.7072 22.4752 15.6143V8.04469C22.4752 7.57422 22.8573 7.19209 23.3278 7.19209C23.7982 7.19209 24.1804 7.57422 24.1804 8.04469V14.6775C24.1804 14.9897 24.4331 15.2424 24.7453 15.2424C25.0576 15.2424 25.3103 14.9897 25.3103 14.6775V8.04469C25.3103 6.95172 24.4207 6.06215 23.3278 6.06215Z' fill='%23F8F8F8'/%3E%3C/g%3E%3Cdefs%3E%3CclipPath id='clip0_3442_102412'%3E%3Crect width='25' height='22' fill='white' transform='translate(0.5)'/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    .minimax-ball-text {
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    .minimax-close-icon {
+      margin-left: 8px;
+      font-size: 16px;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
+    
+    .minimax-close-icon:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FreeFlow - Rejestracja Firmy</h1>
+            <p>Uproszczony proces bez weryfikacji NIP</p>
+        </div>
+        
+        <div class="form-container">
+            <div class="success-info">
+                <h3>✅ Problem Naprawiony!</h3>
+                <p><strong>Usunięto wymóg weryfikacji NIP</strong> - pole NIP jest teraz opcjonalne</p>
+                <p><strong>Automatyczna aktywacja konta</strong> - po rejestracji konto staje się biznesowe</p>
+            </div>
+            
+            <div class="step-indicator">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Wybór użytkownika</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Dane firmy</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Aktywacja</div>
+                </div>
+            </div>
+            
+            <div id="userSelection" class="step-content">
+                <div class="demo-users">
+                    <h4>Wybierz konto użytkownika do rejestracji firmy:</h4>
+                    <div id="usersList" class="loading">Ładowanie użytkowników...</div>
+                </div>
+            </div>
+            
+            <div id="businessForm" class="step-content" style="display: none;">
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="businessName">Nazwa firmy <span class="required">*</span></label>
+                        <input type="text" id="businessName" name="name" required placeholder="np. Pizzeria Mama Mia">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Kategoria biznesu <span class="required">*</span></label>
+                        <select id="category" name="category_id" required>
+                            <option value="">Wybierz kategorię...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="nip-section">
+                        <div class="nip-info">
+                            <strong>📝 Informacja o NIP:</strong><br>
+                            Pole NIP jest teraz <strong>całkowicie opcjonalne</strong>. Możesz:
+                            <ul>
+                                <li>Pozostawić puste (zalecane)</li>
+                                <li>Wpisać prawdziwy NIP</li>
+                                <li>Wpisać dowolną wartość</li>
+                            </ul>
+                            <strong>Nie ma weryfikacji ani blokad!</strong>
+                        </div>
+                        <div class="form-group">
+                            <label for="nip">NIP <span class="optional">(opcjonalnie)</span></label>
+                            <input type="text" id="nip" name="nip" placeholder="Opcjonalnie - możesz pozostawić puste">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="address">Adres</label>
+                        <input type="text" id="address" name="address" placeholder="ul. Przykładowa 123">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="city">Miasto</label>
+                        <input type="text" id="city" name="city" placeholder="Kraków">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Telefon</label>
+                        <input type="tel" id="phone" name="phone" placeholder="+48 123 456 789">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="kontakt@firma.pl">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Opis firmy</label>
+                        <textarea id="description" name="description" placeholder="Krótki opis działalności firmy..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn" id="submitBtn">
+                        Zarejestruj Firmę (Bez Weryfikacji NIP)
+                    </button>
+                    
+                    <button type="button" class="btn btn-secondary" onclick="goToStep(1)">
+                        Wróć do wyboru użytkownika
+                    </button>
+                </form>
+            </div>
+            
+            <div id="resultSection" class="result-section">
+                <h3>Wynik rejestracji:</h3>
+                <div id="registrationResult"></div>
+            </div>
+        </div>
+    </div>
+
+  <!-- PWA Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  </script>
+
+<div id="minimax-floating-ball">
+  <div class="minimax-ball-content">
+    <div class="minimax-logo-wave"></div>
+    <span class="minimax-ball-text">Created by MiniMax Agent</span>
+  </div>
+  <div class="minimax-close-icon">×</div>
+</div>
+
+<script>
+// Initialize floating ball functionality
+function initFloatingBall() {
+  const ball = document.getElementById('minimax-floating-ball');
+  if (!ball) return;
+
+  // Initial animation
+  ball.style.opacity = '0';
+  ball.style.transform = 'translateY(20px)';
+
+  setTimeout(() => {
+    ball.style.opacity = '1';
+    ball.style.transform = 'translateY(0)';
+  }, 500);
+
+  // Handle logo click
+  const ballContent = ball.querySelector('.minimax-ball-content');
+  ballContent.addEventListener('click', function (e) {
+    e.stopPropagation();
+    window.open('https://agent.minimax.io/agent', '_blank');
+    ball.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      ball.style.transform = 'scale(1)';
+    }, 100);
+  });
+
+  // Handle close button click
+  const closeIcon = ball.querySelector('.minimax-close-icon');
+  closeIcon.addEventListener('click', function (e) {
+    e.stopPropagation();
+    ball.style.opacity = '0';
+    ball.style.transform = 'translateY(20px)';
+
+    setTimeout(() => {
+      ball.style.display = 'none';
+    }, 300);
+  });
+}
+
+// Business registration logic
+const API_BASE = 'https://freeflow-backend-git-main-ndoemo02s-projects.vercel.app/api';
+let selectedUser = null;
+let categories = [];
+
+// Załadowanie kategorii i użytkowników
+async function loadInitialData() {
+    try {
+        // Pobieranie kategorii
+        const categoriesResponse = await fetch(`${API_BASE}/business-categories`);
+        const categoriesData = await categoriesResponse.json();
+        
+        if (categoriesData.ok) {
+            categories = categoriesData.data.categories;
+            populateCategories();
+        }
+        
+        // Dla demo używamy predefiniowanych użytkowników
+        const demoUsers = [
+            {
+                id: '66051f90-6486-4ce3-b771-f51d3d39a8e9',
+                email: 'ndoemo02@gmail.com',
+                user_type: 'business_owner', // już biznesowe
+                status: 'Ma już firmę'
+            },
+            {
+                id: '7057a0b0-b9cb-4417-a87e-6e44490fac05',
+                email: 'fupricxp@minimax.com',
+                user_type: 'customer',
+                status: 'Konto prywatne - gotowe do rejestracji'
+            },
+            {
+                id: '83b61fd0-e0ac-4c73-82cb-fc5c4c87f27c',
+                email: 'ndoemo03@gmail.com',
+                user_type: 'customer',
+                status: 'Konto prywatne - gotowe do rejestracji'
+            }
+        ];
+        
+        displayUsers(demoUsers);
+        
+    } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('usersList').innerHTML = 
+            '<div class="error">Błąd ładowania danych: ' + error.message + '</div>';
+    }
+}
+
+function populateCategories() {
+    const categorySelect = document.getElementById('category');
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.display_name;
+        categorySelect.appendChild(option);
+    });
+}
+
+function displayUsers(users) {
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = '';
+    
+    users.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'demo-user';
+        userDiv.onclick = () => selectUser(user);
+        
+        userDiv.innerHTML = `
+            <div class="demo-user-info">
+                <div class="demo-user-email">${user.email}</div>
+                <div class="demo-user-type">${user.status}</div>
+            </div>
+            <div class="demo-user-badge badge-customer">${user.user_type}</div>
+        `;
+        
+        usersList.appendChild(userDiv);
+    });
+}
+
+function selectUser(user) {
+    if (user.user_type === 'business_owner') {
+        alert('Ten użytkownik już posiada firmę. Wybierz użytkownika typu "customer".');
+        return;
+    }
+    
+    selectedUser = user;
+    document.getElementById('email').value = user.email;
+    goToStep(2);
+}
+
+function goToStep(stepNumber) {
+    // Ukryj wszystkie sekcje
+    document.getElementById('userSelection').style.display = 'none';
+    document.getElementById('businessForm').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'none';
+    
+    // Resetuj wszystkie kroki
+    for (let i = 1; i <= 3; i++) {
+        const step = document.getElementById(`step${i}`);
+        step.classList.remove('active', 'completed');
+    }
+    
+    // Pokaż odpowiednią sekcję i aktywuj krok
+    if (stepNumber === 1) {
+        document.getElementById('userSelection').style.display = 'block';
+        document.getElementById('step1').classList.add('active');
+    } else if (stepNumber === 2) {
+        document.getElementById('businessForm').style.display = 'block';
+        document.getElementById('step1').classList.add('completed');
+        document.getElementById('step2').classList.add('active');
+    } else if (stepNumber === 3) {
+        document.getElementById('resultSection').style.display = 'block';
+        document.getElementById('step1').classList.add('completed');
+        document.getElementById('step2').classList.add('completed');
+        document.getElementById('step3').classList.add('active');
+    }
+}
+
+// Obsługa formularza
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!selectedUser) {
+        alert('Najpierw wybierz użytkownika');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Rejestrowanie...';
+    
+    try {
+        const formData = new FormData(this);
+        const businessData = {
+            user_id: selectedUser.id,
+            name: formData.get('name'),
+            category_id: formData.get('category_id'),
+            nip: formData.get('nip') || null, // Opcjonalne
+            address: formData.get('address'),
+            city: formData.get('city'),
+            phone: formData.get('phone'),
+            email: formData.get('email'),
+            description: formData.get('description')
+        };
+        
+        const response = await fetch(`${API_BASE}/business-register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(businessData)
+        });
+        
+        const result = await response.json();
+        
+        // Pokaż wynik
+        const resultDiv = document.getElementById('registrationResult');
+        
+        if (result.ok) {
+            resultDiv.innerHTML = `
+                <div class="success">
+                    <h4>✅ Sukces! Firma została zarejestrowana</h4>
+                    <p><strong>Komunikat:</strong> ${result.message}</p>
+                </div>
+                
+                <div class="user-info">
+                    <h5>📊 Informacje o firmie:</h5>
+                    <p><strong>Nazwa:</strong> ${result.data.business.name}</p>
+                    <p><strong>ID:</strong> ${result.data.business.id}</p>
+                    <p><strong>Status:</strong> ${result.data.business.is_active ? 'Aktywna' : 'Nieaktywna'}</p>
+                    <p><strong>Weryfikacja:</strong> ${result.data.business.is_verified ? 'Zweryfikowana' : 'Niezweryfikowana'}</p>
+                </div>
+                
+                <div class="user-info">
+                    <h5>👤 Aktualizacja konta użytkownika:</h5>
+                    <p><strong>Email:</strong> ${result.data.user.email}</p>
+                    <p><strong>Poprzedni typ:</strong> ${result.data.activation_info.previous_type}</p>
+                    <p><strong>Nowy typ:</strong> ${result.data.activation_info.new_type}</p>
+                    <p><strong>Rola biznesowa:</strong> ${result.data.user.business_role}</p>
+                </div>
+                
+                <button onclick="location.reload()" class="btn" style="text-decoration: none; display: inline-block; text-align: center; margin-top: 20px;">
+                    Rozpocznij nową rejestrację
+                </button>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <h4>❌ Błąd rejestracji</h4>
+                    <p><strong>Błąd:</strong> ${result.error}</p>
+                    <p><strong>Komunikat:</strong> ${result.message}</p>
+                    ${result.details ? `<p><strong>Szczegóły:</strong> ${result.details}</p>` : ''}
+                </div>
+            `;
+        }
+        
+        goToStep(3);
+        
+    } catch (error) {
+        document.getElementById('registrationResult').innerHTML = `
+            <div class="error">
+                <h4>❌ Błąd połączenia</h4>
+                <p>${error.message}</p>
+                <p>Sprawdź czy backend działa prawidłowo</p>
+            </div>
+        `;
+        goToStep(3);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Zarejestruj Firmę (Bez Weryfikacji NIP)';
+    }
+});
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initFloatingBall();
+    loadInitialData();
+}); 
+</script>
+</body>
+
+</html>
