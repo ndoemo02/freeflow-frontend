@@ -3,7 +3,6 @@
 
 <head>
   <meta charset="UTF-8" />
-  <base href="/freeflow-frontend/" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>FreeFlow — Voice to Order</title>
   <meta name="description" content="Zamów głosem - restauracje, taxi, hotele" />
@@ -31,21 +30,6 @@
 <body>
   <div id="root"></div>
   
-  <!-- PWA Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration);
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError);
-          });
-      });
-    }
-  </script>
-
+  
 </body>
-
 </html>
