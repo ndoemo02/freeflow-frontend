@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FreeFlow — UI Lab</title>
+<style>
+:root{
+  --bg:#0b0f12; --panel:#12171c; --muted:#93a0ad; --text:#e8eef5; --accent:#ff7a1a;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  background: radial-gradient(1400px 800px at 50% -260px,#12171c 0%,#0b0f12 60%), var(--bg);
+}
+h2{font-size:22px; margin:0 0 18px; color:#dbe6ef}
+.header{max-width:1200px; margin:24px auto 8px; padding:0 16px; display:flex; align-items:baseline; gap:16px}
+.header .logo{color:var(--accent); font-weight:900; letter-spacing:.4px; font-size:28px}
+.note{color:#9fb0be}
+
+.lab{max-width:1200px;margin:24px auto 60px;padding:0 16px;border-top:1px dashed #26313b}
+.hero{display:grid; place-items:center; margin:18px 0}
+.mic-wrap{width:min(90vw,660px)}
+.demo-mic{
+  width:100%; aspect-ratio:1/1; border:0; border-radius:999px;
+  background:#000 center/contain no-repeat url("Freeflow-logo.png");
+  box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 24px 80px rgba(0,0,0,.55);
+}
+.transcript{
+  width:min(92vw,680px);
+  min-height:64px; padding:14px 16px; margin:16px auto 12px;
+  border-radius:16px; border:1px solid #25313b;
+  background:linear-gradient(180deg,#12171c,#0f1419);
+  display:flex; align-items:center; gap:12px; font-size:18px;
+}
+.led{width:11px;height:11px;border-radius:50%; background:#34d399}
+.chips{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:22px 0 6px}
+.chip{padding:12px 16px; border-radius:22px; background:linear-gradient(180deg,#161c22,#0f1419); border:1px solid #24303a}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">FreeFlow</div>
+    <div class="note">UI LAB — warianty 12A–12D (luźniejsze)</div>
+  </div>
+
+  <!-- 12A -->
+  <section class="lab" data-variant="12A">
+    <h2>12A — Wide & airy</h2>
+    <style>
+      [data-variant="12A"] .mic-wrap{width:min(92vw,680px)}
+      [data-variant="12A"] .transcript{width:min(92vw,680px);margin:22px auto 18px}
+      [data-variant="12A"] .chips{margin:26px 0 10px}
+    </style>
+    <div class="hero"><div class="mic-wrap"><button class="demo-mic" aria-label="Mic"></button></div></div>
+    <div class="transcript"><span class="led"></span><div>Podgląd głosu…</div></div>
+    <div class="chips"><div class="chip">🍽️ Jedzenie</div><div class="chip">🚕 Taxi</div><div class="chip">🏨 Hotel</div></div>
+  </section>
+
+  <!-- 12B -->
+  <section class="lab" data-variant="12B">
+    <h2>12B — Compact top, big mic</h2>
+    <style>
+      [data-variant="12B"] .mic-wrap{width:min(86vw,620px)}
+      [data-variant="12B"] .transcript{width:min(76vw,540px)}
+    </style>
+    <div class="hero"><div class="mic-wrap"><button class="demo-mic"></button></div></div>
+    <div class="transcript"><span class="led"></span><div>„Proszę o dwie pizze…”</div></div>
+    <div class="chips"><div class="chip">🍽️</div><div class="chip">🚕</div><div class="chip">🏨</div></div>
+  </section>
+
+  <!-- 12C -->
+  <section class="lab" data-variant="12C">
+    <h2>12C — Two-column (desktop)</h2>
+    <style>
+      [data-variant="12C"] .grid{display:grid;gap:26px;align-items:start}
+      @media (min-width:1000px){
+        [data-variant="12C"] .grid{grid-template-columns: 1.1fr .9fr}
+        [data-variant="12C"] .transcript{margin:0}
+      }
+      [data-variant="12C"] .mic-wrap{width:min(60vw,540px);margin-inline:auto}
+    </style>
+    <div class="grid">
+      <div class="hero"><div class="mic-wrap"><button class="demo-mic"></button></div></div>
+      <div>
+        <div class="transcript"><span class="led"></span><div>„Taxi na Dworzec, poproszę.”</div></div>
+        <div class="chips" style="justify-content:flex-start"><div class="chip">🍽️ Jedzenie</div><div class="chip">🚕 Taxi</div><div class="chip">🏨 Hotel</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12D -->
+  <section class="lab" data-variant="12D">
+    <h2>12D — Badge-first (większy oddech)</h2>
+    <style>
+      [data-variant="12D"] .mic-wrap{width:min(90vw,660px)}
+      [data-variant="12D"] .transcript{width:min(88vw,640px);margin:16px auto 28px}
+      [data-variant="12D"] .chips{gap:18px;margin:30px 0 6px}
+    </style>
+    <div class="hero"><div class="mic-wrap"><button class="demo-mic"></button></div></div>
+    <div class="transcript"><span class="led"></span><div>„Hotel w Krakowie od piątku na 2 noce.”</div></div>
+    <div class="chips"><div class="chip">🍽️ Jedzenie</div><div class="chip">🚕 Taxi</div><div class="chip">🏨 Hotel</div></div>
+  </section>
+</body>
+</html>
