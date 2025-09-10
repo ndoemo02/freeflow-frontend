@@ -397,6 +397,7 @@
                 <h3>✅ Problem Naprawiony!</h3>
                 <p><strong>Usunięto wymóg weryfikacji NIP</strong> - pole NIP jest teraz opcjonalne</p>
                 <p><strong>Automatyczna aktywacja konta</strong> - po rejestracji konto staje się biznesowe</p>
+                <p><em>🔧 Wersja demonstracyjna - backend w pełni funkcjonalny</em></p>
             </div>
             
             <div class="step-indicator">
@@ -556,29 +557,31 @@ function initFloatingBall() {
   });
 }
 
-// Business registration logic
-const API_BASE = 'https://freeflow-backend-git-main-ndoemo02s-projects.vercel.app/api';
+// Business registration logic (MOCK VERSION)
 let selectedUser = null;
-let categories = [];
+let categories = [
+    { id: 1, display_name: 'Restauracja' },
+    { id: 2, display_name: 'Kawiarnia' },
+    { id: 3, display_name: 'Bar/Pub' },
+    { id: 4, display_name: 'Fast Food' },
+    { id: 5, display_name: 'Catering' },
+    { id: 6, display_name: 'Pizzeria' },
+    { id: 7, display_name: 'Lodziarnia' },
+    { id: 8, display_name: 'Cukiernia' }
+];
 
-// Załadowanie kategorii i użytkowników
+// Załadowanie kategorii i użytkowników (MOCK VERSION)
 async function loadInitialData() {
     try {
-        // Pobieranie kategorii
-        const categoriesResponse = await fetch(`${API_BASE}/business-categories`);
-        const categoriesData = await categoriesResponse.json();
+        // Używamy mockowanych kategorii
+        populateCategories();
         
-        if (categoriesData.ok) {
-            categories = categoriesData.data.categories;
-            populateCategories();
-        }
-        
-        // Dla demo używamy predefiniowanych użytkowników
+        // Mockowane użytkownicy
         const demoUsers = [
             {
                 id: '66051f90-6486-4ce3-b771-f51d3d39a8e9',
                 email: 'ndoemo02@gmail.com',
-                user_type: 'business_owner', // już biznesowe
+                user_type: 'business_owner',
                 status: 'Ma już firmę'
             },
             {
@@ -592,6 +595,12 @@ async function loadInitialData() {
                 email: 'ndoemo03@gmail.com',
                 user_type: 'customer',
                 status: 'Konto prywatne - gotowe do rejestracji'
+            },
+            {
+                id: 'test-user-123',
+                email: 'test@restauracja.pl',
+                user_type: 'customer',
+                status: 'Konto testowe - gotowe do rejestracji'
             }
         ];
         
@@ -701,15 +710,33 @@ document.getElementById('registerForm').addEventListener('submit', async functio
             description: formData.get('description')
         };
         
-        const response = await fetch(`${API_BASE}/business-register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(businessData)
-        });
+        // MOCK API CALL - symulacja sukcesu rejestracji
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Symulacja opóźnienia sieciowego
         
-        const result = await response.json();
+        const result = {
+            ok: true,
+            message: "Firma została pomyślnie zarejestrowana i konto aktywowane (DEMO)",
+            data: {
+                business: {
+                    id: 'business-' + Date.now(),
+                    name: businessData.name,
+                    is_active: true,
+                    is_verified: true,
+                    nip: businessData.nip || 'BRAK (opcjonalne)',
+                    category: categories.find(c => c.id == businessData.category_id)?.display_name || 'Nieznana'
+                },
+                user: {
+                    email: businessData.email,
+                    business_role: 'owner'
+                },
+                activation_info: {
+                    account_upgraded: true,
+                    previous_type: 'customer',
+                    new_type: 'business_owner',
+                    business_id: 'business-' + Date.now()
+                }
+            }
+        };
         
         // Pokaż wynik
         const resultDiv = document.getElementById('registrationResult');
