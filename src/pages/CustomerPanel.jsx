@@ -1,44 +1,52 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supa'
+// src/pages/CustomerPanel.jsx
+import { useEffect, useState } from "react";
+import { supabase } from "../supa";
 
-export default function BusinessPanel() {
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+export default function CustomerPanel({ userId }) {
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    // 🔹 pobierz zamówienia na start
+    const fetchOrders = async () => {
+      let { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("customer", userId)
+        .order("created_at", { ascending: false });
 
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id, status, payment_status, total, created_at,
-          delivery_address,
-          customer:profiles ( email ),
-          restaurant:restaurants ( name, city )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      if (!error) setOrders(data);
+    };
 
-      if (!error) setOrders(data)
-      setLoading(false)
-    }
-    load()
-  }, [])
+    fetchOrders();
 
-  if (loading) return <div>Ładowanie…</div>
+    // 🔹 realtime subskrypcja
+    const channel = supabase
+      .channel("orders-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `customer=eq.${userId}` },
+        (payload) => {
+          console.log("Realtime update:", payload);
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   return (
     <div>
-      <h2>Zamówienia</h2>
+      <h2>Twoje zamówienia</h2>
       <ul>
-        {orders.map(o => (
+        {orders.map((o) => (
           <li key={o.id}>
-            {o.restaurant?.name} – {o.total} zł – {o.status}
+            {o.restaurant} → {o.status} ({o.payment_status})
           </li>
         ))}
       </ul>
     </div>
-  )
+  );
 }
