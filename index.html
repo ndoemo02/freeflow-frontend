@@ -1,137 +1,116 @@
 <!doctype html>
 <html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>FreeFlow — Voice to Order</title>
+    <meta name="description" content="Zamów głosem — restauracje, taxi, hotele" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#ff8a30" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FreeFlow" />
+    <meta name="mobile-web-app-capable" content="yes" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>FreeFlow — Voice to Order</title>
-  <meta name="description" content="Zamów głosem - restauracje, taxi, hotele" />
-  <meta name="color-scheme" content="dark light" />
-  <meta name="theme-color" content="#ff8a30" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="FreeFlow" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="manifest.json" />
-  
-  <!-- Icons -->
-  <link rel="icon" type="image/png" href="images/Freeflow-logo.png" />
-  <link rel="apple-touch-icon" href="images/Freeflowlogo.png" />
-  
-  <!-- Preload critical resources -->
-  <link rel="preload" href="images/Background.png" as="image" />
-  <link rel="preload" href="images/Freeflowlogo.png" as="image" />
-  <script src="./config.js"></script>
-  <script type="module" crossorigin src="assets/index-CHbNu_13.js"></script>
-  <link rel="stylesheet" crossorigin href="assets/index-i4BUNEdS.css">
-</head>
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
 
-<body>
-  <div id="root"></div>
-  
-  <script>
-    // TTS Interceptor i Text Cleanup
-    (function() {
+    <!-- Ikony -->
+    <link rel="icon" type="image/png" href="/images/Freeflow-logo.png" />
+    <link rel="apple-touch-icon" href="/images/Freeflowlogo.png" />
+
+    <!-- Preloady (opcjonalne) -->
+    <link rel="preload" href="/images/Background.png" as="image" />
+    <link rel="preload" href="/images/Freeflowlogo.png" as="image" />
+
+    <!-- Konfiguracja środowiska – z public/ -->
+    <script src="/config.js"></script>
+
+    <!-- TTS Interceptor – w wersji modułowej, ładuje się PRZED aplikacją -->
+    <script type="module">
       let currentAudio = null;
-      
-      // Czyści tekst przed wysłaniem do TTS
+
       function cleanTextForTTS(text) {
         if (!text || typeof text !== 'string') return text;
-        
         return text
-          // Zamieniaj cyfry na słowa
-          .replace(/\b4\b/g, 'cztery')
-          .replace(/\b9\b/g, 'dziewięć')
           .replace(/\b0\b/g, 'zero')
           .replace(/\b1\b/g, 'jeden')
           .replace(/\b2\b/g, 'dwa')
           .replace(/\b3\b/g, 'trzy')
+          .replace(/\b4\b/g, 'cztery')
           .replace(/\b5\b/g, 'pięć')
           .replace(/\b6\b/g, 'sześć')
           .replace(/\b7\b/g, 'siedem')
           .replace(/\b8\b/g, 'osiem')
-          // Usuń gwiazdki i inne problematyczne znaki
+          .replace(/\b9\b/g, 'dziewięć')
           .replace(/\*/g, '')
-          .replace(/[\*]+/g, '')
           .replace(/\s+/g, ' ')
           .trim();
       }
-      
-      // Zatrzymuje aktualnie odtwarzane audio
+
       function stopCurrentAudio() {
         if (currentAudio) {
           try {
             currentAudio.pause();
             currentAudio.currentTime = 0;
-          } catch (e) {
-            console.log('Nie można zatrzymać audio:', e);
-          }
+          } catch {}
           currentAudio = null;
         }
       }
-      
-      // Przechwytuje wywołania Audio
+
       const OriginalAudio = window.Audio;
-      window.Audio = function(src) {
+      window.Audio = function (src) {
         stopCurrentAudio();
         const audio = new OriginalAudio(src);
         currentAudio = audio;
         return audio;
       };
-      
-      // Przechwytuje fetch dla OpenAI TTS
+
       const originalFetch = window.fetch;
-      window.fetch = function(...args) {
+      window.fetch = async function (...args) {
         const [url, options] = args;
-        
-        // Sprawdź czy to może być wywołanie TTS
-        if (url && typeof url === 'string' && 
-            (url.includes('openai') || url.includes('speech') || url.includes('tts'))) {
-          
-          if (options && options.body) {
+        if (
+          typeof url === 'string' &&
+          (url.includes('openai') || url.includes('speech') || url.includes('tts'))
+        ) {
+          if (options?.body) {
             try {
-              let body = options.body;
-              if (typeof body === 'string') {
-                const data = JSON.parse(body);
+              if (typeof options.body === 'string') {
+                const data = JSON.parse(options.body);
                 if (data.input || data.text) {
-                  // Zatrzymaj aktualny dźwięk
                   stopCurrentAudio();
-                  
-                  // Wyczyść tekst
-                  if (data.input) {
-                    data.input = cleanTextForTTS(data.input);
-                  }
-                  if (data.text) {
-                    data.text = cleanTextForTTS(data.text);
-                  }
-                  
+                  if (data.input) data.input = cleanTextForTTS(data.input);
+                  if (data.text)  data.text  = cleanTextForTTS(data.text);
                   options.body = JSON.stringify(data);
-                  console.log('TTS tekst wyczyszczony:', data.input || data.text);
+                  console.debug('[TTS] sanitized text:', data.input || data.text);
                 }
               }
-            } catch (e) {
-              console.log('Nie udało się przetworzyć TTS request:', e);
-            }
+            } catch {}
           }
         }
-        
         return originalFetch.apply(this, args);
       };
-      
-      // Przechwytuje createObjectURL dla audio blob
+
       const originalCreateObjectURL = URL.createObjectURL;
-      URL.createObjectURL = function(blob) {
-        if (blob && blob.type && blob.type.startsWith('audio/')) {
-          stopCurrentAudio();
-        }
+      URL.createObjectURL = function (blob) {
+        if (blob?.type?.startsWith('audio/')) stopCurrentAudio();
         return originalCreateObjectURL.apply(this, arguments);
       };
-      
-      console.log('TTS Interceptor załadowany - cyfry i gwiazdki będą filtrowane, audio zsynchronizowane');
-    })();
-  </script>
-  
-</body>
+
+      console.log('[TTS] interceptor ready');
+    </script>
+
+    <!-- Uwaga: NIE wstawiamy ręcznie żadnych assets/*.css – importuj CSS w src/main.* -->
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- Wejście aplikacji – Vite podmieni to na hashowane pliki w produkcji -->
+    <!-- Dla React: /src/main.tsx; dla Svelte/Vue: /src/main.ts -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
