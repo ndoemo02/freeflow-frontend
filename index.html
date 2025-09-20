@@ -31,33 +31,49 @@
   <div id="root"></div>
   
   <script>
-    // TTS Interceptor i Text Cleanup
+    // TTS Interceptor i API failover
     (function() {
+      const LEGACY_API_BASE = "https://freeflow-backend-vercel.vercel.app/api";
+      const DEFAULT_API_BASE = "https://freeflow-backend.vercel.app/api";
+
+      const normalizeBase = (base) => {
+        if (typeof base !== "string") return "";
+        let normalized = base;
+        while (normalized.endsWith("/")) {
+          normalized = normalized.slice(0, -1);
+        }
+        return normalized;
+      };
+      const configuredBase = normalizeBase(window.__FREEFLOW_API_BASE);
+      const fallbackBase = normalizeBase(DEFAULT_API_BASE);
+      const legacyBase = normalizeBase(LEGACY_API_BASE);
+      const apiBases = [configuredBase || fallbackBase, legacyBase].filter(
+        (base, index, arr) => base && arr.indexOf(base) === index
+      );
+
       let currentAudio = null;
-      
+
       // Czyści tekst przed wysłaniem do TTS
       function cleanTextForTTS(text) {
-        if (!text || typeof text !== 'string') return text;
-        
+        if (!text || typeof text !== "string") return text;
+
         return text
-          // Zamieniaj cyfry na słowa
-          .replace(/\b4\b/g, 'cztery')
-          .replace(/\b9\b/g, 'dziewięć')
-          .replace(/\b0\b/g, 'zero')
-          .replace(/\b1\b/g, 'jeden')
-          .replace(/\b2\b/g, 'dwa')
-          .replace(/\b3\b/g, 'trzy')
-          .replace(/\b5\b/g, 'pięć')
-          .replace(/\b6\b/g, 'sześć')
-          .replace(/\b7\b/g, 'siedem')
-          .replace(/\b8\b/g, 'osiem')
-          // Usuń gwiazdki i inne problematyczne znaki
-          .replace(/\*/g, '')
-          .replace(/[\*]+/g, '')
-          .replace(/\s+/g, ' ')
+          .replace(/\b4\b/g, "cztery")
+          .replace(/\b9\b/g, "dziewięć")
+          .replace(/\b0\b/g, "zero")
+          .replace(/\b1\b/g, "jeden")
+          .replace(/\b2\b/g, "dwa")
+          .replace(/\b3\b/g, "trzy")
+          .replace(/\b5\b/g, "pięć")
+          .replace(/\b6\b/g, "sześć")
+          .replace(/\b7\b/g, "siedem")
+          .replace(/\b8\b/g, "osiem")
+          .replace(/\*/g, "")
+          .replace(/[\*]+/g, "")
+          .replace(/\s+/g, " ")
           .trim();
       }
-      
+
       // Zatrzymuje aktualnie odtwarzane audio
       function stopCurrentAudio() {
         if (currentAudio) {
@@ -65,12 +81,12 @@
             currentAudio.pause();
             currentAudio.currentTime = 0;
           } catch (e) {
-            console.log('Nie można zatrzymać audio:', e);
+            console.log("Nie można zatrzymać audio:", e);
           }
           currentAudio = null;
         }
       }
-      
+
       // Przechwytuje wywołania Audio
       const OriginalAudio = window.Audio;
       window.Audio = function(src) {
@@ -79,56 +95,103 @@
         currentAudio = audio;
         return audio;
       };
-      
-      // Przechwytuje fetch dla OpenAI TTS
+      if (OriginalAudio && OriginalAudio.prototype) {
+        window.Audio.prototype = OriginalAudio.prototype;
+      }
+
       const originalFetch = window.fetch;
-      window.fetch = function(...args) {
-        const [url, options] = args;
-        
-        // Sprawdź czy to może być wywołanie TTS
-        if (url && typeof url === 'string' && 
-            (url.includes('openai') || url.includes('speech') || url.includes('tts'))) {
-          
-          if (options && options.body) {
-            try {
-              let body = options.body;
-              if (typeof body === 'string') {
-                const data = JSON.parse(body);
-                if (data.input || data.text) {
-                  // Zatrzymaj aktualny dźwięk
-                  stopCurrentAudio();
-                  
-                  // Wyczyść tekst
-                  if (data.input) {
-                    data.input = cleanTextForTTS(data.input);
-                  }
-                  if (data.text) {
-                    data.text = cleanTextForTTS(data.text);
-                  }
-                  
-                  options.body = JSON.stringify(data);
-                  console.log('TTS tekst wyczyszczony:', data.input || data.text);
-                }
+
+      function cloneInit(init) {
+        if (!init) return undefined;
+        const cloned = { ...init };
+        if (typeof Headers !== "undefined" && init.headers instanceof Headers) {
+          const headers = new Headers();
+          init.headers.forEach((value, key) => headers.append(key, value));
+          cloned.headers = headers;
+        } else if (init.headers && typeof init.headers === "object") {
+          cloned.headers = Array.isArray(init.headers) ? [...init.headers] : { ...init.headers };
+        }
+        return cloned;
+      }
+
+      function sanitizeTTSRequest(init) {
+        if (!init || !init.body) return;
+        try {
+          const body = init.body;
+          if (typeof body === "string") {
+            const data = JSON.parse(body);
+            if (data.input || data.text) {
+              stopCurrentAudio();
+              if (data.input) {
+                data.input = cleanTextForTTS(data.input);
               }
-            } catch (e) {
-              console.log('Nie udało się przetworzyć TTS request:', e);
+              if (data.text) {
+                data.text = cleanTextForTTS(data.text);
+              }
+              init.body = JSON.stringify(data);
+              console.log("TTS tekst wyczyszczony:", data.input || data.text);
             }
           }
+        } catch (error) {
+          console.log("Nie udało się przetworzyć TTS request:", error);
         }
-        
-        return originalFetch.apply(this, args);
+      }
+
+      window.fetch = async function(input, init) {
+        const isRequestInput = input instanceof Request;
+        const url = typeof input === "string" ? input : isRequestInput ? input.url : "";
+        let options = !isRequestInput && init ? cloneInit(init) : !isRequestInput ? init : undefined;
+
+        if (!isRequestInput && typeof url === "string" && (url.includes("openai") || url.includes("speech") || url.includes("tts"))) {
+          sanitizeTTSRequest(options);
+        }
+
+        const finalInit = isRequestInput ? init : options;
+
+        if (isRequestInput) {
+          return originalFetch.call(this, input, finalInit);
+        }
+
+        const shouldFailover = typeof url === "string" && url.startsWith(legacyBase);
+
+        if (!shouldFailover) {
+          return originalFetch.call(this, url, finalInit);
+        }
+
+        let lastError;
+        for (const base of apiBases) {
+          const nextUrl = url.replace(legacyBase, base);
+          const attemptInit = options ? cloneInit(options) : options;
+          try {
+            const response = await originalFetch.call(this, nextUrl, attemptInit);
+            if (response.ok) {
+              if (base !== legacyBase) {
+                console.info("FreeFlow API rerouted do:", base);
+              }
+              return response;
+            }
+            lastError = new Error(`HTTP ${response.status}`);
+            console.warn("FreeFlow API odpowiedziało statusem", response.status, "dla bazowego adresu", base);
+          } catch (error) {
+            lastError = error;
+            console.warn("FreeFlow API błąd połączenia dla bazowego adresu", base, error);
+          }
+        }
+
+        if (lastError) throw lastError;
+        throw new Error("FreeFlow API request failed");
       };
-      
+
       // Przechwytuje createObjectURL dla audio blob
       const originalCreateObjectURL = URL.createObjectURL;
       URL.createObjectURL = function(blob) {
-        if (blob && blob.type && blob.type.startsWith('audio/')) {
+        if (blob && blob.type && blob.type.startsWith("audio/")) {
           stopCurrentAudio();
         }
         return originalCreateObjectURL.apply(this, arguments);
       };
-      
-      console.log('TTS Interceptor załadowany - cyfry i gwiazdki będą filtrowane, audio zsynchronizowane');
+
+      console.log("TTS Interceptor załadowany - cyfry i gwiazdki będą filtrowane, audio zsynchronizowane + API failover");
     })();
   </script>
   
