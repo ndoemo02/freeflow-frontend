@@ -11,32 +11,24 @@ function parseEnvFile(content) {
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith("#")) continue;
-    const eqIndex = line.indexOf("=");
-    if (eqIndex === -1) continue;
-    const key = line.slice(0, eqIndex).trim();
-    let value = line.slice(eqIndex + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    result[key] = value;
+    const [key, ...rest] = line.split("=");
+    result[key] = rest.join("=");
   }
   return result;
 }
 
 const envPath = resolve(projectRoot, ".env");
-let fileEnv = {};
+let baseUrl = "";
+
 if (existsSync(envPath)) {
-  const content = readFileSync(envPath, "utf8");
-  fileEnv = parseEnvFile(content);
+  const envContent = readFileSync(envPath, "utf8");
+  const envVars = parseEnvFile(envContent);
+  baseUrl = envVars.VITE_API_BASE || "";
 }
 
-const rawBase = (process.env.VITE_API_BASE || fileEnv.VITE_API_BASE || "").trim();
-if (!rawBase) {
-  console.error("[build] Missing VITE_API_BASE in environment variables or .env file.");
-  process.exit(1);
-}
-
+const rawBase = baseUrl || "";
 const sanitizedBase = rawBase.replace(/\/+$/, "");
+
 const configPath = resolve(projectRoot, "config.js");
 const fileContent = `window.__FREEFLOW_API_BASE = "${sanitizedBase}";\n`;
 
