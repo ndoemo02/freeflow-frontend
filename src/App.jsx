@@ -22,6 +22,7 @@ function ProtectedRoute({ when, redirect = "/", children }) {
 function Navbar({ profile, onSignOut, isBiz }) {
   const location = useLocation();
   const navLinkBase =
+        
     "rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium tracking-tight transition hover:bg-white/15 sm:px-4 sm:text-sm";
 
   return (
@@ -34,11 +35,13 @@ function Navbar({ profile, onSignOut, isBiz }) {
             className="h-9 w-9 rounded-full border border-white/20 bg-black/40 p-1 shadow"
           />
           <span className="text-xl font-semibold tracking-tight sm:text-2xl">
+
             Free<span className="text-orange-400">Flow</span>
           </span>
         </Link>
 
         <nav className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
+
           <Link
             to="/customer"
             className={`${navLinkBase} ${
@@ -62,13 +65,17 @@ function Navbar({ profile, onSignOut, isBiz }) {
               Panel biznesowy
             </Link>
           ) : (
+          
             <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/45 sm:px-4 sm:text-sm">
+
               Panel biznesowy
             </span>
           )}
 
           {profile?.email && (
+
             <span className="hidden text-xs text-white/65 md:block md:text-sm">
+
               {profile.email}
             </span>
           )}
@@ -77,14 +84,18 @@ function Navbar({ profile, onSignOut, isBiz }) {
             <button
               type="button"
               onClick={onSignOut}
+
               className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-xs font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:text-sm"
+
             >
               Wyloguj
             </button>
           ) : (
             <Link
               to="/customer"
+
               className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
+
             >
               Zaloguj
             </Link>
@@ -100,11 +111,14 @@ function Home({ profile, session, isBiz }) {
   const loggedIn = Boolean(session);
 
   return (
+
     <section className="relative isolate overflow-hidden text-white">
+
       <div className="absolute inset-0 -z-20">
         <img
           src="/images/Background.png"
           alt="Tło FreeFlow"
+
           className="h-full w-full object-cover object-center opacity-70"
         />
       </div>
@@ -219,6 +233,7 @@ function Home({ profile, session, isBiz }) {
           </div>
 
           <div className="flex flex-col gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+
             <Link
               to="/customer"
               className="rounded-full border border-white/20 px-5 py-2 transition hover:bg-white/10"
@@ -233,11 +248,14 @@ function Home({ profile, session, isBiz }) {
                 Panel biznesowy
               </Link>
             ) : (
+
               <span className="rounded-full border border-white/10 px-5 py-2 text-white/45">
+
                 Panel biznesowy dostępny dla kont firmowych
               </span>
             )}
           </div>
+
         </div>
 
         <aside className="w-full max-w-sm space-y-6 self-center rounded-3xl border border-white/10 bg-black/55 p-6 shadow-2xl backdrop-blur lg:self-start">
@@ -305,6 +323,7 @@ function Home({ profile, session, isBiz }) {
             </div>
           </div>
         </aside>
+
       </div>
     </section>
   );
