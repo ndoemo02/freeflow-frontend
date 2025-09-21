@@ -6,6 +6,8 @@ export default function CustomerPanel({ userId }) {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     // 🔹 pobierz zamówienia na start
     const fetchOrders = async () => {
       let { data, error } = await supabase
