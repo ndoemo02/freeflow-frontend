@@ -1,9 +1,7 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-// Jeśli masz React, dodaj też plugin (patrz niżej)
 export default defineConfig({
-  build: {
-    outDir: 'dist'
-  }
+  plugins: [react()],
+  build: { outDir: 'dist' }
 })
