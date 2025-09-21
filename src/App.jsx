@@ -161,7 +161,7 @@ export default function App() {
               path="/business"
               element={
                 <ProtectedRoute when={!!session && isBiz} redirect="/customer">
-                  <BusinessPanel profile={profile} />
+                  <BusinessPanel user={profile} />
                 </ProtectedRoute>
               }
             />
