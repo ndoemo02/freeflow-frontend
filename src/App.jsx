@@ -151,7 +151,7 @@ export default function App() {
               path="/customer"
               element={
                 <ProtectedRoute when={!!session} redirect="/">
-                  <CustomerPanel profile={profile} />
+                  <CustomerPanel userId={profile?.id} />
                 </ProtectedRoute>
               }
             />
@@ -161,7 +161,7 @@ export default function App() {
               path="/business"
               element={
                 <ProtectedRoute when={!!session && isBiz} redirect="/customer">
-                  <BusinessPanel profile={profile} />
+                  <BusinessPanel user={profile} />
                 </ProtectedRoute>
               }
             />
