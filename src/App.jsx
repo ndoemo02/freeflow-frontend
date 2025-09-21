@@ -22,23 +22,26 @@ function ProtectedRoute({ when, redirect = "/", children }) {
 function Navbar({ profile, onSignOut, isBiz }) {
   const location = useLocation();
   const navLinkBase =
-    "rounded-full border border-white/10 px-4 py-2 text-sm font-medium transition hover:bg-white/15";
+        
+    "rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium tracking-tight transition hover:bg-white/15 sm:px-4 sm:text-sm";
 
   return (
-    <header className="relative z-20 px-4 pt-4 sm:px-8">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 rounded-full border border-white/10 bg-black/50 px-4 py-3 text-white shadow-lg backdrop-blur-xl">
-        <Link to="/" className="flex items-center gap-3">
+    <header className="relative z-20 px-3 py-3 sm:px-6 sm:py-4">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-white shadow-lg backdrop-blur">
+        <Link to="/" className="flex items-center gap-2 sm:gap-3">
           <img
             src="/images/Freeflow-logo.png"
             alt="Logo FreeFlow"
-            className="h-10 w-10 rounded-full border border-white/20 bg-black/40 p-1 shadow"
+            className="h-9 w-9 rounded-full border border-white/20 bg-black/40 p-1 shadow"
           />
-          <span className="text-2xl font-semibold tracking-tight">
+          <span className="text-xl font-semibold tracking-tight sm:text-2xl">
+
             Free<span className="text-orange-400">Flow</span>
           </span>
         </Link>
 
-        <nav className="flex flex-1 items-center justify-end gap-3">
+        <nav className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
+
           <Link
             to="/customer"
             className={`${navLinkBase} ${
@@ -62,13 +65,17 @@ function Navbar({ profile, onSignOut, isBiz }) {
               Panel biznesowy
             </Link>
           ) : (
-            <span className="rounded-full border border-white/10 px-4 py-2 text-sm text-white/40">
+          
+            <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/45 sm:px-4 sm:text-sm">
+
               Panel biznesowy
             </span>
           )}
 
           {profile?.email && (
-            <span className="hidden text-sm text-white/70 md:block">
+
+            <span className="hidden text-xs text-white/65 md:block md:text-sm">
+
               {profile.email}
             </span>
           )}
@@ -77,14 +84,18 @@ function Navbar({ profile, onSignOut, isBiz }) {
             <button
               type="button"
               onClick={onSignOut}
-              className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-sm font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300"
+
+              className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-xs font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:text-sm"
+
             >
               Wyloguj
             </button>
           ) : (
             <Link
               to="/customer"
-              className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+
+              className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
+
             >
               Zaloguj
             </Link>
@@ -100,129 +111,129 @@ function Home({ profile, session, isBiz }) {
   const loggedIn = Boolean(session);
 
   return (
-    <section className="relative isolate overflow-hidden px-4 pb-16 pt-10 text-white sm:px-8 lg:px-12">
+
+    <section className="relative isolate overflow-hidden text-white">
+
       <div className="absolute inset-0 -z-20">
         <img
           src="/images/Background.png"
           alt="Tło FreeFlow"
-          className="h-full w-full object-cover"
+
+          className="h-full w-full object-cover object-center opacity-70"
         />
       </div>
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#05030A]/95 via-[#05030A]/85 to-[#12071f]/60" />
-      <div className="pointer-events-none absolute -left-24 top-48 -z-10 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute right-[-3rem] top-16 -z-10 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
-
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 lg:flex-row lg:items-center">
-        <aside className="w-full max-w-xl space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-black/45 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-            <div className="flex items-start gap-4">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#05030A]/95 via-[#05030A]/88 to-[#05030A]/96" />
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-16 pt-14 sm:px-6 lg:flex-row lg:items-start lg:gap-16">
+        <div className="flex-1 space-y-10 text-center lg:text-left">
+          <div className="space-y-5">
+            <div className="mx-auto flex max-w-md items-center gap-4 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 shadow-lg backdrop-blur-sm lg:mx-0">
               <img
                 src="/images/Freeflowlogo.png"
                 alt="FreeFlow"
-                className="h-16 w-16 rounded-full border border-white/10 bg-black/50 p-2 shadow-lg"
+                className="h-12 w-12 rounded-full border border-white/15 bg-black/50 p-2 shadow"
               />
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-orange-200/80">
+              <div className="text-left">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-orange-200/80">
                   Voice to order
                 </p>
-                <h1 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
+                <h1 className="mt-2 text-2xl font-semibold leading-snug sm:text-3xl lg:text-4xl">
                   Złóż zamówienie w kilka sekund
                 </h1>
-                <p className="mt-3 text-base leading-relaxed text-zinc-200/80">
-                  Wyszukaj restaurację, taxi lub usługę hotelową i zamów głosem z dowolnego miejsca.
-                </p>
               </div>
             </div>
+            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-zinc-200/80 lg:mx-0">
+              Wyszukaj restaurację, taxi lub usługę hotelową i zamów głosem z dowolnego miejsca. FreeFlow prowadzi Cię krok po kroku, zachowując czytelny układ także na małych ekranach.
+            </p>
+          </div>
 
-            <div className="mt-6 space-y-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-orange-200/70">
-                  Wyszukiwanie po lokalizacji
-                </p>
-                <div className="mt-3 flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-3 shadow-inner backdrop-blur">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    className="h-5 w-5 text-orange-200/80"
-                  >
-                    <path
-                      d="M12 2a7 7 0 0 0-7 7c0 4.55 5.23 10.36 6.16 11.3a1.2 1.2 0 0 0 1.68 0C13.77 19.36 19 13.55 19 9a7 7 0 0 0-7-7Zm0 15.3C9.56 14.47 7 10.84 7 9a5 5 0 0 1 10 0c0 1.84-2.56 5.47-5 8.3Zm0-11.3a3 3 0 1 0 3 3 3 3 0 0 0-3-3Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Wpisz miasto lub adres"
-                    className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-300/60 focus:outline-none"
+          <div className="space-y-3">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-orange-200/70">
+              Wyszukiwanie po lokalizacji
+            </p>
+            <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-black/45 p-4 shadow-lg backdrop-blur-sm sm:flex-row sm:items-center">
+              <div className="flex flex-1 items-center gap-3 rounded-full border border-white/10 bg-black/60 px-4 py-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="h-5 w-5 text-orange-200/80"
+                >
+                  <path
+                    d="M12 2a7 7 0 0 0-7 7c0 4.55 5.23 10.36 6.16 11.3a1.2 1.2 0 0 0 1.68 0C13.77 19.36 19 13.55 19 9a7 7 0 0 0-7-7Zm0 15.3C9.56 14.47 7 10.84 7 9a5 5 0 0 1 10 0c0 1.84-2.56 5.47-5 8.3Zm0-11.3a3 3 0 1 0 3 3 3 3 0 0 0-3-3Z"
+                    fill="currentColor"
                   />
-                  <button
-                    type="button"
-                    className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-xs font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300"
-                  >
-                    Szukaj
-                  </button>
-                </div>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Wpisz miasto lub adres"
+                  className="w-full bg-transparent text-sm text-white placeholder:text-zinc-300/60 focus:outline-none"
+                />
               </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      to="/customer"
-                      className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-                    >
-                      Klient prywatny
-                    </Link>
-                    {isBiz ? (
-                      <Link
-                        to="/business"
-                        className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-                      >
-                        Firma
-                      </Link>
-                    ) : (
-                      <span className="cursor-not-allowed rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/40">
-                        Firma
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-4 grid gap-2 text-sm text-zinc-200/80">
-                    <div className="flex items-center justify-between rounded-xl bg-black/30 px-4 py-3">
-                      <span>Wsparcie &amp; ustawienia</span>
-                      <span className="text-xs text-orange-200/80">FAQ / pomoc</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl bg-black/30 px-4 py-3">
-                      <span>Ustawienia aplikacji</span>
-                      <span className="text-xs text-orange-200/80">Personalizuj</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl bg-black/30 px-4 py-3">
-                      <span>Apka / nauka</span>
-                      <span className="text-xs text-orange-200/80">Poznaj funkcje</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/35 p-4 text-sm text-zinc-200/85">
-                  <p className="font-semibold text-white">Status konta</p>
-                  {loggedIn ? (
-                    <p className="mt-2 leading-relaxed">
-                      Zalogowano jako {" "}
-                      <span className="font-medium text-white">
-                        {profile?.email ?? "użytkownik"}
-                      </span>
-                      . Wybierz panel i kontynuuj zamówienia z FreeFlow.
-                    </p>
-                  ) : (
-                    <p className="mt-2 leading-relaxed">
-                      Nie jesteś zalogowany. Skorzystaj z przycisku „Zaloguj”, aby przejść do panelu i zacząć zamawiać głosem.
-                    </p>
-                  )}
-                </div>
-              </div>
+              <button
+                type="button"
+                className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-sm font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:w-auto"
+              >
+                Szukaj
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 text-sm text-white/80">
+          <div className="space-y-5">
+            <div className="flex flex-wrap justify-center gap-3 text-sm font-medium text-white/90 lg:justify-start">
+              <Link
+                to="/customer"
+                className="rounded-full border border-white/15 bg-white/10 px-4 py-2 transition hover:bg-white/20"
+              >
+                Klient prywatny
+              </Link>
+              {isBiz ? (
+                <Link
+                  to="/business"
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 transition hover:bg-white/20"
+                >
+                  Firma
+                </Link>
+              ) : (
+                <span className="cursor-not-allowed rounded-full border border-white/10 px-4 py-2 text-white/45">
+                  Firma
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-3 text-sm text-zinc-200/80 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <p className="font-medium text-white">Wsparcie &amp; ustawienia</p>
+                <span className="mt-1 block text-xs text-orange-200/80">FAQ / pomoc</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                <p className="font-medium text-white">Ustawienia aplikacji</p>
+                <span className="mt-1 block text-xs text-orange-200/80">Personalizuj</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-4 sm:col-span-2">
+                <p className="font-medium text-white">Apka / nauka</p>
+                <span className="mt-1 block text-xs text-orange-200/80">Poznaj funkcje</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-zinc-200/85">
+              <p className="font-semibold text-white">Status konta</p>
+              {loggedIn ? (
+                <p className="mt-2 leading-relaxed">
+                  Zalogowano jako{" "}
+                  <span className="font-medium text-white">
+                    {profile?.email ?? "użytkownik"}
+                  </span>
+                  . Wybierz panel i kontynuuj zamówienia z FreeFlow.
+                </p>
+              ) : (
+                <p className="mt-2 leading-relaxed">
+                  Nie jesteś zalogowany. Skorzystaj z przycisku „Zaloguj”, aby przejść do panelu i zacząć zamawiać głosem.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 text-sm text-white/80 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+
             <Link
               to="/customer"
               className="rounded-full border border-white/20 px-5 py-2 transition hover:bg-white/10"
@@ -237,80 +248,82 @@ function Home({ profile, session, isBiz }) {
                 Panel biznesowy
               </Link>
             ) : (
-              <span className="rounded-full border border-white/10 px-5 py-2 text-white/40">
+
+              <span className="rounded-full border border-white/10 px-5 py-2 text-white/45">
+
                 Panel biznesowy dostępny dla kont firmowych
               </span>
             )}
           </div>
-        </aside>
 
-        <div className="relative flex-1">
-          <div className="relative ml-auto max-w-xl rounded-[2.5rem] border border-white/10 bg-black/45 p-6 shadow-2xl backdrop-blur-xl sm:p-10">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.4em] text-orange-200/70">
-                  VoiceFlow Assistant
-                </p>
-                <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">
-                  Inteligentny partner zamówień
-                </h2>
-                <p className="mt-3 text-base leading-relaxed text-zinc-200/80">
-                  Rozmawiaj naturalnie, a my znajdziemy restaurację, taxi lub hotel w Twojej okolicy.
-                </p>
-              </div>
-              <img
-                src="/images/Freeflowlogo.png"
-                alt="FreeFlow"
-                className="h-24 w-24 self-end drop-shadow-[0_20px_45px_rgba(255,138,48,0.35)] sm:h-28 sm:w-28"
-              />
+        </div>
+
+        <aside className="w-full max-w-sm space-y-6 self-center rounded-3xl border border-white/10 bg-black/55 p-6 shadow-2xl backdrop-blur lg:self-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-orange-200/70">
+                VoiceFlow Assistant
+              </p>
+              <h2 className="mt-3 text-xl font-semibold text-white sm:text-2xl">
+                Inteligentny partner zamówień
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-200/80">
+                Rozmawiaj naturalnie, a znajdziemy restaurację, taxi lub hotel w Twojej okolicy.
+              </p>
+            </div>
+            <img
+              src="/images/Freeflowlogo.png"
+              alt="FreeFlow"
+              className="h-20 w-20 self-end drop-shadow-[0_18px_35px_rgba(255,138,48,0.28)] sm:h-24 sm:w-24"
+            />
+          </div>
+
+          <div className="space-y-5">
+            <div className="flex flex-wrap gap-2">
+              {["Jedzenie", "Taxi", "Hotel"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90 transition hover:bg-white/20 sm:px-5 sm:text-sm"
+                >
+                  {item}
+                </button>
+              ))}
             </div>
 
-            <div className="mt-8 space-y-6">
-              <div className="flex flex-wrap gap-3">
-                {["Jedzenie", "Taxi", "Hotel"].map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className="rounded-full border border-white/15 bg-white/10 px-5 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/20"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm text-zinc-200/85">
+              <p>
+                {loggedIn
+                  ? `Cześć ${profile?.email ?? "w FreeFlow"}! Wybierz usługę lub poproś asystenta o złożenie kolejnego zamówienia.`
+                  : "Powiedz: „Zamów makaron w najlepszej włoskiej restauracji w pobliżu”. Asystent poprowadzi Cię krok po kroku."}
+              </p>
+            </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5 shadow-inner">
-                <p className="text-sm text-zinc-200/85">
-                  {loggedIn
-                    ? `Cześć ${profile?.email ?? "w FreeFlow"}! Wybierz usługę lub poproś asystenta o złożenie kolejnego zamówienia.`
-                    : "Powiedz: „Zamów makaron w najlepszej włoskiej restauracji w pobliżu”. Asystent poprowadzi Cię krok po kroku."}
+            <div className="flex flex-col gap-4 rounded-2xl bg-white/10 p-4 sm:flex-row sm:items-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-black shadow-lg sm:h-14 sm:w-14">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
+                  <path
+                    d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H6a6 6 0 0 0 12 0h-1Zm-5 7a7 7 0 0 0 7-7h-1a6 6 0 0 1-12 0H5a7 7 0 0 0 7 7Zm-1 2h2v-2h-2v2Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <div className="text-sm text-zinc-100/85 sm:flex-1">
+                <p className="font-semibold text-white">Rozpocznij rozmowę</p>
+                <p className="mt-1 text-zinc-200/80">
+                  Dotknij przycisku i mów naturalnie – FreeFlow rozpozna Twoje potrzeby i zaproponuje najlepsze opcje.
                 </p>
               </div>
-
-              <div className="flex flex-col gap-4 rounded-2xl bg-white/10 p-5 sm:flex-row sm:items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-black shadow-lg">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-                    <path
-                      d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H6a6 6 0 0 0 12 0h-1Zm-5 7a7 7 0 0 0 7-7h-1a6 6 0 0 1-12 0H5a7 7 0 0 0 7 7Zm-1 2h2v-2h-2v2Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
-                <div className="text-sm text-zinc-100/85 sm:flex-1">
-                  <p className="font-semibold text-white">Rozpocznij rozmowę</p>
-                  <p className="mt-1 text-zinc-200/80">
-                    Dotknij przycisku i mów naturalnie – FreeFlow rozpozna Twoje potrzeby i zaproponuje najlepsze opcje.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-6 py-2 text-sm font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300"
-                >
-                  Mów teraz
-                </button>
-              </div>
+              <button
+                type="button"
+                className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-5 py-2 text-sm font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:w-auto"
+              >
+                Mów teraz
+              </button>
             </div>
           </div>
-        </div>
+        </aside>
+
       </div>
     </section>
   );
