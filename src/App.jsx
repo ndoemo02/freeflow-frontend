@@ -69,6 +69,10 @@ function Navbar({ profile, onSignOut, isBiz }) {
               </svg>
             </button>
 
+          ) : (
+            <Link
+              to="/login"
+
             {menuOpen && (
               <nav
                 id="navbar-menu"
