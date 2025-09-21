@@ -16,6 +16,7 @@
     "supabase": "^2.40.7"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
