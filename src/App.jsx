@@ -22,13 +22,15 @@ function ProtectedRoute({ when, redirect = "/", children }) {
 /** Pasek nawigacji oraz szybkie akcje */
 function Navbar({ profile, onSignOut, isBiz }) {
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
   const navLinkBase =
-        
     "rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium tracking-tight transition hover:bg-white/15 sm:px-4 sm:text-sm";
+
+  const handleCloseMenu = () => setMenuOpen(false);
 
   return (
     <header className="relative z-20 px-3 py-3 sm:px-6 sm:py-4">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-white shadow-lg backdrop-blur">
+      <div className="relative mx-auto flex w-full max-w-6xl items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-white shadow-lg backdrop-blur">
         <Link to="/" className="flex items-center gap-2 sm:gap-3">
           <img
             src="/images/Freeflow-logo.png"
@@ -36,72 +38,124 @@ function Navbar({ profile, onSignOut, isBiz }) {
             className="h-9 w-9 rounded-full border border-white/20 bg-black/40 p-1 shadow"
           />
           <span className="text-xl font-semibold tracking-tight sm:text-2xl">
-
             Free<span className="text-orange-400">Flow</span>
           </span>
         </Link>
 
-        <nav className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
-
-          <Link
-            to="/customer"
-            className={`${navLinkBase} ${
-              location.pathname.startsWith("/customer")
-                ? "bg-white/15 text-white"
-                : "text-white/70"
-            }`}
-          >
-            Panel klienta
-          </Link>
-
-          {isBiz ? (
-            <Link
-              to="/business"
-              className={`${navLinkBase} ${
-                location.pathname.startsWith("/business")
-                  ? "bg-white/15 text-white"
-                  : "text-white/70"
-              }`}
-            >
-              Panel biznesowy
-            </Link>
-          ) : (
-          
-            <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/45 sm:px-4 sm:text-sm">
-
-              Panel biznesowy
-            </span>
-          )}
-
-          {profile?.email && (
-
-            <span className="hidden text-xs text-white/65 md:block md:text-sm">
-
-              {profile.email}
-            </span>
-          )}
-
-          {profile ? (
+        <div className="absolute right-3 top-2 sm:right-4">
+          <div className="relative">
             <button
               type="button"
-              onClick={onSignOut}
-
-              className="rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-xs font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:text-sm"
-
+              aria-label="Otwórz menu nawigacji"
+              aria-expanded={menuOpen}
+              aria-controls="navbar-menu"
+              aria-haspopup="true"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white transition hover:bg-white/10"
             >
-              Wyloguj
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 7h16M4 12h16M4 17h16"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
             </button>
+
           ) : (
             <Link
               to="/login"
 
-              className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
-
-            >
-              Zaloguj
-            </Link>
-          )}
-        </nav>
+            {menuOpen && (
+              <nav
+                id="navbar-menu"
+                role="menu"
+                aria-label="Menu nawigacji"
+                className="absolute right-0 mt-2 w-48 rounded-xl bg-black/80 p-3 text-sm shadow-lg ring-1 ring-white/10 backdrop-blur"
+              >
+                <ul className="flex flex-col gap-2">
+                  <li role="none">
+                    <Link
+                      to="/customer"
+                      onClick={handleCloseMenu}
+                      className={`${navLinkBase} ${
+                        location.pathname.startsWith("/customer")
+                          ? "bg-white/15 text-white"
+                          : "text-white/70"
+                      } block w-full text-left`}
+                      role="menuitem"
+                    >
+                      Panel klienta
+                    </Link>
+                  </li>
+                  <li role="none">
+                    {isBiz ? (
+                      <Link
+                        to="/business"
+                        onClick={handleCloseMenu}
+                        className={`${navLinkBase} ${
+                          location.pathname.startsWith("/business")
+                            ? "bg-white/15 text-white"
+                            : "text-white/70"
+                        } block w-full text-left`}
+                        role="menuitem"
+                      >
+                        Panel biznesowy
+                      </Link>
+                    ) : (
+                      <span
+                        className="block rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/45 sm:px-4 sm:text-sm"
+                        role="menuitem"
+                        aria-disabled="true"
+                        tabIndex={-1}
+                      >
+                        Panel biznesowy
+                      </span>
+                    )}
+                  </li>
+                  {profile?.email && (
+                    <li role="none">
+                      <span className="block truncate rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/65 sm:px-4 sm:text-sm">
+                        {profile.email}
+                      </span>
+                    </li>
+                  )}
+                  <li role="none">
+                    {profile ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSignOut();
+                          handleCloseMenu();
+                        }}
+                        className="w-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-2 text-xs font-semibold text-black shadow transition hover:from-orange-400 hover:to-amber-300 sm:text-sm"
+                        role="menuitem"
+                      >
+                        Wyloguj
+                      </button>
+                    ) : (
+                      <Link
+                        to="/login"
+                        onClick={handleCloseMenu}
+                        className="block rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
+                        role="menuitem"
+                      >
+                        Zaloguj
+                      </Link>
+                    )}
+                  </li>
+                </ul>
+              </nav>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );
