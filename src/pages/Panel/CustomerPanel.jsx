@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../state/auth'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
@@ -210,21 +211,64 @@ export default function CustomerPanel(){
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 text-center relative">
-          <button
+    <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8 relative overflow-hidden">
+      {/* Animated background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-0 left-0 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl"
+          animate={{
+            x: [0, 100, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+          animate={{
+            x: [0, -100, 0],
+            y: [0, -50, 0],
+            scale: [1.2, 1, 1.2],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
+      <div className="mx-auto max-w-6xl relative z-10">
+        <motion.div 
+          className="mb-8 text-center relative"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.button
             onClick={() => navigate('/')}
             className="absolute top-0 right-0 w-10 h-10 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-colors"
             title="Zamknij panel (ESC)"
+            whileHover={{ scale: 1.1, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
           >
             ✕
-          </button>
-          <h1 className="mb-2 text-4xl font-bold text-white">Panel Klienta</h1>
-          <p className="text-lg text-slate-400">Zarządzaj swoim kontem, zamówieniami i ustawieniami</p>
-        </div>
+          </motion.button>
+          <motion.h1 
+            className="mb-2 text-4xl font-bold text-white"
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            Panel Klienta
+          </motion.h1>
+          <motion.p 
+            className="text-lg text-slate-400"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            Zarządzaj swoim kontem, zamówieniami i ustawieniami
+          </motion.p>
+        </motion.div>
 
-                <CustomerStats userId={user?.id} refreshTrigger={refreshTrigger} />
+        <CustomerStats userId={user?.id} refreshTrigger={refreshTrigger} />
 
         <div className="mb-6 flex gap-2 overflow-x-auto">
           <TabButton current={tab} setTab={setTab} id="profile" icon="🙋">Profil</TabButton>
@@ -284,7 +328,7 @@ function CustomerStats({ userId, refreshTrigger }){
       const totalOrders = (data || []).filter(o => o.status !== 'cancelled').length
       const completedOrders = (data || []).filter(o => o.status === 'completed' || o.status === 'delivered').length
       const totalSpent = (data || [])
-        .filter(o => o.status !== 'cancelled') // Wyklucz anulowane zamówienia
+        .filter(o => o.status !== 'cancelled')
         .reduce((s,o)=>s + (o.total || 0), 0)
       setStats({ totalOrders, completedOrders, totalSpent })
     } finally { setLoading(false) }
@@ -292,43 +336,85 @@ function CustomerStats({ userId, refreshTrigger }){
   if (loading){
     return (
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[1,2,3].map(i => <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-6 animate-pulse"><div className="h-12 bg-white/10 rounded" /></div>)}
+        {[1,2,3].map(i => (
+          <motion.div 
+            key={i} 
+            className="rounded-xl border border-white/10 bg-white/5 p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
+            <div className="h-12 bg-white/10 rounded animate-pulse" />
+          </motion.div>
+        ))}
       </div>
     )
   }
   return (
     <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <StatCard title="Wszystkich zamówień" value={String(stats.totalOrders)} icon="📦" gradient="from-brand-500/25 to-brand-500/10" borderColor="border-brand-500/30" />
-      <StatCard title="Ukończonych" value={String(stats.completedOrders)} icon="✓" gradient="from-emerald-500/25 to-emerald-500/10" borderColor="border-emerald-500/30" />
-      <StatCard title="Łączna kwota" value={`${stats.totalSpent.toFixed(2)} zł`} icon="💰" gradient="from-purple-500/25 to-purple-500/10" borderColor="border-purple-500/30" />
+      <StatCard title="Wszystkich zamówień" value={String(stats.totalOrders)} icon="📦" gradient="from-brand-500/25 to-brand-500/10" borderColor="border-brand-500/30" index={0} />
+      <StatCard title="Ukończonych" value={String(stats.completedOrders)} icon="✓" gradient="from-emerald-500/25 to-emerald-500/10" borderColor="border-emerald-500/30" index={1} />
+      <StatCard title="Łączna kwota" value={`${stats.totalSpent.toFixed(2)} zł`} icon="💰" gradient="from-purple-500/25 to-purple-500/10" borderColor="border-purple-500/30" index={2} />
     </div>
   )
 }
 
-function StatCard({ title, value, icon, gradient, borderColor }){
+function StatCard({ title, value, icon, gradient, borderColor, index = 0 }){
   return (
-    <div className={`rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} backdrop-blur-xs p-6 transition-all hover:scale-105`}>
+    <motion.div 
+      className={`rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} backdrop-blur-xs p-6 transition-all cursor-pointer`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      whileHover={{ scale: 1.05, y: -5 }}
+      whileTap={{ scale: 0.98 }}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-300">{title}</p>
-          <p className="text-2xl font-bold text-white">{value}</p>
+          <motion.p 
+            className="text-2xl font-bold text-white"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: index * 0.1 + 0.2, type: "spring" }}
+          >
+            {value}
+          </motion.p>
         </div>
-        <div className="text-2xl opacity-80">{icon}</div>
+        <motion.div 
+          className="text-2xl opacity-80"
+          animate={{ rotate: [0, 10, -10, 0] }}
+          transition={{ delay: index * 0.1 + 0.3, duration: 0.5 }}
+        >
+          {icon}
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 function TabButton({ current, setTab, id, icon, children }){
   const active = current === id
   return (
-    <button onClick={()=>setTab(id)} className={[
-      'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap',
-      active ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg' : 'bg-glass border border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
-    ].join(' ')}>
-      <span>{icon}</span>
-      <span>{children}</span>
-    </button>
+    <motion.button 
+      onClick={()=>setTab(id)} 
+      className={[
+        'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap relative',
+        active ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30' : 'bg-glass border border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+      ].join(' ')}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      {active && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-brand-500 to-brand-600 rounded-xl"
+          layoutId="activeTab"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        />
+      )}
+      <span className="relative z-10">{icon}</span>
+      <span className="relative z-10">{children}</span>
+    </motion.button>
   )
 }
 

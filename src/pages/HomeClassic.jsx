@@ -1,5 +1,6 @@
 // src/pages/HomeClassic.jsx
 import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "../lib/api";
 import { speakTts } from "../lib/ttsClient";
 import { recordOnce } from '../lib/mic';
@@ -493,120 +494,288 @@ export default function HomeClassic() {
   }
 
   return (
-    <section className="ff-hero">
+    <section className="ff-hero min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-20 left-10 w-72 h-72 bg-brand-500/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1.2, 1, 1.2],
+            opacity: [0.2, 0.4, 0.2],
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
       {/* Layout: menu po lewej + główna zawartość */}
-      <div className="ff-main-layout">
+      <div className="ff-main-layout relative z-10">
         {/* Menu po lewej stronie */}
-        {showMenu && (
-          <div className="ff-menu-sidebar">
-            <div className="ff-menu-header">
-              <h3>🍽️ Menu</h3>
-              <button 
-                className="ff-menu-close"
-                onClick={() => setShowMenu(false)}
-                aria-label="Zamknij menu"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="ff-menu-items">
-              {menuItems.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="ff-menu-item"
-                  onClick={() => {
-                    // Symuluj głosowe zamówienie
-                    const itemName = item.name.toLowerCase();
-                    speak(`Dodaję ${item.name} do koszyka`);
-                    runQueryPipeline(itemName);
-                  }}
+        <AnimatePresence>
+          {showMenu && (
+            <motion.div 
+              className="ff-menu-sidebar"
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            >
+              <div className="ff-menu-header backdrop-blur-xl bg-gradient-to-r from-brand-500/20 to-purple-500/20 border-b border-white/10 p-4 rounded-t-2xl">
+                <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                  <motion.span
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    🍽️
+                  </motion.span>
+                  Menu
+                </h3>
+                <button 
+                  className="ff-menu-close absolute top-4 right-4 w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-all hover:scale-110"
+                  onClick={() => setShowMenu(false)}
+                  aria-label="Zamknij menu"
                 >
-                  <div className="ff-menu-item-name">{item.name}</div>
-                  <div className="ff-menu-item-price">{item.price.toFixed(2)} zł</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  ✕
+                </button>
+              </div>
+              <div className="ff-menu-items p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+                {menuItems.map((item, index) => (
+                  <motion.div 
+                    key={item.id} 
+                    className="ff-menu-item group cursor-pointer rounded-xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 p-4 hover:border-brand-500/50 transition-all hover:shadow-lg hover:shadow-brand-500/20"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      const itemName = item.name.toLowerCase();
+                      speak(`Dodaję ${item.name} do koszyka`);
+                      runQueryPipeline(itemName);
+                    }}
+                  >
+                    <div className="ff-menu-item-name text-white font-semibold group-hover:text-brand-400 transition-colors">{item.name}</div>
+                    <div className="ff-menu-item-price text-brand-500 font-bold text-lg mt-1">{item.price.toFixed(2)} zł</div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Główna zawartość */}
         <div className="ff-main-content">
           {/* Stos: logo + szukajka */}
-          <div className="ff-stack">
-        <div className="ff-logo-wrap">
-          <img
-            className={`ff-logo ${recording ? "is-listening" : ""}`}
-            src="/images/Freeflowlogo.png"
-            alt="FreeFlow logo"
-            role="button"
-            tabIndex={0}
-            aria-pressed={recording}
-            aria-label="Naciśnij, aby mówić"
-            onClick={handleMicClick}
-            onKeyDown={handleLogoKeyDown}
-          />
-        </div>
+          <div className="ff-stack pt-20">
+        <motion.div 
+          className="ff-logo-wrap flex justify-center mb-8"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            className="relative"
+            animate={recording ? {
+              scale: [1, 1.05, 1],
+            } : speaking ? {
+              scale: [1, 1.02, 1],
+            } : {}}
+            transition={recording ? {
+              duration: 1,
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : speaking ? {
+              duration: 0.8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : {}}
+          >
+            {/* Animated glow rings */}
+            {recording && (
+              <>
+                <motion.div
+                  className="absolute inset-0 rounded-full border-4 border-brand-500/50"
+                  initial={{ scale: 1, opacity: 0.8 }}
+                  animate={{ scale: 1.4, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
+                />
+                <motion.div
+                  className="absolute inset-0 rounded-full border-4 border-purple-500/50"
+                  initial={{ scale: 1, opacity: 0.6 }}
+                  animate={{ scale: 1.6, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.3, ease: "easeOut" }}
+                />
+              </>
+            )}
+            
+            {/* Logo with shadow */}
+            <motion.img
+              className={`ff-logo cursor-pointer relative z-10 ${recording ? "is-listening" : ""}`}
+              src="/images/Freeflowlogo.png"
+              alt="FreeFlow logo"
+              role="button"
+              tabIndex={0}
+              aria-pressed={recording}
+              aria-label="Naciśnij, aby mówić"
+              onClick={handleMicClick}
+              onKeyDown={handleLogoKeyDown}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                filter: recording 
+                  ? "drop-shadow(0 0 30px rgba(255, 106, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 106, 0, 0.4))"
+                  : speaking
+                  ? "drop-shadow(0 0 20px rgba(139, 92, 246, 0.6))"
+                  : "drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5))"
+              }}
+            />
+          </motion.div>
+        </motion.div>
 
-        <form
-          className="ff-search"
+        <motion.form
+          className="ff-search relative"
           onSubmit={(e) => {
             e.preventDefault();
             runQueryPipeline(query);
           }}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
         >
-          <input
-            className="ff-input"
-            placeholder="Powiedz lub wpisz..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                console.log("🚀 Enter pressed, calling runQueryPipeline with:", query);
-                runQueryPipeline(query);
-              }
-            }}
-          />
-          <button
-            className="ff-btn ff-btn--circle"
-            type="button"
-            aria-label="Mów"
-            onClick={handleMicClick}
-            data-recording={recording}
-          >
-            <span aria-hidden="true">{recording ? "🛑" : "🎙️"}</span>
-          </button>
-        </form>
+          <div className="relative flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-2 hover:border-brand-500/30 transition-all">
+            <input
+              className="ff-input flex-1 bg-transparent border-none outline-none text-white px-4 py-3 placeholder-gray-400"
+              placeholder="Powiedz lub wpisz..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  console.log("🚀 Enter pressed, calling runQueryPipeline with:", query);
+                  runQueryPipeline(query);
+                }
+              }}
+            />
+            <motion.button
+              className={`ff-btn ff-btn--circle w-14 h-14 rounded-xl flex items-center justify-center text-2xl transition-all ${
+                recording 
+                  ? "bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/50" 
+                  : "bg-gradient-to-br from-brand-500 to-brand-600 hover:shadow-lg hover:shadow-brand-500/50"
+              }`}
+              type="button"
+              aria-label="Mów"
+              onClick={handleMicClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              animate={recording ? { 
+                boxShadow: [
+                  "0 0 20px rgba(239, 68, 68, 0.5)",
+                  "0 0 40px rgba(239, 68, 68, 0.8)",
+                  "0 0 20px rgba(239, 68, 68, 0.5)"
+                ]
+              } : {}}
+              transition={{ duration: 1, repeat: recording ? Infinity : 0 }}
+            >
+              <motion.span 
+                aria-hidden="true"
+                animate={recording ? { scale: [1, 1.2, 1] } : {}}
+                transition={{ duration: 0.5, repeat: recording ? Infinity : 0 }}
+              >
+                {recording ? "🛑" : "🎙️"}
+              </motion.span>
+            </motion.button>
+          </div>
+          
+          {/* Voice indicator */}
+          <AnimatePresence>
+            {recording && (
+              <motion.div 
+                className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-sm text-brand-400 flex items-center gap-2"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <motion.span
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                >
+                  🔴
+                </motion.span>
+                Słucham...
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.form>
       </div>
 
       {/* Chat bubbles */}
-      {!!chat.length && (
-        <div className="ff-chat" aria-live="polite">
-          {chat.map((m) => (
-            <div
-              key={m.id}
-              className={["ff-bubble", m.role === "assistant" ? "ff-bubble--assistant" : "ff-bubble--user"].join(" ")}
-            >
-              {m.text}
-            </div>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {!!chat.length && (
+          <motion.div 
+            className="ff-chat mt-8 space-y-4" 
+            aria-live="polite"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {chat.map((m, index) => (
+              <motion.div
+                key={m.id}
+                className={[
+                  "ff-bubble px-6 py-4 rounded-2xl backdrop-blur-xl border max-w-2xl",
+                  m.role === "assistant" 
+                    ? "ff-bubble--assistant bg-gradient-to-br from-purple-500/20 to-purple-600/10 border-purple-500/30 text-white mr-auto" 
+                    : "ff-bubble--user bg-gradient-to-br from-brand-500/20 to-brand-600/10 border-brand-500/30 text-white ml-auto"
+                ].join(" ")}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                {m.text}
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
 
       {/* Popup koszyka - pokazuje się na 2.5s */}
-      {showCartPopup && (
-        <div className="ff-cart-popup">
-          <div className="ff-cart-popup-content">
-            <div className="ff-cart-popup-icon">🛒</div>
-            <div className="ff-cart-popup-text">
-              <div className="ff-cart-popup-title">Dodano do koszyka!</div>
-              <div className="ff-cart-popup-details">
-                {getCart().length} pozycji - {total().toFixed(2)} zł
+      <AnimatePresence>
+        {showCartPopup && (
+          <motion.div 
+            className="fixed top-8 right-8 z-50"
+            initial={{ opacity: 0, x: 100, scale: 0.8 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.8 }}
+            transition={{ type: "spring", damping: 20 }}
+          >
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-6 shadow-2xl shadow-green-500/20">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  className="ff-cart-popup-icon text-4xl"
+                  animate={{ rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 0.5 }}
+                >
+                  🛒
+                </motion.div>
+                <div className="ff-cart-popup-text">
+                  <div className="ff-cart-popup-title text-white font-bold text-lg">Dodano do koszyka!</div>
+                  <div className="ff-cart-popup-details text-green-300 text-sm">
+                    {getCart().length} pozycji - {total().toFixed(2)} zł
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Przyciski koszyka */}
       {renderOrderCta()}
@@ -618,41 +787,61 @@ export default function HomeClassic() {
         </div>
 
         {/* Restauracje po prawej stronie */}
-        {showRestaurants && (
-          <div className="ff-restaurants-sidebar">
-            <div className="ff-restaurants-header">
-              <h3>🏪 Restauracje w okolicy</h3>
-              <button 
-                className="ff-restaurants-close"
-                onClick={() => setShowRestaurants(false)}
-                aria-label="Zamknij listę restauracji"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="ff-restaurants-list">
-              {restaurants.map((restaurant) => (
-                <div 
-                  key={restaurant.id} 
-                  className="ff-restaurant-item"
-                  onClick={async () => {
-                    // Wybierz restaurację i załaduj menu
-                    setDialogSlots(prev => ({ ...prev, restaurantId: restaurant.id, restaurant: restaurant.name }));
-                    await loadRestaurantMenu(restaurant.id);
-                    setShowRestaurants(false);
-                    speak(`Wybrałeś ${restaurant.name}. Ładuję menu...`);
-                  }}
+        <AnimatePresence>
+          {showRestaurants && (
+            <motion.div 
+              className="ff-restaurants-sidebar"
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 300, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            >
+              <div className="ff-restaurants-header backdrop-blur-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-b border-white/10 p-4 rounded-t-2xl">
+                <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                  <motion.span
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    🏪
+                  </motion.span>
+                  Restauracje w okolicy
+                </h3>
+                <button 
+                  className="ff-restaurants-close absolute top-4 right-4 w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-all hover:scale-110"
+                  onClick={() => setShowRestaurants(false)}
+                  aria-label="Zamknij listę restauracji"
                 >
-                  <div className="ff-restaurant-name">{restaurant.name}</div>
-                  <div className="ff-restaurant-type">{restaurant.type || 'Restauracja'}</div>
-                  <div className="ff-restaurant-rating">
-                    {restaurant.rating ? `⭐ ${restaurant.rating}` : '⭐ 4.5'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  ✕
+                </button>
+              </div>
+              <div className="ff-restaurants-list p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+                {restaurants.map((restaurant, index) => (
+                  <motion.div 
+                    key={restaurant.id} 
+                    className="ff-restaurant-item group cursor-pointer rounded-xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 p-4 hover:border-emerald-500/50 transition-all hover:shadow-lg hover:shadow-emerald-500/20"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.02, x: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={async () => {
+                      setDialogSlots(prev => ({ ...prev, restaurantId: restaurant.id, restaurant: restaurant.name }));
+                      await loadRestaurantMenu(restaurant.id);
+                      setShowRestaurants(false);
+                      speak(`Wybrałeś ${restaurant.name}. Ładuję menu...`);
+                    }}
+                  >
+                    <div className="ff-restaurant-name text-white font-semibold text-lg group-hover:text-emerald-400 transition-colors">{restaurant.name}</div>
+                    <div className="ff-restaurant-type text-gray-400 text-sm mt-1">{restaurant.type || 'Restauracja'}</div>
+                    <div className="ff-restaurant-rating text-yellow-400 text-sm mt-2 flex items-center gap-1">
+                      {restaurant.rating ? `⭐ ${restaurant.rating}` : '⭐ 4.5'}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );
