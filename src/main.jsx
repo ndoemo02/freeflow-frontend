@@ -16,7 +16,7 @@ import BusinessPanel from "./pages/Panel/BusinessPanel.jsx";
 import TaxiPanel from "./pages/Panel/TaxiPanel.jsx";
 import PrivateRoute from "./pages/PrivateRoute.jsx";
 import { AuthProvider } from "./state/auth";
-import { ToastProvider } from "./components/Toast.jsx";
+import { ToastProvider } from "./components/Toast";
 import "./index.css";
 
 // Jeśli masz Auth (nie jest wymagane do startu):

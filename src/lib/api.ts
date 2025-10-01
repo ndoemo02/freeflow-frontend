@@ -29,10 +29,9 @@ export default async function api(path: string, init?: RequestInit): Promise<any
 
 export async function tts(text: string, opts?: { lang?: string; voiceName?: string; gender?: string; audioEncoding?: string }): Promise<HTMLAudioElement> {
   const body = JSON.stringify({ text, ...(opts || {}) });
-  const { audioContent, contentType } = await api<{ audioContent: string; contentType?: string }>(
-    '/api/tts',
-    { method: 'POST', body }
-  );
+  const data = await api('/api/tts', { method: 'POST', body });
+  const audioContent = data?.audioContent || '';
+  const contentType = data?.contentType || 'audio/mpeg';
   const mime = contentType || 'audio/mpeg';
   const audio = new Audio(`data:${mime};base64,${audioContent}`);
   return audio;

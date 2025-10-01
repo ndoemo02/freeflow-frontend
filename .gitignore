@@ -27,3 +27,6 @@ node_modules/
 *.rar
 dist/
 build/
+placeholder/
+tts.cache.patch/
+test.js

@@ -5,7 +5,7 @@ import { speakTts } from "../lib/ttsClient";
 import { recordOnce } from '../lib/mic';
 import { addToCart, total, getCart, clearCart } from '../lib/cart';
 import ResultsList from "../components/ResultsList";
-import { dialogManager as manageTurn } from "../lib/DialogManager";
+import { manageTurn } from "../lib/DialogManager";
 
 export default function HomeClassic() {
   const [hits, setHits] = useState([]);
