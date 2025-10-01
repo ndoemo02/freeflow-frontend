@@ -20,3 +20,21 @@
 }
 
 
+/* ===== Responsive layout overrides (frontend spec) ===== */
+html, body { overflow-x: hidden; }
+
+/* Logo scaling: default ~40% width (max 250px); on small screens up to 60% (max 180px) */
+.ff-logo { max-width: 250px; width: 40%; height: auto; }
+
+/* Central container width and spacing */
+.ff-stack { width: 100%; max-width: min(760px, 92vw); margin-inline: auto; }
+.ff-main-content { width: 100%; max-width: min(1000px, 96vw); margin-inline: auto; overflow: hidden; }
+
+/* Search input sizing on small screens */
+@media (max-width: 768px) {
+  .ff-logo { max-width: 180px; width: 60%; }
+  .ff-search { width: 90%; grid-template-columns: 1fr auto; }
+  .ff-input { width: 100%; font-size: 0.9rem; }
+  .ff-hero { padding: 6vh 12px 10vh; }
+}
+
