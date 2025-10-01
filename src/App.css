@@ -1,0 +1,35 @@
+// src/App.jsx
+import React from "react";
+import "./../public/ui.css";
+
+export default function App() {
+  return (
+    <div className="ff-hero">
+      {/* LOGO */}
+      <div className="ff-logo-wrap">
+        <img src="/images/Freeflowlogo.png" alt="FreeFlow" className="ff-logo" />
+      </div>
+
+      {/* SEARCH */}
+      <div className="ff-search">
+        <input type="text" placeholder="Powiedz lub wpisz..." className="ff-input" />
+        <button className="ff-btn ff-btn--primary">🎤</button>
+        <button className="ff-btn ff-btn--secondary">➡</button>
+      </div>
+
+      {/* CATEGORIES */}
+      <div className="ff-categories">
+        <div className="ff-pill" data-active="true">Jedzenie</div>
+        <div className="ff-pill">Taxi</div>
+        <div className="ff-pill">Hotel</div>
+      </div>
+
+      {/* BOTTOM NAV */}
+      <div className="ff-bottom-nav">
+        <div className="ff-bottom-item" data-active="true">🏠 Start</div>
+        <div className="ff-bottom-item">🔎 Szukaj</div>
+        <div className="ff-bottom-item">👤 Profil</div>
+      </div>
+    </div>
+  );
+}

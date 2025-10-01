@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Custom small helpers */
+:root{
+  --brand-glow: 0 8px 30px rgba(255,110,20,0.12);
+}
+
+.bg-hero {
+  background-image: url('/images/hero-blur.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* glass card */
+.card-glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+

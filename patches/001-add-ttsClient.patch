@@ -1,0 +1,82 @@
+diff --git a/src/lib/ttsClient.ts b/src/lib/ttsClient.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/lib/ttsClient.ts
+@@
++type TtsOpts = { lang?: string; voice?: string };
++
++const mem = new Map<string, string>();                 // text+opts -> URL (blob: lub /api/tts/file/..)
++const inFlight = new Map<string, Promise<string>>();   // deduplikacja równoległych żądań
++const MAX_MEM = 100;
++
++function keyFor(text: string, opts: TtsOpts) {
++  return JSON.stringify({
++    t: text.trim(),
++    l: opts.lang || "pl-PL",
++    v: opts.voice || "pl-PL-Wavenet-D",
++  });
++}
++
++function toObjectUrlFromBase64(b64: string, mime = "audio/mpeg") {
++  const bin = atob(b64);
++  const u8 = new Uint8Array(bin.length);
++  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
++  const blob = new Blob([u8], { type: mime });
++  return URL.createObjectURL(blob);
++}
++
++function lruSet(k: string, v: string) {
++  if (!mem.has(k) && mem.size >= MAX_MEM) {
++    const first = mem.keys().next().value as string | undefined;
++    if (first) {
++      const oldUrl = mem.get(first);
++      if (oldUrl?.startsWith("blob:")) URL.revokeObjectURL(oldUrl);
++      mem.delete(first);
++    }
++  }
++  mem.set(k, v);
++}
++
++export async function getTtsUrl(text: string, opts: TtsOpts = {}): Promise<string> {
++  const k = keyFor(text, opts);
++  if (mem.has(k)) return mem.get(k)!;
++  if (inFlight.has(k)) return inFlight.get(k)!;
++
++  const p = (async () => {
++    const res = await fetch("/api/tts", {
++      method: "POST",
++      headers: { "Content-Type": "application/json" },
++      body: JSON.stringify({ text, ...opts }),
++    });
++    const data = await res.json();
++
++    let url: string;
++    if (data?.url) {
++      // preferowany tryb: backend zwraca URL do pliku z cache
++      url = data.url;
++    } else if (data?.audioContent) {
++      // zgodność wsteczna: backend zwraca base64
++      url = toObjectUrlFromBase64(data.audioContent);
++    } else {
++      throw new Error("Bad TTS response");
++    }
++
++    lruSet(k, url);
++    inFlight.delete(k);
++    return url;
++  })();
++
++  inFlight.set(k, p);
++  return p;
++}
++
++export async function speakTts(text: string, opts: TtsOpts = {}): Promise<void> {
++  const url = await getTtsUrl(text, opts);
++  await new Promise<void>((resolve) => {
++    const a = new Audio(url);
++    a.onended = resolve;
++    a.onerror = resolve;
++    a.play().catch(resolve);
++  });
++}

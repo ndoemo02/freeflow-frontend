@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Demo – Tailwind</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
+  <header class="px-4 py-3 flex items-center justify-between border-b border-white/10">
+    <div class="flex items-center gap-2">
+      <img src="/images/Freeflowlogo.png" alt="FreeFlow" class="h-8 w-auto" />
+      <span class="text-lg font-semibold">FreeFlow</span>
+    </div>
+    <nav class="flex items-center gap-2">
+      <button class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 transition">Koszyk (2)</button>
+      <button class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 transition">Zaloguj</button>
+    </nav>
+  </header>
+
+  <main class="relative">
+    <div class="absolute inset-0 -z-10">
+      <img src="/images/Background.png" class="w-full h-full object-cover opacity-60" alt="">
+      <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-black/60"></div>
+    </div>
+
+    <section class="max-w-3xl mx-auto px-4 py-10">
+      <h1 class="text-3xl font-bold mb-4">Zamów głosem</h1>
+      <p class="text-white/80 mb-6">Powiedz co chcesz, a my znajdziemy i złożymy zamówienie.</p>
+
+      <div class="flex gap-2">
+        <input class="flex-1 rounded-xl px-4 py-3 bg-white/10 border border-white/10 placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+               placeholder="np. pizza katowice" />
+        <button class="px-5 rounded-xl bg-amber-500 hover:bg-amber-600 transition">Szukaj</button>
+        <button class="px-5 rounded-xl bg-white/10 hover:bg-white/15 transition">Dopytaj</button>
+      </div>
+
+      <div class="mt-8 grid sm:grid-cols-2 gap-4">
+        <div class="p-4 rounded-xl bg-white/10 hover:scale-[1.02] transition">
+          <div class="text-lg font-semibold">Pizzeria Napoli</div>
+          <div class="text-white/70 text-sm">ul. Wiosny 3, Katowice</div>
+          <div class="mt-2 text-amber-400">40–55 min • 12–35 PLN</div>
+        </div>
+        <div class="p-4 rounded-xl bg-white/10 hover:scale-[1.02] transition">
+          <div class="text-lg font-semibold">Trattoria Via Roma</div>
+          <div class="text-white/70 text-sm">ul. Korfantego 9</div>
+          <div class="mt-2 text-amber-400">30–45 min • 18–42 PLN</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="fixed bottom-0 inset-x-0 backdrop-blur bg-black/40 border-t border-white/10">
+    <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
+      <div class="flex gap-3">
+        <button class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">Jedzenie</button>
+        <button class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">Taxi</button>
+        <button class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15">Hotel</button>
+      </div>
+      <span class="text-white/50">© FreeFlow</span>
+    </div>
+  </footer>
+</body>
+</html>
