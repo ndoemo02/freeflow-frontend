@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../state/auth'
 import { supabase } from '../../lib/supabase'
 import { Dialog, Transition } from '@headlessui/react'
@@ -203,35 +204,118 @@ export default function BusinessPanel(){
 
 	return (
 		<Fragment>
-			<div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
-				<div className="mx-auto max-w-6xl">
-				<div className="mb-8 text-center relative">
-					<button
-						onClick={() => navigate('/')}
-						className="absolute top-0 right-0 w-10 h-10 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-colors"
-						title="Zamknij panel (ESC)"
-					>
-						✕
-					</button>
-					<h1 className="mb-2 text-4xl font-bold text-white">Panel Biznesowy</h1>
-					<p className="text-lg text-slate-400">Zarządzaj lokalem, menu i zamówieniami</p>
+			<div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8 relative overflow-hidden">
+				{/* Animated background */}
+				<div className="absolute inset-0 overflow-hidden pointer-events-none">
+					<motion.div
+						className="absolute top-20 right-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"
+						animate={{
+							scale: [1, 1.3, 1],
+							opacity: [0.3, 0.5, 0.3],
+						}}
+						transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+					/>
+					<motion.div
+						className="absolute bottom-20 left-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
+						animate={{
+							scale: [1.3, 1, 1.3],
+							opacity: [0.2, 0.4, 0.2],
+						}}
+						transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+					/>
 				</div>
 
-				{/* Quick stats */}
-				<div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					<div className="rounded-xl border border-brand-500/30 bg-gradient-to-br from-brand-500/25 to-brand-500/10 backdrop-blur-xs p-6">
-						<div className="text-sm text-slate-300">Restauracje</div>
-						<div className="text-2xl font-bold text-white">{stats.restaurants}</div>
+				<div className="mx-auto max-w-6xl relative z-10">
+					<motion.div 
+						className="mb-8 text-center relative"
+						initial={{ y: -20, opacity: 0 }}
+						animate={{ y: 0, opacity: 1 }}
+						transition={{ duration: 0.5 }}
+					>
+						<motion.button
+							onClick={() => navigate('/')}
+							className="absolute top-0 right-0 w-10 h-10 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-colors"
+							title="Zamknij panel (ESC)"
+							whileHover={{ scale: 1.1, rotate: 90 }}
+							whileTap={{ scale: 0.9 }}
+						>
+							✕
+						</motion.button>
+						<motion.h1 
+							className="mb-2 text-4xl font-bold text-white"
+							initial={{ scale: 0.9 }}
+							animate={{ scale: 1 }}
+							transition={{ duration: 0.3 }}
+						>
+							Panel Biznesowy
+						</motion.h1>
+						<motion.p 
+							className="text-lg text-slate-400"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							transition={{ delay: 0.2 }}
+						>
+							Zarządzaj lokalem, menu i zamówieniami
+						</motion.p>
+					</motion.div>
+
+					{/* Quick stats */}
+					<div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+						<motion.div 
+							className="rounded-xl border border-brand-500/30 bg-gradient-to-br from-brand-500/25 to-brand-500/10 backdrop-blur-xs p-6 cursor-pointer"
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.1 }}
+							whileHover={{ scale: 1.05, y: -5 }}
+							whileTap={{ scale: 0.98 }}
+						>
+							<div className="text-sm text-slate-300">Restauracje</div>
+							<motion.div 
+								className="text-2xl font-bold text-white"
+								initial={{ scale: 0 }}
+								animate={{ scale: 1 }}
+								transition={{ delay: 0.3, type: "spring" }}
+							>
+								{stats.restaurants}
+							</motion.div>
+						</motion.div>
+						<motion.div 
+							className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 backdrop-blur-xs p-6 cursor-pointer"
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.2 }}
+							whileHover={{ scale: 1.05, y: -5 }}
+							whileTap={{ scale: 0.98 }}
+						>
+							<div className="text-sm text-slate-300">Pozycje w menu</div>
+							<motion.div 
+								className="text-2xl font-bold text-white"
+								initial={{ scale: 0 }}
+								animate={{ scale: 1 }}
+								transition={{ delay: 0.4, type: "spring" }}
+							>
+								{stats.items}
+							</motion.div>
+						</motion.div>
+						<motion.div 
+							className="rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/25 to-purple-500/10 backdrop-blur-xs p-6 cursor-pointer"
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.3 }}
+							whileHover={{ scale: 1.05, y: -5 }}
+							whileTap={{ scale: 0.98 }}
+						>
+							<div className="text-sm text-slate-300">Wszystkich zamówień</div>
+							<motion.div 
+								className="text-2xl font-bold text-white"
+								initial={{ scale: 0 }}
+								animate={{ scale: 1 }}
+								transition={{ delay: 0.5, type: "spring" }}
+							>
+								{stats.totalOrders}
+							</motion.div>
+						</motion.div>
 					</div>
-					<div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/25 to-emerald-500/10 backdrop-blur-xs p-6">
-						<div className="text-sm text-slate-300">Pozycje w menu</div>
-						<div className="text-2xl font-bold text-white">{stats.items}</div>
-					</div>
-					<div className="rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/25 to-purple-500/10 backdrop-blur-xs p-6">
-						<div className="text-sm text-slate-300">Wszystkich zamówień</div>
-						<div className="text-2xl font-bold text-white">{stats.totalOrders}</div>
-					</div>
-				</div>
 
 				{/* Restaurants select */}
 				<div className="mb-6 rounded-2xl border border-white/10 bg-glass p-6">
