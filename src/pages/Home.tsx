@@ -1,15 +1,238 @@
 /* eslint-disable jsx-a11y/alt-text */
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+// @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
 import { useUI } from "../state/ui";
+import api from "../lib/api";
 
 export default function Home() {
   const openDrawer = useUI((s) => s.openDrawer);
   const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [response, setResponse] = useState("");
+  const [error, setError] = useState("");
+  const [selectedVoice, setSelectedVoice] = useState("pl-PL-Standard-A");
+  
+  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Załaduj ustawienia z localStorage
+  useEffect(() => {
+    const loadSettings = () => {
+      const savedSettings = localStorage.getItem('freeflow-settings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setSelectedVoice(settings.voice || "pl-PL-Standard-A");
+      }
+    };
+
+    loadSettings();
+
+    // Nasłuchuj zmian ustawień
+    const handleSettingsChange = (event: any) => {
+      setSelectedVoice(event.detail.voice || "pl-PL-Standard-A");
+    };
+
+    window.addEventListener('freeflow-settings-changed', handleSettingsChange);
+    return () => window.removeEventListener('freeflow-settings-changed', handleSettingsChange);
+  }, []);
 
   const handleOptionClick = (option: string) => {
     console.log(`Wybrano: ${option}`);
-    // Tutaj można dodać logikę obsługi wybranej opcji
+    // Wysyłaj opcję do Dialogflow
+    handleVoiceProcess(option);
+  };
+
+  const startRecording = async () => {
+    setIsRecording(true);
+    setError("");
+    setTranscript("Nasłuchuję...");
+    
+    try {
+      // Spróbuj Web Speech API najpierw
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        startWebSpeechRecognition();
+      } else {
+        // Fallback na Google STT
+        await startGoogleSTT();
+      }
+    } catch (err) {
+      console.error('Recording error:', err);
+      setError('Błąd nagrywania. Sprawdź mikrofon.');
+      setIsRecording(false);
+    }
+  };
+
+  const startWebSpeechRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'pl-PL';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      setTranscript(finalTranscript || interimTranscript);
+      
+      if (finalTranscript) {
+        handleVoiceProcess(finalTranscript);
+      }
+    };
+
+    recognition.onerror = () => {
+      setError('Błąd rozpoznawania mowy. Próbuję Google STT...');
+      startGoogleSTT();
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const startGoogleSTT = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        await sendToGoogleSTT(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      
+      // Auto-stop po 5 sekundach
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, 5000);
+      
+    } catch (err) {
+      setError('Nie można uzyskać dostępu do mikrofonu');
+      setIsRecording(false);
+    }
+  };
+
+  const sendToGoogleSTT = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+      
+      // TODO: Endpoint do Google STT w backend
+      const response = await api('/api/stt', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.transcript) {
+        setTranscript(response.transcript);
+        handleVoiceProcess(response.transcript);
+      } else {
+        setError('Nie udało się rozpoznać mowy');
+      }
+    } catch (err) {
+      setError('Błąd Google STT');
+    } finally {
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceProcess = async (text: string) => {
+    try {
+      setTranscript(text);
+      
+      // Wyślij do Dialogflow
+      const result = await api('/api/dialogflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (result.fulfillmentText) {
+        setResponse(result.fulfillmentText);
+        
+        // TTS - odtwórz odpowiedź
+        await playTTS(result.fulfillmentText);
+      }
+    } catch (err) {
+      setError('Błąd przetwarzania głosu');
+    }
+  };
+
+  const playTTS = async (text: string) => {
+    try {
+      const response = await api('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text,
+          voice: selectedVoice,
+          languageCode: 'pl-PL'
+        }),
+      });
+      
+      if (response.audioContent) {
+        // Konwertuj base64 na audio i odtwórz
+        const audioBlob = new Blob([
+          Uint8Array.from(atob(response.audioContent), c => c.charCodeAt(0))
+        ], { type: 'audio/mp3' });
+        
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => URL.revokeObjectURL(audioUrl);
+        await audio.play();
+      }
+    } catch (err) {
+      console.error('TTS error:', err);
+      setError('Błąd odtwarzania głosu');
+    }
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const handleLogoClick = () => {
+    console.log('🎯 Logo clicked! isRecording:', isRecording);
+    if (isRecording) {
+      console.log('🛑 Stopping recording...');
+      stopRecording();
+    } else {
+      console.log('🎙️ Starting recording...');
+      startRecording();
+    }
   };
 
   return (
@@ -78,10 +301,31 @@ export default function Home() {
       <div className="mx-auto max-w-3xl px-4 min-h-screen flex flex-col justify-center">
         
         <div className="flex flex-col items-center space-y-2 pt-16">
+          
+          {/* Status Display */}
+          {(transcript || response || error) && (
+            <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+              {error && (
+                <div className="text-red-400 text-sm mb-2">
+                  ❌ {error}
+                </div>
+              )}
+              {transcript && (
+                <div className="text-slate-300 text-sm mb-2">
+                  <span className="text-orange-400">🎤 Usłyszałem:</span> {transcript}
+                </div>
+              )}
+              {response && (
+                <div className="text-green-400 text-sm">
+                  <span className="text-blue-400">🤖 Odpowiadam:</span> {response}
+                </div>
+              )}
+            </div>
+          )}
           {/* Logo z animacjami */}
           <div 
             className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
-            onClick={() => setIsRecording(!isRecording)}
+            onClick={handleLogoClick}
           >
             {/* Fale neonowe podczas nagrywania - za logo */}
             {isRecording && (
@@ -113,13 +357,19 @@ export default function Home() {
               alt="FreeFlow logo"
               className={`
                 relative z-10 h-full w-full object-contain drop-shadow-[0_25px_45px_rgba(0,0,0,.45)]
-                transition-transform duration-300
+                transition-transform duration-300 cursor-pointer
                 ${isRecording ? 'animate-pulse scale-105' : 'hover:scale-105'}
               `}
               role="button"
               tabIndex={0}
               aria-label="FreeFlow - naciśnij aby mówić"
               title="Naciśnij aby mówić"
+              onClick={handleLogoClick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleLogoClick();
+                }
+              }}
             />
           </div>
 

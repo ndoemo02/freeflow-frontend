@@ -1,6 +1,13 @@
 // src/lib/api.ts
+const BACKEND_URL = 'https://freeflow-backend.vercel.app/api/index';
+
 export default async function api(path: string, init?: RequestInit): Promise<any> {
-  const res = await fetch(path, init);
+  // Convert relative API paths to full backend URLs
+  const fullUrl = path.startsWith('/api/') 
+    ? `${BACKEND_URL}${path.replace('/api', '')}`
+    : path;
+  
+  const res = await fetch(fullUrl, init);
 
   const ct = res.headers.get('content-type') || '';
   const isJson = ct.includes('application/json');

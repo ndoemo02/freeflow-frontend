@@ -7,7 +7,7 @@ export default function Header() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/health", { cache: "no-store" });
+        const res = await fetch("https://freeflow-backend.vercel.app/api/index/health", { cache: "no-store" });
         if (!cancelled) setHealth(res.ok ? "up" : "down");
       } catch {
         if (!cancelled) setHealth("down");
