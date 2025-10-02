@@ -1,5 +1,5 @@
 // src/lib/api.ts
-const BACKEND_URL = 'https://freeflow-backend.vercel.app/api/index';
+const BACKEND_URL = 'https://freeflow-backend-fqagat2a0-lukis-projects-01382554.vercel.app/api/index';
 
 export default async function api(path: string, init?: RequestInit): Promise<any> {
   // Convert relative API paths to full backend URLs
