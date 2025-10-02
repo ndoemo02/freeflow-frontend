@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import PanelLayout from '../layouts/PanelLayout'
-import { toast } from '../state/toast'
+import { useToast } from '../components/Toast'
 import api from '../lib/api'
 
 const emailRe = /[^\s@]+@[^\s@]+\.[^\s@]+/
@@ -10,6 +9,7 @@ export default function RegisterBusiness() {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const { push: toast } = useToast()
 
   const onChange = (e) => setForm((s) => ({ ...s, [e.target.name]: e.target.value }))
 
@@ -22,44 +22,51 @@ export default function RegisterBusiness() {
     try {
       await api('/api/business/register', { method: 'POST', body: JSON.stringify(form) })
       setMsg('Zgłoszenie przyjęte. Skontaktujemy się wkrótce.')
-      toast.success('Zgłoszenie wysłane ✅')
+      toast('Zgłoszenie wysłane ✅', 'success')
       setForm({ name: '', email: '', phone: '', city: '', nip: '', note: '' })
     } catch (e) {
       setErr('Nie udało się wysłać. Spróbuj ponownie.')
-      toast.error('Nie udało się wysłać zgłoszenia')
+      toast('Nie udało się wysłać zgłoszenia', 'error')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <PanelLayout title="Rejestracja firmy">
-      <form onSubmit={onSubmit} className="ff-card p-4 grid gap-3">
-        <label className="grid gap-1" htmlFor="biz-name">Nazwa firmy *</label>
-        <input id="biz-name" name="name" autoComplete="organization" className="ff-input" value={form.name} onChange={onChange} />
+    <div className="mx-auto mt-24 max-w-2xl px-4 pb-20">
+      <div className="text-center">
+        <h1 className="text-3xl font-extrabold text-white">Rejestracja firmy</h1>
+        <p className="mt-2 text-slate-300">Wypełnij formularz, aby dołączyć do naszej platformy.</p>
+      </div>
 
-        <label className="grid gap-1" htmlFor="biz-email">E‑mail *</label>
-        <input id="biz-email" type="email" name="email" autoComplete="email" className="ff-input" value={form.email} onChange={onChange} />
+      <form onSubmit={onSubmit} className="mt-8 grid gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-6">
+        <Field label="Nazwa firmy *" name="name" value={form.name} onChange={onChange} autoComplete="organization" aria-describedby={err.includes('firmy') ? 'form-error' : undefined} />
+        <Field label="E-mail *" name="email" type="email" value={form.email} onChange={onChange} autoComplete="email" aria-describedby={err.includes('e-mail') ? 'form-error' : undefined} />
+        <Field label="Telefon" name="phone" value={form.phone} onChange={onChange} autoComplete="tel" />
+        <Field label="Miasto" name="city" value={form.city} onChange={onChange} autoComplete="address-level2" />
+        <Field label="NIP (opcjonalne)" name="nip" value={form.nip} onChange={onChange} placeholder="możesz zostawić puste" />
 
-        <label className="grid gap-1" htmlFor="biz-phone">Telefon</label>
-        <input id="biz-phone" name="phone" autoComplete="tel" className="ff-input" value={form.phone} onChange={onChange} />
-
-        <label className="grid gap-1" htmlFor="biz-city">Miasto</label>
-        <input id="biz-city" name="city" autoComplete="address-level2" className="ff-input" value={form.city} onChange={onChange} />
-
-        <label className="grid gap-1" htmlFor="biz-nip">NIP <span className="opacity-70">(opcjonalne)</span></label>
-        <input id="biz-nip" name="nip" className="ff-input" value={form.nip} onChange={onChange} placeholder="możesz zostawić puste" />
-
-        <label className="grid gap-1" htmlFor="biz-note">Notatka <span className="opacity-70">(opcjonalne)</span></label>
-        <textarea id="biz-note" name="note" className="ff-input" value={form.note} onChange={onChange} style={{ minHeight: 100 }} />
-
-        <div className="flex gap-2 pt-1">
-          <button type="submit" className="ff-btn ff-btn--primary" disabled={busy}>{busy ? 'Wysyłanie…' : 'Wyślij zgłoszenie'}</button>
-          <button type="button" className="ff-btn ff-btn--secondary" onClick={() => setForm({ name: '', email: '', phone: '', city: '', nip: '', note: '' })}>Wyczyść</button>
+        <div>
+          <label className="block text-sm text-slate-300 mb-1">Notatka (opcjonalne)</label>
+          <textarea name="note" value={form.note} onChange={onChange} className="w-full rounded-xl bg-slate-800/70 px-3 py-2 text-slate-100 ring-1 ring-white/10" rows="3" />
         </div>
-        {msg && <div className="ff-alert" style={{ marginTop: 8 }}>{msg}</div>}
-        {err && <div className="ff-alert" style={{ marginTop: 8, background:'rgba(255,0,0,.10)', border:'1px solid rgba(255,0,0,.35)' }}>{err}</div>}
+
+        <div className="flex gap-3 pt-2">
+          <button type="submit" className="flex-1 rounded-xl bg-orange-500 px-4 py-2 font-medium text-slate-900 disabled:opacity-50" disabled={busy}>{busy ? 'Wysyłanie…' : 'Wyślij zgłoszenie'}</button>
+          <button type="button" className="rounded-xl bg-white/5 px-4 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-white/10" onClick={() => setForm({ name: '', email: '', phone: '', city: '', nip: '', note: '' })}>Wyczyść</button>
+        </div>
+        {msg && <div id="form-success" role="status" aria-live="polite" className="mt-2 rounded-lg bg-emerald-500/20 p-3 text-center text-sm text-emerald-200">{msg}</div>}
+        {err && <div id="form-error" role="alert" aria-live="assertive" className="mt-2 rounded-lg bg-red-500/20 p-3 text-center text-sm text-red-200">{err}</div>}
       </form>
-    </PanelLayout>
+    </div>
+  )
+}
+
+function Field({ label, ...props }) {
+  return (
+    <div>
+      <label className="block text-sm text-slate-300 mb-1">{label}</label>
+      <input {...props} className="w-full rounded-xl bg-slate-800/70 px-3 py-2 text-slate-100 ring-1 ring-white/10" />
+    </div>
   )
 }

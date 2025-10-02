@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../state/auth'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
+import PanelHeader from '../../components/PanelHeader'
 
 export default function CustomerPanel(){
   const { user } = useAuth()
@@ -212,17 +213,10 @@ export default function CustomerPanel(){
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 text-center relative">
-          <button
-            onClick={() => navigate('/')}
-            className="absolute top-0 right-0 w-10 h-10 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-colors"
-            title="Zamknij panel (ESC)"
-          >
-            ✕
-          </button>
-          <h1 className="mb-2 text-4xl font-bold text-white">Panel Klienta</h1>
-          <p className="text-lg text-slate-400">Zarządzaj swoim kontem, zamówieniami i ustawieniami</p>
-        </div>
+        <PanelHeader 
+          title="Panel Klienta" 
+          subtitle="Zarządzaj swoim kontem, zamówieniami i ustawieniami"
+        />
 
                 <CustomerStats userId={user?.id} refreshTrigger={refreshTrigger} />
 

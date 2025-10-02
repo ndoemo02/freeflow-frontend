@@ -76,13 +76,10 @@ export default function FAQ() {
   const [filter, setFilter] = useState(ALL.key);
 
   const questions = useMemo(() => {
-    if (filter === ALL.key) {
-      return SECTIONS.flatMap((s) =>
-        s.qa.map((row) => ({ ...row, _section: s.label, _color: s.color }))
-      );
-    }
-    const sec = SECTIONS.find((s) => s.key === filter);
-    return (sec?.qa || []).map((row) => ({ ...row, _section: sec.label, _color: sec.color }));
+    const filteredSections = filter === ALL.key ? SECTIONS : SECTIONS.filter((s) => s.key === filter);
+    return filteredSections.flatMap((section) =>
+      section.qa.map((item) => ({ ...item, _section: section.label, _color: section.color }))
+    );
   }, [filter]);
 
   return (
@@ -111,10 +108,10 @@ export default function FAQ() {
 
       {/* Lista QA */}
       <div className="grid grid-cols-1 gap-3 md:gap-4">
-        {questions.map((row, i) => (
-          <Card key={i} gradient={row._color}>
+        {questions.map((row) => (
+          <Card key={row.q} gradient={row._color}>
             <details className="group">
-              <summary className="cursor-pointer list-none select-none">
+              <summary className="cursor-pointer list-none select-none" aria-label={`Rozwiń odpowiedź na pytanie: ${row.q}`}>
                 <div className="flex items-start gap-3">
                   <div className="mt-1">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 border border-white/10">

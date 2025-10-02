@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../state/auth';
 import { useToast } from '../../components/Toast';
+import PanelHeader from '../../components/PanelHeader';
 
 export default function TaxiPanel() {
   const { user } = useAuth();
@@ -214,21 +215,12 @@ export default function TaxiPanel() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Panel Kierowcy Taxi</h1>
-            <p className="text-gray-400">Zarządzaj kursami i statusem</p>
-          </div>
-          <button
-            onClick={() => window.location.href = '/'}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-          >
-            ← Wróć do strony głównej
-          </button>
-        </div>
+        <PanelHeader 
+          title="Panel Kierowcy Taxi" 
+          subtitle="Zarządzaj kursami i statusem"
+        />
 
         {/* Status Control */}
         <div className="bg-gray-800 rounded-xl p-6 mb-8">

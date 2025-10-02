@@ -1,21 +1,22 @@
 // src/pages/HomeClassic.jsx
 import React, { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
-import { speakTts } from "../lib/ttsClient";
-import { recordOnce } from '../lib/mic';
+import { speakTts } from "../lib/ttsClient.js";
 import { addToCart, total, getCart, clearCart } from '../lib/cart';
 import ResultsList from "../components/ResultsList";
 import { manageTurn } from "../lib/DialogManager";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition.js";
+import VoiceDock from "../components/VoiceDock.tsx";
 
 export default function HomeClassic() {
   const [hits, setHits] = useState([]);
   const [query, setQuery] = useState("");
   const [chat, setChat] = useState([]);
   const [dialogSlots, setDialogSlots] = useState({});
-  const [recording, setRecording] = useState(false);
+  // const [recording, setRecording] = useState(false); // Usunięte - zarządzane przez hook
   const [loading, setLoading] = useState(false);
-  const [interim, setInterim] = useState("");
-  const [finalText, setFinalText] = useState("");
+  // const [interim, setInterim] = useState(""); // Usunięte - zarządzane przez hook jako interimText
+  // const [finalText, setFinalText] = useState(""); // Usunięte - zarządzane przez hook
   const [error, setError] = useState("");
   const [assistantText, setAssistantText] = useState("");
   const [speaking, setSpeaking] = useState(false);
@@ -24,23 +25,23 @@ export default function HomeClassic() {
   const [showMenu, setShowMenu] = useState(false);
   const [restaurants, setRestaurants] = useState([]);
   const [showRestaurants, setShowRestaurants] = useState(false);
-
-  const recognitionRef = useRef(null);
+  
   const synthRef = useRef(null);
   const processingRef = useRef(false);
   const speakingRef = useRef(false);
   const lastSpeakPromiseRef = useRef(Promise.resolve());
-  const silenceTimerRef = useRef(null);
-  const hardStopTimerRef = useRef(null);
   const greetedRef = useRef(false);
   const streamCancelRef = useRef(0);
 
-  // NOWE: akumulator finalText w trakcie sesji SR (eliminuje problem „zamrożonego” stanu w closure)
-  const finalStrRef = useRef("");
-
-  // Konfiguracja czasów nagrywania - BARDZIEJ CZUŁE
-  const SILENCE_MS = 1200;      // po ilu ms ciszy zatrzymujemy SR (było 2200)
-  const MAX_RECORDING_MS = 8000; // twardy limit jednej sesji (było 14000)
+  const {
+    recording,
+    interimText,
+    finalText,
+    startRecording,
+    stopRecording,
+  } = useSpeechRecognition({
+    onTranscriptChange: (transcript) => setQuery(transcript),
+  });
 
   // Ping backendu
     useEffect(() => {
@@ -65,72 +66,6 @@ export default function HomeClassic() {
       //   );
       // }, 300);
     }
-  }, []);
-
-  // Inicjalizacja Web Speech API
-    useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      console.warn("SpeechRecognition API not supported in this browser.");
-      return;
-    }
-    const recognition = new SR();
-    recognition.lang = "pl-PL";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      let interimStr = "";
-      let finalStr = finalStrRef.current;
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const res = event.results[i];
-        const t = res[0].transcript;
-        if (res.isFinal) {
-          finalStr += (finalStr ? " " : "") + t.trim();
-        } else {
-          interimStr += t;
-        }
-      }
-
-      finalStrRef.current = finalStr;
-      setInterim(interimStr);
-      setFinalText(finalStr);
-
-      const merged = (finalStr + " " + interimStr).trim();
-      setQuery(merged);
-
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = setTimeout(() => {
-        try {
-          recognition.stop();
-        } catch (e) {}
-      }, SILENCE_MS);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech error:", event.error);
-      setRecording(false);
-    };
-
-    recognition.onend = () => {
-      setRecording(false);
-      finalStrRef.current = "";
-      setFinalText("");
-      setInterim("");
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      try {
-        recognition.stop();
-      } catch (e) {}
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (hardStopTimerRef.current) clearTimeout(hardStopTimerRef.current);
-      recognitionRef.current = null;
-    };
   }, []);
 
   // TTS: jeden punkt wejścia, z deduplikacją i cache po stronie klienta
@@ -253,28 +188,14 @@ export default function HomeClassic() {
   };
 
   // Nagrywanie audio i wysyłanie do STT
-  const handleMicOnce = async () => {
-    try {
-      setSpeaking(false); // na pewność
-      const blob = await recordOnce({ seconds: 5 });
-      const buf = await blob.arrayBuffer();
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-
-      const resp = await fetch('/api/stt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioContent: b64, mimeType: blob.type || 'audio/webm' }),
-      });
-
-      if (!resp.ok) throw new Error(`STT HTTP ${resp.status}`);
-      const data = await resp.json().catch(() => ({}));
-      const text = (data?.transcript || '').trim();
-      if (!text) return;
-
-      setQuery(text);       // wstaw do inputu
-      await runQueryPipeline(text); // uruchom asystenta
-    } catch (e) {
-      console.warn('STT failed', e);
+  const handleMicClick = () => {
+    if (processingRef.current || speakingRef.current) return;
+    if (recording) {
+      stopRecording();
+    } else {
+      setQuery("");
+      setChat([]); // Clear chat on new recording session
+      startRecording();
     }
   };
 
@@ -305,11 +226,6 @@ export default function HomeClassic() {
   }, [speaking]);
 
   // Klik / Enter / Spacja na logo – nagrywanie audio i STT
-  const handleMicClick = () => {
-    if (processingRef.current || speakingRef.current) return;
-    handleMicOnce();
-  };
-
   const handleLogoKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -334,9 +250,6 @@ export default function HomeClassic() {
         ...prev,
         { id: Date.now() + Math.random(), role: "user", text: trimmed },
       ]);
-
-      setFinalText("");
-      setInterim("");
 
       const resp = await manageTurn(trimmed, dialogSlots);
       setDialogSlots(resp.slots || {});
@@ -494,88 +407,73 @@ export default function HomeClassic() {
 
   return (
     <section className="ff-hero">
-      {/* Layout: menu po lewej + główna zawartość */}
-      <div className="ff-main-layout">
-        {/* Menu po lewej stronie */}
-        {showMenu && (
-          <div className="ff-menu-sidebar">
-            <div className="ff-menu-header">
-              <h3>🍽️ Menu</h3>
-              <button 
-                className="ff-menu-close"
-                onClick={() => setShowMenu(false)}
-                aria-label="Zamknij menu"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="ff-menu-items">
-              {menuItems.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="ff-menu-item"
-                  onClick={() => {
-                    // Symuluj głosowe zamówienie
-                    const itemName = item.name.toLowerCase();
-                    speak(`Dodaję ${item.name} do koszyka`);
-                    runQueryPipeline(itemName);
-                  }}
-                >
-                  <div className="ff-menu-item-name">{item.name}</div>
-                  <div className="ff-menu-item-price">{item.price.toFixed(2)} zł</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* Menu po lewej stronie */}
+      {showMenu && (
+        <div className="ff-menu-sidebar">
+          <div className="ff-menu-header">
+            <h3>🍽️ Menu</h3>
+            <button
+              className="ff-menu-close"
+              onClick={() => setShowMenu(false)}
+              aria-label="Zamknij menu"
+            > 
 
-        {/* Główna zawartość */}
-        <div className="ff-main-content">
-          {/* Stos: logo + szukajka */}
-          <div className="ff-stack">
-        <div className="ff-logo-wrap">
-          <img
-            className={`ff-logo ${recording ? "is-listening" : ""}`}
-            src="/images/Freeflowlogo.png"
-            alt="FreeFlow logo"
-            role="button"
-            tabIndex={0}
-            aria-pressed={recording}
-            aria-label="Naciśnij, aby mówić"
-            onClick={handleMicClick}
-            onKeyDown={handleLogoKeyDown}
-          />
+            </button>
+          </div>
+          <div className="ff-menu-items">
+            {menuItems.map((item) => (
+              <div
+                key={item.id}
+                className="ff-menu-item"
+                onClick={() => {
+                  // Symuluj głosowe zamówienie
+                  const itemName = item.name.toLowerCase();
+                  speak(`Dodaję ${item.name} do koszyka`);
+                  runQueryPipeline(itemName);
+                }}
+              >
+                <div className="ff-menu-item-name">{item.name}</div>
+                <div className="ff-menu-item-price">{item.price.toFixed(2)} zł</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stos: logo + szukajka */}
+      <div className="ff-stack">
+        <img
+          className={`ff-logo ${recording ? "is-listening" : ""}`}
+          src="/images/Freeflowlogo.png"
+          alt="FreeFlow logo"
+          role="button"
+          tabIndex={0}
+          aria-pressed={recording}
+          aria-label="Naciśnij, aby mówić"
+          onClick={handleMicClick}
+          onKeyDown={handleLogoKeyDown}
+        />
+
+        {/* Pasek transkrypcji */}
+        <div className="ff-transcription-bar" data-active={recording}>
+          {recording && (finalText || interimText) ? (
+            <>
+              {finalText && <span className="ff-transcription-final">{finalText}</span>}
+              {interimText && <span className="ff-transcription-interim">{interimText}</span>}
+            </>
+          ) : (
+            <span className="ff-transcription-placeholder">Naciśnij logo i zacznij mówić...</span>
+          )}
         </div>
 
-        <form
-          className="ff-search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            runQueryPipeline(query);
-          }}
-        >
-          <input
-            className="ff-input"
-            placeholder="Powiedz lub wpisz..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                console.log("🚀 Enter pressed, calling runQueryPipeline with:", query);
-                runQueryPipeline(query);
-              }
-            }}
-          />
-          <button
-            className="ff-btn ff-btn--circle"
-            type="button"
-            aria-label="Mów"
-            onClick={handleMicClick}
-            data-recording={recording}
-          >
-            <span aria-hidden="true">{recording ? "🛑" : "🎙️"}</span>
-          </button>
-        </form>
+        <VoiceDock
+          messages={chat}
+          value={query}
+          onChange={setQuery}
+          onSubmit={() => runQueryPipeline(query)}
+          recording={recording}
+          onMicClick={handleMicClick}
+        />
       </div>
 
       {/* Chat bubbles */}
@@ -591,7 +489,6 @@ export default function HomeClassic() {
           ))}
         </div>
       )}
-
 
       {/* Popup koszyka - pokazuje się na 2.5s */}
       {showCartPopup && (
@@ -612,48 +509,46 @@ export default function HomeClassic() {
       {renderOrderCta()}
 
       {/* Wyniki */}
-          {error && <div className="ff-error" role="status">{error}</div>}
-          {loading && <div className="ff-loading" role="status">Szukam...</div>}
-          {!!hits.length && <ResultsList results={hits} />}
-        </div>
+      {error && <div className="ff-error" role="status">{error}</div>}
+      {loading && <div className="ff-loading" role="status">Szukam...</div>}
+      {!!hits.length && <ResultsList results={hits} />}
 
-        {/* Restauracje po prawej stronie */}
-        {showRestaurants && (
-          <div className="ff-restaurants-sidebar">
-            <div className="ff-restaurants-header">
-              <h3>🏪 Restauracje w okolicy</h3>
-              <button 
-                className="ff-restaurants-close"
-                onClick={() => setShowRestaurants(false)}
-                aria-label="Zamknij listę restauracji"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="ff-restaurants-list">
-              {restaurants.map((restaurant) => (
-                <div 
-                  key={restaurant.id} 
-                  className="ff-restaurant-item"
-                  onClick={async () => {
-                    // Wybierz restaurację i załaduj menu
-                    setDialogSlots(prev => ({ ...prev, restaurantId: restaurant.id, restaurant: restaurant.name }));
-                    await loadRestaurantMenu(restaurant.id);
-                    setShowRestaurants(false);
-                    speak(`Wybrałeś ${restaurant.name}. Ładuję menu...`);
-                  }}
-                >
-                  <div className="ff-restaurant-name">{restaurant.name}</div>
-                  <div className="ff-restaurant-type">{restaurant.type || 'Restauracja'}</div>
-                  <div className="ff-restaurant-rating">
-                    {restaurant.rating ? `⭐ ${restaurant.rating}` : '⭐ 4.5'}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* Restauracje po prawej stronie */}
+      {showRestaurants && (
+        <div className="ff-restaurants-sidebar">
+          <div className="ff-restaurants-header">
+            <h3>🏪 Restauracje w okolicy</h3>
+            <button
+              className="ff-restaurants-close"
+              onClick={() => setShowRestaurants(false)}
+              aria-label="Zamknij listę restauracji"
+            >
+              ✕
+            </button>
           </div>
-        )}
-      </div>
+          <div className="ff-restaurants-list">
+            {restaurants.map((restaurant) => (
+              <div
+                key={restaurant.id}
+                className="ff-restaurant-item"
+                onClick={async () => {
+                  // Wybierz restaurację i załaduj menu
+                  setDialogSlots(prev => ({ ...prev, restaurantId: restaurant.id, restaurant: restaurant.name }));
+                  await loadRestaurantMenu(restaurant.id);
+                  setShowRestaurants(false);
+                  speak(`Wybrałeś ${restaurant.name}. Ładuję menu...`);
+                }}
+              >
+                <div className="ff-restaurant-name">{restaurant.name}</div>
+                <div className="ff-restaurant-type">{restaurant.type || 'Restauracja'}</div>
+                <div className="ff-restaurant-rating">
+                  {restaurant.rating ? `⭐ ${restaurant.rating}` : '⭐ 4.5'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
