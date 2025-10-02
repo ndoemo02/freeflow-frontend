@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://freeflow-backend-npi5upjog-lukis-projects-01382554.vercel.app/api/$1"
+      "destination": "https://freeflow-backend-9f6twu055-lukis-projects-01382554.vercel.app/api/$1"
     }
   ]
 }
