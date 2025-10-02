@@ -49,7 +49,7 @@ export default function BusinessPanel(){
       const { data, error } = await supabase
         .from('restaurants')
         .select('id,name')
-        .or(`owner.eq.${user.id},owner_id.eq.${user.id}`)
+        .eq('owner_id', user.id)
         .order('name')
       if (!alive) return
       if (error) { setRestaurants([]) } else { setRestaurants(data || []) }
@@ -101,10 +101,10 @@ export default function BusinessPanel(){
         .from('orders')
         .select(`
           *,
-          restaurants!restaurant(name, city),
-          user_profiles!customer(first_name, last_name, phone, address, city)
+          restaurants!restaurant_id(name, city),
+          profiles!customer_id(first_name, last_name, phone, address, city)
         `)
-        .eq('restaurant', restaurantId)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false })
       if (!alive) return
       setOrders(error ? [] : (data || []))
@@ -113,7 +113,7 @@ export default function BusinessPanel(){
     load()
     const channel = supabase
       .channel(`orders-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant=eq.${restaurantId}` }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, load)
       .subscribe()
     return () => { alive = false; channel.unsubscribe() }
   }, [restaurantId])
@@ -150,7 +150,7 @@ export default function BusinessPanel(){
       const { data: restaurantsData } = await supabase
         .from('restaurants')
         .select('id,name')
-        .or(`owner.eq.${user.id},owner_id.eq.${user.id}`)
+        .eq('owner_id', user.id)
         .order('name')
       setRestaurants(restaurantsData || [])
       
@@ -182,10 +182,10 @@ export default function BusinessPanel(){
         .from('orders')
         .select(`
           *,
-          restaurants!restaurant(name, city),
-          user_profiles!customer(first_name, last_name, phone, address, city)
+          restaurants!restaurant_id(name, city),
+          profiles!customer_id(first_name, last_name, phone, address, city)
         `)
-        .eq('restaurant', restaurantId)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false })
       setOrders(ordersData || [])
       
