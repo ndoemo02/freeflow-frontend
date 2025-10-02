@@ -494,7 +494,7 @@ export default function HomeClassic() {
   }
 
   return (
-    <section className="ff-hero min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
+    <section className="ff-hero min-h-[82vh] sm:min-h-[76vh] bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -571,32 +571,32 @@ export default function HomeClassic() {
         </AnimatePresence>
 
         {/* Główna zawartość */}
-        <div className="ff-main-content">
+        <div className="ff-main-content pb-14 sm:pb-12">
           {/* Stos: logo + szukajka */}
-          <div className="ff-stack pt-20">
-        <motion.div 
-          className="ff-logo-wrap flex justify-center mb-8"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.div
-            className="relative"
-            animate={recording ? {
-              scale: [1, 1.05, 1],
-            } : speaking ? {
-              scale: [1, 1.02, 1],
-            } : {}}
-            transition={recording ? {
-              duration: 1,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : speaking ? {
-              duration: 0.8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : {}}
-          >
+          <div className="ff-stack pt-12 sm:pt-16">
+            <motion.div
+              className="ff-logo-wrap flex justify-center mb-6"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <motion.div
+                className="relative"
+                animate={recording ? {
+                  scale: [1, 1.05, 1],
+                } : speaking ? {
+                  scale: [1, 1.02, 1],
+                } : {}}
+                transition={recording ? {
+                  duration: 1,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                } : speaking ? {
+                  duration: 0.8,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                } : {}}
+              >
             {/* Animated glow rings */}
             {recording && (
               <>
@@ -695,8 +695,8 @@ export default function HomeClassic() {
           {/* Voice indicator */}
           <AnimatePresence>
             {recording && (
-              <motion.div 
-                className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-sm text-brand-400 flex items-center gap-2"
+              <motion.div
+                className="absolute bottom-2 sm:bottom-3 left-1/2 transform -translate-x-1/2 text-sm text-brand-400 flex items-center gap-2"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -718,7 +718,7 @@ export default function HomeClassic() {
       <AnimatePresence>
         {!!chat.length && (
           <motion.div 
-            className="ff-chat mt-8 space-y-4" 
+            className="ff-chat mt-6 space-y-4"
             aria-live="polite"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -23,8 +23,8 @@
 /* ===== Responsive layout overrides (frontend spec) ===== */
 html, body { overflow-x: hidden; }
 
-/* Logo scaling: default ~40% width (max 250px); on small screens up to 60% (max 180px) */
-.ff-logo { max-width: 250px; width: 40%; height: auto; }
+/* Logo scaling: default ~54% width (max 335px); on small screens up to 80% (max 240px) */
+.ff-logo { max-width: 335px; width: 54%; height: auto; }
 
 /* Central container width and spacing */
 .ff-stack { width: 100%; max-width: min(760px, 92vw); margin-inline: auto; }
@@ -32,9 +32,14 @@ html, body { overflow-x: hidden; }
 
 /* Search input sizing on small screens */
 @media (max-width: 768px) {
-  .ff-logo { max-width: 180px; width: 60%; }
+  .ff-logo { max-width: 240px; width: 80%; }
   .ff-search { width: 90%; grid-template-columns: 1fr auto; }
   .ff-input { width: 100%; font-size: 0.9rem; }
+}
+
+.ff-hero { padding: 4.5vh 12px 7vh; }
+
+@media (min-width: 640px) {
   .ff-hero { padding: 6vh 12px 10vh; }
 }
 
