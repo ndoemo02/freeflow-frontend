@@ -1,11 +1,8 @@
-// src/lib/api.ts
-const BACKEND_URL = 'https://freeflow-backend-ku59048y7-lukis-projects-01382554.vercel.app';
+// src/lib/api.ts - using Vercel proxy for CORS
 
 export default async function api(path: string, init?: RequestInit): Promise<any> {
-  // Convert relative API paths to full backend URLs
-  const fullUrl = path.startsWith('/api/') 
-    ? `${BACKEND_URL}${path}`
-    : path;
+  // Use relative URLs - Vercel proxy will handle the routing
+  const fullUrl = path;
   
   const res = await fetch(fullUrl, init);
 

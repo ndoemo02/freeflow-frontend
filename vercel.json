@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://freeflow-backend-ku59048y7-lukis-projects-01382554.vercel.app/api/$1"
+    }
+  ]
+}
