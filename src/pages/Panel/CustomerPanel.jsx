@@ -4,6 +4,7 @@ import { useAuth } from '../../state/auth'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
+import RideTab from '../../components/RideTab'
 
 export default function CustomerPanel(){
   const { user } = useAuth()
@@ -22,6 +23,18 @@ export default function CustomerPanel(){
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Ride booking states
+  const [rideForm, setRideForm] = useState({
+    pickupAddress: '',
+    destinationAddress: '',
+    estimatedPrice: 0,
+    notes: '',
+    taxiCorporation: ''
+  })
+  const [bookingRide, setBookingRide] = useState(false)
+  const [taxiCorporations, setTaxiCorporations] = useState([])
+  const [loadingCorporations, setLoadingCorporations] = useState(false)
+
   // Order system states
   const [restaurants, setRestaurants] = useState([])
   const [selectedRestaurant, setSelectedRestaurant] = useState('')
@@ -31,6 +44,14 @@ export default function CustomerPanel(){
   const [loadingMenu, setLoadingMenu] = useState(false)
   const [placingOrder, setPlacingOrder] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user?.id) {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     if (!user?.id) return
@@ -53,6 +74,11 @@ export default function CustomerPanel(){
       } catch {}
     })()
   }, [user?.id])
+
+  // Load taxi corporations on mount
+  useEffect(() => {
+    loadTaxiCorporations()
+  }, [])
 
   // Load restaurants
   useEffect(() => {
@@ -168,6 +194,74 @@ export default function CustomerPanel(){
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
   }
 
+  // Load taxi corporations
+  const loadTaxiCorporations = async () => {
+    setLoadingCorporations(true)
+    try {
+      // Mock data - w rzeczywistości z Supabase
+      const mockCorporations = [
+        { id: '1', name: 'Taxi Express', rating: 4.8, price: '15-20 zł/km', available: true },
+        { id: '2', name: 'City Taxi', rating: 4.6, price: '12-18 zł/km', available: true },
+        { id: '3', name: 'Premium Taxi', rating: 4.9, price: '20-25 zł/km', available: true },
+        { id: '4', name: 'Eco Taxi', rating: 4.7, price: '14-19 zł/km', available: false },
+        { id: '5', name: 'Night Taxi', rating: 4.5, price: '18-22 zł/km', available: true }
+      ]
+      setTaxiCorporations(mockCorporations)
+    } catch (error) {
+      console.error('Error loading taxi corporations:', error)
+    } finally {
+      setLoadingCorporations(false)
+    }
+  }
+
+  // Ride booking functions
+  const calculatePrice = () => {
+    // Simple price calculation based on distance (mock)
+    const basePrice = 15
+    const distance = Math.random() * 20 + 5 // Mock distance 5-25 km
+    const price = basePrice + (distance * 2.5)
+    setRideForm(prev => ({ ...prev, estimatedPrice: Math.round(price) }))
+  }
+
+  const bookRide = async () => {
+    if (!rideForm.pickupAddress || !rideForm.destinationAddress || !rideForm.taxiCorporation) {
+      push('Wypełnij wszystkie wymagane pola', 'error')
+      return
+    }
+
+    setBookingRide(true)
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: user.id,
+          pickup_address: rideForm.pickupAddress,
+          destination_address: rideForm.destinationAddress,
+          estimated_price: rideForm.estimatedPrice,
+          notes: rideForm.notes,
+          taxi_corporation: rideForm.taxiCorporation,
+          status: 'pending',
+          order_type: 'ride'
+        })
+
+      if (error) throw error
+
+      push('Przejazd zamówiony! Kierowca zostanie powiadomiony', 'success')
+      setRideForm({
+        pickupAddress: '',
+        destinationAddress: '',
+        estimatedPrice: 0,
+        notes: '',
+        taxiCorporation: ''
+      })
+    } catch (error) {
+      console.error('Error booking ride:', error)
+      push('Błąd podczas zamawiania przejazdu', 'error')
+    } finally {
+      setBookingRide(false)
+    }
+  }
+
   const placeOrder = async () => {
     if (cart.length === 0) {
       push('Koszyk jest pusty', 'error')
@@ -223,6 +317,7 @@ export default function CustomerPanel(){
         <div className="mb-6 flex gap-2 overflow-x-auto">
           <TabButton current={tab} setTab={setTab} id="profile" icon="🙋">Profil</TabButton>
           <TabButton current={tab} setTab={setTab} id="order" icon="🍕">Zamów jedzenie</TabButton>
+          <TabButton current={tab} setTab={setTab} id="ride" icon="🚗">Przejazd</TabButton>
           <TabButton current={tab} setTab={setTab} id="orders" icon="📋">Zamówienia</TabButton>
           <TabButton current={tab} setTab={setTab} id="settings" icon="⚙️">Ustawienia</TabButton>
         </div>
@@ -256,6 +351,19 @@ export default function CustomerPanel(){
               loadingMenu={loadingMenu}
             />
           )}
+
+          {tab === 'ride' && (
+            <RideTab
+              rideForm={rideForm}
+              setRideForm={setRideForm}
+              bookingRide={bookingRide}
+              bookRide={bookRide}
+              calculatePrice={calculatePrice}
+              taxiCorporations={taxiCorporations}
+              loadingCorporations={loadingCorporations}
+            />
+          )}
+
                   {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} />}
           {tab === 'settings' && <SettingsTab />}
         </div>

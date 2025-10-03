@@ -12,6 +12,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { motion } from 'framer-motion';
 import { 
   getAnalyticsKPI, 
   getOrdersChartData, 
@@ -19,6 +20,7 @@ import {
   getTopDishes, 
   getTopRestaurants 
 } from '../lib/analytics';
+import { supabase } from '../lib/supabase';
 import PanelHeader from '../components/PanelHeader';
 
 ChartJS.register(
@@ -44,6 +46,8 @@ export default function AdminPanel() {
   const [hourlyChart, setHourlyChart] = useState(null);
   const [topDishes, setTopDishes] = useState([]);
   const [topRestaurants, setTopRestaurants] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
 
   // Funkcja do ładowania wszystkich danych
   const loadAnalyticsData = async (period = '7') => {
@@ -69,11 +73,46 @@ export default function AdminPanel() {
     }
   };
 
+  // Funkcja do ładowania kont użytkowników
+  const loadAccounts = async () => {
+    setAccountsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('auth.users')
+        .select(`
+          id,
+          email,
+          created_at,
+          last_sign_in_at
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAccounts(data || []);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    } finally {
+      setAccountsLoading(false);
+    }
+  };
+
   // Ładuj dane przy pierwszym renderze i zmianie okresu
   useEffect(() => {
     const period = selectedPeriod.split(' ')[0]; // '7 dni' -> '7'
     loadAnalyticsData(period);
+    loadAccounts();
   }, [selectedPeriod]);
+
+  // Funkcja do określania typu konta
+  const getAccountType = (role) => {
+    switch (role) {
+      case 'business': return { label: 'BIZ', color: 'bg-blue-100 text-blue-800', icon: '🏢' };
+      case 'customer': return { label: 'CUS', color: 'bg-green-100 text-green-800', icon: '👤' };
+      case 'admin': return { label: 'ADM', color: 'bg-red-100 text-red-800', icon: '👑' };
+      case 'driver': return { label: 'DRV', color: 'bg-yellow-100 text-yellow-800', icon: '🚗' };
+      default: return { label: 'UNK', color: 'bg-gray-100 text-gray-800', icon: '❓' };
+    }
+  };
 
   // Przygotuj dane KPI dla wyświetlenia
   const kpiData = analyticsData ? [
@@ -284,7 +323,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Bottom Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Top Dishes */}
           <div className="bg-white rounded-2xl p-8 shadow-lg">
             <div className="text-xl font-bold text-gray-800 mb-6">Top Dania</div>
@@ -329,6 +368,95 @@ export default function AdminPanel() {
             ))}
           </div>
         </div>
+
+        {/* Accounts Management Section */}
+        <motion.div 
+          className="bg-white rounded-2xl p-8 shadow-lg"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Server Accounts</h2>
+              <p className="text-gray-600">Manage user accounts and roles</p>
+            </div>
+            <button
+              onClick={loadAccounts}
+              disabled={accountsLoading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+            >
+              {accountsLoading ? 'Loading...' : '🔄 Refresh'}
+            </button>
+          </div>
+
+          {accountsLoading ? (
+            <div className="space-y-4">
+              {Array(5).fill(0).map((_, index) => (
+                <div key={index} className="animate-pulse">
+                  <div className="h-16 bg-gray-200 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {accounts.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">👥</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No accounts found</h3>
+                  <p className="text-gray-600">No user accounts registered yet</p>
+                </div>
+              ) : (
+                accounts.map((account, index) => {
+                  const accountType = getAccountType(account.role);
+                  return (
+                    <motion.div
+                      key={account.id}
+                      className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-200"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                            <span className="text-xl">{accountType.icon}</span>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900 text-lg">
+                              {account.first_name} {account.last_name}
+                            </h3>
+                            <p className="text-gray-600 text-sm">{account.email}</p>
+                            {account.phone && (
+                              <p className="text-gray-500 text-xs">📞 {account.phone}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${accountType.color}`}>
+                            {accountType.label}
+                          </span>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600">
+                              Joined: {new Date(account.created_at).toLocaleDateString()}
+                            </div>
+                            {account.last_sign_in_at && (
+                              <div className="text-xs text-gray-500">
+                                Last seen: {new Date(account.last_sign_in_at).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </motion.div>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,       // pozwala testować po LAN, ale nie wymusza IP
+    host: '192.168.100.13',  // konkretny adres IP
     port: 5173,
     strictPort: true,
     cors: true,

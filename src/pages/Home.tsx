@@ -276,20 +276,21 @@ export default function Home() {
           </svg>
         </button>
 
-        {/* Przycisk Menu */}
+        {/* Kompaktowy Hamburger Menu */}
         <button
           onClick={openDrawer}
           className="
-            w-8 h-8 rounded-lg bg-black/20 backdrop-blur-sm
-            border border-orange-400/20 text-orange-200
+            w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-md
+            border border-white/10 text-white/90
             flex items-center justify-center
-            hover:bg-black/30 hover:border-orange-400/40 transition-all
-            focus:outline-none
+            hover:from-slate-700/90 hover:to-slate-800/90 hover:border-white/20 hover:text-white
+            hover:scale-105 hover:shadow-lg transition-all duration-200
+            focus:outline-none focus:ring-2 focus:ring-orange-400/50
           "
           aria-label="Otwórz menu"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
       </div>

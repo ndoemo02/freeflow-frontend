@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../state/auth'
 import api from '../../lib/api'
 
 export default function Leads() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [err, setErr] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user?.id) {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
 
   async function load() {
     setErr('')

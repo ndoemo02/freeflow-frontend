@@ -1,4 +1,19 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../state/auth'
+
 export default function Profile() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user?.id) {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
+
   return (
     <form className="grid gap-4">
       <label className="grid gap-2">

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useUI } from "../state/ui"
@@ -9,6 +9,7 @@ export default function MenuDrawer() {
   const close = useUI((s) => s.closeDrawer)
   const openAuth = useUI((s) => s.openAuth)
   const { user, signOut } = useAuth()
+  const [expandedSections, setExpandedSections] = useState({})
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && isOpen && close()
@@ -16,10 +17,18 @@ export default function MenuDrawer() {
     return () => window.removeEventListener("keydown", onKey)
   }, [isOpen, close])
 
-  // Pogrupowane kategorie menu
+  const toggleSection = (sectionId) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }))
+  }
+
+  // Nowoczesne kategorie menu z podkategoriami
   const menuSections = [
     {
-      title: "🏠 Główne",
+      id: "main",
+      title: "Główne",
       icon: "🏠",
       items: [
         { to: "/", label: "Strona główna", icon: "🏠" },
@@ -27,30 +36,33 @@ export default function MenuDrawer() {
       ]
     },
     {
-      title: "🔐 Logowanie",
-      icon: "🔐",
+      id: "panels",
+      title: "Panele",
+      icon: "👥",
       items: [
-        { to: "/panel/customer", label: "Klient", icon: "👤" },
-        { to: "/panel/business", label: "Biznes", icon: "🏪" },
-        { to: "/panel/taxi", label: "Taxi", icon: "🚕" },
-        { to: "/panel/restaurant", label: "Restaurant", icon: "🍽️" },
-        { to: "/panel/hotel", label: "Hotel", icon: "🏨" }
+        { to: "/panel/customer", label: "Panel Klienta", icon: "👤", desc: "Zamówienia i historia" },
+        { to: "/panel/business", label: "Panel Biznesu", icon: "🏪", desc: "Zarządzanie firmą" },
+        { to: "/panel/taxi", label: "Panel Taxi", icon: "🚕", desc: "Przejazdy i kursy" },
+        { to: "/panel/restaurant", label: "Panel Restauracji", icon: "🍽️", desc: "Menu i zamówienia" },
+        { to: "/panel/hotel", label: "Panel Hotelu", icon: "🏨", desc: "Rezerwacje i pokoje" }
       ]
     },
     {
-      title: "⚙️ Zarządzanie",
-      icon: "⚙️", 
+      id: "management",
+      title: "Zarządzanie",
+      icon: "⚙️",
       items: [
-        { to: "/admin", label: "Panel Admin", icon: "📊" },
-        { to: "/business/register", label: "Rejestracja firmy", icon: "📝", highlight: true },
-        { to: "/settings", label: "Ustawienia", icon: "⚙️" }
+        { to: "/admin", label: "Panel Admin", icon: "📊", desc: "Statystyki i analityka" },
+        { to: "/business/register", label: "Rejestracja firmy", icon: "📝", desc: "Nowa firma", highlight: true },
+        { to: "/settings", label: "Ustawienia", icon: "⚙️", desc: "Konfiguracja systemu" }
       ]
     },
     {
-      title: "ℹ️ Pomoc",
+      id: "help",
+      title: "Pomoc",
       icon: "ℹ️",
       items: [
-        { to: "/faq", label: "FAQ / Pomoc", icon: "❓" }
+        { to: "/faq", label: "FAQ / Pomoc", icon: "❓", desc: "Często zadawane pytania" }
       ]
     }
   ]
@@ -59,118 +71,162 @@ export default function MenuDrawer() {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop z blur */}
+          {/* Backdrop z intensywniejszym blur */}
           <motion.div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.3 }}
             onClick={close}
           />
           
-          {/* Glassmorphism Sidebar */}
+          {/* Kompaktowe Menu z Glassmorphism */}
           <motion.aside
             role="dialog"
             aria-label="Menu"
-            className="fixed top-0 right-0 z-50 h-full w-80 backdrop-blur-xl bg-white/10 border-l border-white/20 shadow-2xl"
-            initial={{ x: 320, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 320, opacity: 0 }}
+            className="fixed top-4 right-4 z-50 w-80 max-h-[calc(100vh-2rem)] bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden"
+            initial={{ scale: 0.8, opacity: 0, y: -20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.8, opacity: 0, y: -20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
+            {/* Glassmorphism Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/20 bg-gradient-to-r from-white/5 to-transparent">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold shadow-lg">
-                  FF
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-400/20 to-pink-500/20 backdrop-blur-sm border border-orange-400/30 flex items-center justify-center shadow-lg">
+                  <span className="text-orange-300 font-bold text-lg">FF</span>
                 </div>
-                <div>
-                  <h2 className="text-white font-semibold text-lg">FreeFlow</h2>
-                  <p className="text-white/70 text-sm">
-                    {user ? `Witaj, ${user.email}` : 'Menu główne'}
-                  </p>
-                </div>
+                <h2 className="text-white font-bold text-lg bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent">FreeFlow</h2>
               </div>
               <button 
                 onClick={close}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all duration-200 flex items-center justify-center border border-white/20"
+                className="w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/20 text-white/70 hover:text-white hover:bg-black/60 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-white/10"
                 aria-label="Zamknij menu"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            {/* Menu Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Kompaktowe Menu Content z Glassmorphism */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {menuSections.map((section, sectionIndex) => (
                 <motion.div
-                  key={section.title}
-                  initial={{ opacity: 0, y: 20 }}
+                  key={section.id}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: sectionIndex * 0.1 }}
+                  transition={{ delay: sectionIndex * 0.05 }}
                   className="space-y-2"
                 >
-                  {/* Section Header */}
-                  <h3 className="text-white/60 text-xs uppercase font-semibold tracking-wider px-3 py-2">
-                    {section.title}
-                  </h3>
+                  {/* Glassmorphism Section Header */}
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20 hover:bg-black/50 hover:border-white/30 transition-all duration-300 group shadow-lg hover:shadow-white/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                        <span className="text-lg">{section.icon}</span>
+                      </div>
+                      <span className="text-white font-semibold text-sm group-hover:text-orange-300 transition-colors duration-300">
+                        {section.title}
+                      </span>
+                    </div>
+                    <motion.div
+                      animate={{ rotate: expandedSections[section.id] ? 180 : 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-white/60 group-hover:text-white transition-colors duration-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </motion.div>
+                  </button>
                   
-                  {/* Section Items */}
-                  <div className="space-y-1">
-                    {section.items.map((item, itemIndex) => (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onClick={close}
-                        className={`
-                          group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
-                          hover:bg-white/15 hover:backdrop-blur-md
-                          ${item.highlight 
-                            ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/20 border border-orange-400/30' 
-                            : 'hover:border hover:border-white/10'
-                          }
-                        `}
+                  {/* Rozwijane Podkategorie z Glassmorphism */}
+                  <AnimatePresence>
+                    {expandedSections[section.id] && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
                       >
-                        <span className="text-lg">{item.icon}</span>
-                        <span className={`font-medium ${
-                          item.highlight ? 'text-orange-200' : 'text-white/90 group-hover:text-white'
-                        }`}>
-                          {item.label}
-                        </span>
-                        <span className="ml-auto text-white/40 group-hover:text-white/60 transition-colors">
-                          →
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
+                        <div className="ml-6 space-y-2 border-l-2 border-white/20 pl-4">
+                          {section.items.map((item, itemIndex) => (
+                            <Link
+                              key={item.to}
+                              to={item.to}
+                              onClick={close}
+                              className={`
+                                group flex items-center gap-3 p-3 rounded-xl transition-all duration-300
+                                bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20
+                                ${item.highlight 
+                                  ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/20 border-orange-400/30 shadow-lg' 
+                                  : 'hover:shadow-white/10'
+                                }
+                              `}
+                            >
+                              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                                <span className="text-sm">{item.icon}</span>
+                              </div>
+                              <div className="flex-1">
+                                <span className={`text-sm font-medium ${
+                                  item.highlight ? 'text-orange-200' : 'text-white/90 group-hover:text-white'
+                                }`}>
+                                  {item.label}
+                                </span>
+                                {item.desc && (
+                                  <p className="text-xs text-white/60 mt-1">{item.desc}</p>
+                                )}
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               ))}
 
-              {/* Auth Section */}
+              {/* Glassmorphism Auth Section */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="border-t border-white/10 pt-6"
+                transition={{ delay: 0.2 }}
+                className="border-t border-white/20 pt-4 mt-4"
               >
                 {!user ? (
                   <button
                     onClick={() => { close(); openAuth(); }}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-sm shadow-2xl hover:shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-orange-400/20"
                   >
-                    <span>🔐</span>
+                    <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <span className="text-sm">🔐</span>
+                    </div>
                     Zaloguj się
                   </button>
                 ) : (
-                  <button
-                    onClick={() => { signOut(); close(); }}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white/90 font-medium hover:bg-white/20 transition-all duration-200"
-                  >
-                    <span>👋</span>
-                    Wyloguj się
-                  </button>
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20">
+                      <div className="text-sm text-white/80 font-medium">
+                        {user.email?.split('@')[0]}
+                      </div>
+                      <div className="text-xs text-white/60 mt-1">Zalogowany</div>
+                    </div>
+                    <button
+                      onClick={() => { signOut(); close(); }}
+                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/20 text-white/90 font-medium text-sm hover:bg-black/60 hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-white/10"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-sm">👋</span>
+                      </div>
+                      Wyloguj się
+                    </button>
+                  </div>
                 )}
               </motion.div>
             </div>

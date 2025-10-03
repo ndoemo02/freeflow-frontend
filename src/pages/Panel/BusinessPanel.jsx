@@ -40,6 +40,14 @@ export default function BusinessPanel(){
   const [orderDetailsOpen, setOrderDetailsOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
 
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user?.id) {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
+
   // Load restaurants owned by current user
   useEffect(() => {
     if (!user?.id) { setRestaurants([]); setRestaurantId(''); return }
