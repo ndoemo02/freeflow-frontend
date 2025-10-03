@@ -65,10 +65,22 @@ export default function PanelHeader({ title, subtitle, showBackButton = true, sh
         <p className="text-lg text-slate-400">{subtitle}</p>
       )}
       
-      {/* User info */}
+      {/* User info and logout */}
       {user && (
-        <div className="mt-3 text-sm text-white/60">
-          Zalogowany jako: <span className="text-orange-300">{user.email}</span>
+        <div className="mt-3 flex items-center justify-center gap-4 text-sm text-white/60">
+          <span>
+            Zalogowany jako: <span className="text-orange-300">{user.email}</span>
+          </span>
+          <button
+            onClick={() => {
+              signOut();
+              navigate('/');
+            }}
+            className="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors"
+            title="Wyloguj się"
+          >
+            👋 Wyloguj
+          </button>
         </div>
       )}
     </div>

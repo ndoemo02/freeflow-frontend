@@ -72,7 +72,7 @@ export default function TaxiPanel() {
         .from('orders')
         .select(`
           *,
-          customer:user_profiles!orders_customer_id_fkey(
+          customer:profiles!customer_id(
             first_name,
             last_name,
             phone

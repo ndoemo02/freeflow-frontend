@@ -58,7 +58,7 @@ export default function CustomerPanel(){
     ;(async () => {
       try {
         const { data } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single()
@@ -144,7 +144,7 @@ export default function CustomerPanel(){
   async function saveProfile(){
     try{
       setSaving(true)
-      const { error } = await supabase.from('user_profiles').upsert({
+      const { error } = await supabase.from('profiles').upsert({
         id: user?.id,
         first_name: profile.firstName,
         last_name: profile.lastName,
@@ -277,8 +277,8 @@ export default function CustomerPanel(){
       const selectedRestaurantData = restaurants.find(r => r.id === selectedRestaurant)
       
       const { error } = await supabase.from('orders').insert({
-        customer: user.id,
-        restaurant: selectedRestaurant,
+        customer_id: user.id,
+        restaurant_id: selectedRestaurant,
         status: 'pending',
         total: getCartTotal(),
         items: JSON.stringify(cart.map(item => ({
@@ -381,7 +381,7 @@ function CustomerStats({ userId, refreshTrigger }){
       const { data, error } = await supabase
         .from('orders')
         .select('status,total')
-        .eq('customer', userId)
+        .eq('customer_id', userId)
       if (error) throw error
       const totalOrders = (data || []).filter(o => o.status !== 'cancelled').length
       const completedOrders = (data || []).filter(o => o.status === 'completed' || o.status === 'delivered').length
@@ -506,7 +506,7 @@ function OrdersTab({ userId, refreshTrigger }){
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer', userId)
+        .eq('customer_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
       console.log('Orders loaded:', data)
