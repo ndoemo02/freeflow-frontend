@@ -12,6 +12,9 @@ export default function Home() {
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("pl-PL-Standard-A");
+  const [restaurants, setRestaurants] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [currentAction, setCurrentAction] = useState("");
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -42,6 +45,13 @@ export default function Home() {
     console.log(`Wybrano: ${option}`);
     // Wysyłaj opcję do Dialogflow
     handleVoiceProcess(option);
+  };
+
+  const handleRestaurantClick = (restaurant: any) => {
+    console.log('🍽️ Selected restaurant:', restaurant);
+    setCurrentAction('menu');
+    setResponse(`Wybrano: ${restaurant.name}. Ładuję menu...`);
+    // Tutaj można dodać ładowanie menu dla wybranej restauracji
   };
 
   const startRecording = async () => {
@@ -166,6 +176,10 @@ export default function Home() {
     try {
       setTranscript(text);
       setError("");
+      setResponse("");
+      setRestaurants([]);
+      setMenuItems([]);
+      setCurrentAction("");
       console.log('🎯 Sending to Dialogflow:', text);
       
       // Wyślij do Dialogflow
@@ -180,6 +194,18 @@ export default function Home() {
       if (result.fulfillmentText) {
         setResponse(result.fulfillmentText);
         
+        // Sprawdź czy to zapytanie o restauracje
+        if (text.toLowerCase().includes('restauracje') || text.toLowerCase().includes('jedzenie') || text.toLowerCase().includes('pizza')) {
+          setCurrentAction('restaurants');
+          await loadRestaurants();
+        }
+        
+        // Sprawdź czy to zapytanie o menu
+        if (text.toLowerCase().includes('menu') || text.toLowerCase().includes('co macie')) {
+          setCurrentAction('menu');
+          // Tutaj można dodać ładowanie menu
+        }
+        
         // TTS - odtwórz odpowiedź
         await playTTS(result.fulfillmentText);
       } else {
@@ -188,6 +214,39 @@ export default function Home() {
     } catch (err) {
       console.error('❌ Voice process error:', err);
       setError(`Błąd przetwarzania głosu: ${err.message}`);
+    }
+  };
+
+  const loadRestaurants = async () => {
+    try {
+      console.log('🍽️ Loading restaurants...');
+      const data = await api('/api/restaurants', { method: 'GET' });
+      console.log('🏪 Restaurants data:', data);
+      
+      if (data.restaurants && Array.isArray(data.restaurants)) {
+        setRestaurants(data.restaurants);
+      } else {
+        // Fallback - przykładowe restauracje
+        const mockRestaurants = [
+          { id: '1', name: 'Pizza Hut', address: 'ul. Główna 1, Piekary Śląskie', rating: 4.5 },
+          { id: '2', name: 'KFC', address: 'ul. Centralna 15, Piekary Śląskie', rating: 4.2 },
+          { id: '3', name: 'McDonald\'s', address: 'ul. Handlowa 8, Piekary Śląskie', rating: 4.0 },
+          { id: '4', name: 'Burger King', address: 'ul. Rynkowa 22, Piekary Śląskie', rating: 4.3 },
+          { id: '5', name: 'Subway', address: 'ul. Szkolna 5, Piekary Śląskie', rating: 4.1 }
+        ];
+        setRestaurants(mockRestaurants);
+      }
+    } catch (err) {
+      console.error('❌ Error loading restaurants:', err);
+      // Fallback - przykładowe restauracje
+      const mockRestaurants = [
+        { id: '1', name: 'Pizza Hut', address: 'ul. Główna 1, Piekary Śląskie', rating: 4.5 },
+        { id: '2', name: 'KFC', address: 'ul. Centralna 15, Piekary Śląskie', rating: 4.2 },
+        { id: '3', name: 'McDonald\'s', address: 'ul. Handlowa 8, Piekary Śląskie', rating: 4.0 },
+        { id: '4', name: 'Burger King', address: 'ul. Rynkowa 22, Piekary Śląskie', rating: 4.3 },
+        { id: '5', name: 'Subway', address: 'ul. Szkolna 5, Piekary Śląskie', rating: 4.1 }
+      ];
+      setRestaurants(mockRestaurants);
     }
   };
 
@@ -328,6 +387,36 @@ export default function Home() {
                   <span className="text-blue-400">🤖 Odpowiadam:</span> {response}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Lista restauracji */}
+          {currentAction === 'restaurants' && restaurants.length > 0 && (
+            <div className="w-full max-w-2xl p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+              <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
+                🍽️ Restauracje w okolicy
+              </h3>
+              <div className="space-y-2">
+                {restaurants.map((restaurant, index) => (
+                  <div
+                    key={restaurant.id || index}
+                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-700/70 transition-colors cursor-pointer"
+                    onClick={() => handleRestaurantClick(restaurant)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm">{restaurant.name}</h4>
+                        <p className="text-slate-300 text-xs mt-1">{restaurant.address}</p>
+                      </div>
+                      {restaurant.rating && (
+                        <div className="flex items-center text-yellow-400 text-xs">
+                          ⭐ {restaurant.rating}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {/* Logo z animacjami */}
