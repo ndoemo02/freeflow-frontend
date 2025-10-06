@@ -40,3 +40,63 @@ export async function tts(text: string, opts?: { lang?: string; voiceName?: stri
   const audio = new Audio(`data:${mime};base64,${audioContent}`);
   return audio;
 }
+
+// Funkcje do zamówień
+export interface OrderItem {
+  menu_item_id: string;
+  name: string;
+  unit_price_cents: number;
+  qty: number;
+}
+
+export interface CreateOrderRequest {
+  restaurant_id: string;
+  items: OrderItem[];
+  customer_name?: string;
+  customer_phone?: string;
+  delivery_address?: string;
+  notes?: string;
+}
+
+export interface CreateOrderResponse {
+  order_id: string;
+  eta: string;
+  total_cents: number;
+  status: string;
+}
+
+// Utwórz zamówienie przez backend API
+export async function createOrder(orderData: CreateOrderRequest): Promise<CreateOrderResponse> {
+  const body = JSON.stringify(orderData);
+  const data = await api('/api/orders', { 
+    method: 'POST', 
+    body,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  return data;
+}
+
+// Pobierz zamówienia użytkownika
+export async function getUserOrders(userId?: string): Promise<any[]> {
+  const url = userId ? `/api/orders?user_id=${userId}` : '/api/orders';
+  const data = await api(url, { method: 'GET' });
+  return data.orders || [];
+}
+
+// Pobierz restauracje
+export async function getRestaurants(city?: string): Promise<any[]> {
+  const url = city ? `/api/restaurants?city=${encodeURIComponent(city)}` : '/api/restaurants';
+  const data = await api(url, { method: 'GET' });
+  return data.restaurants || [];
+}
+
+// Pobierz menu restauracji
+export async function getRestaurantMenu(restaurantId: string, dish?: string): Promise<any[]> {
+  const url = dish 
+    ? `/api/menu?restaurant_id=${restaurantId}&dish=${encodeURIComponent(dish)}`
+    : `/api/menu?restaurant_id=${restaurantId}`;
+  const data = await api(url, { method: 'GET' });
+  return data.menu || [];
+}
