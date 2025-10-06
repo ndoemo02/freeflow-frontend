@@ -374,18 +374,51 @@ export default function Home() {
             />
           </div>
 
-          {/* Pole transkrypcji */}
-          <div
-            className="
-              w-full max-w-2xl min-h-[50px]
-              rounded-lg bg-orange-900/15 ring-1 ring-orange-400/25 backdrop-blur
-              shadow-[0_6px_20px_rgba(0,0,0,.2)]
-              flex items-center justify-center px-4 py-3
-            "
-          >
-            <span className="text-orange-100/80 text-center text-xs sm:text-sm">
-              {isRecording ? "🎙️ Nasłuchuję..." : "Naciśnij logo i zacznij mówić..."}
-            </span>
+          {/* Pole transkrypcji - teraz z możliwością wpisania tekstu */}
+          <div className="w-full max-w-2xl">
+            <input
+              type="text"
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && transcript.trim()) {
+                  handleVoiceProcess(transcript.trim());
+                }
+              }}
+              placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
+              className="
+                w-full min-h-[50px]
+                rounded-lg bg-orange-900/15 ring-1 ring-orange-400/25 backdrop-blur
+                shadow-[0_6px_20px_rgba(0,0,0,.2)]
+                px-4 py-3
+                text-orange-100 placeholder:text-orange-100/60
+                text-center text-xs sm:text-sm
+                focus:outline-none focus:ring-2 focus:ring-orange-400/50
+                border-0
+              "
+            />
+            {transcript && (
+              <div className="mt-2 flex gap-2 justify-center">
+                <button
+                  onClick={() => handleVoiceProcess(transcript)}
+                  className="
+                    px-4 py-2 rounded-lg bg-orange-500 text-white text-sm
+                    hover:bg-orange-400 transition-colors
+                  "
+                >
+                  Wyślij
+                </button>
+                <button
+                  onClick={() => setTranscript("")}
+                  className="
+                    px-4 py-2 rounded-lg bg-slate-600 text-white text-sm
+                    hover:bg-slate-500 transition-colors
+                  "
+                >
+                  Wyczyść
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 3 panele w rzędzie */}
