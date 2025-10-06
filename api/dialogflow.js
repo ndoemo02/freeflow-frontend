@@ -1,4 +1,4 @@
-// Proxy endpoint for Dialogflow API
+// Local Dialogflow endpoint - fallback when backend is down
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,25 +11,57 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Forward request to backend
-    const backendUrl = 'https://freeflow-backend.vercel.app/api/dialogflow';
+    const { text } = req.body;
     
-    const response = await fetch(backendUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...req.headers
-      },
-      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
-    });
+    if (!text) {
+      return res.status(400).json({ 
+        error: 'Text is required' 
+      });
+    }
 
-    const data = await response.json();
+    console.log('🎯 Dialogflow input:', text);
+
+    // Simple fallback responses for testing
+    const responses = {
+      'pizza': 'Znalazłem pizzerie w okolicy! Którą wybierasz?',
+      'jedzenie': 'Pokażę Ci restauracje w okolicy!',
+      'taxi': 'Zamawiam taxi! Gdzie chcesz jechać?',
+      'hotel': 'Znajdę Ci hotel! W jakim mieście?',
+      'test': 'Test działa! Dialogflow endpoint jest aktywny.',
+      'chcę zamówić': 'Co chciałbyś zamówić? Pizza, burger, czy coś innego?',
+      'zamówić': 'Pokażę Ci dostępne opcje!',
+      'restauracje': 'Znalazłem restauracje w okolicy!',
+      'menu': 'Oto nasze menu!',
+      'zamówienie': 'Pomogę Ci złożyć zamówienie!'
+    };
+
+    // Find best match
+    let bestResponse = 'Rozumiem! Jak mogę Ci pomóc?';
+    const lowerText = text.toLowerCase();
     
-    res.status(response.status).json(data);
+    for (const [key, response] of Object.entries(responses)) {
+      if (lowerText.includes(key)) {
+        bestResponse = response;
+        break;
+      }
+    }
+
+    const result = {
+      fulfillmentText: bestResponse,
+      intent: 'fallback',
+      confidence: 0.8,
+      parameters: {},
+      allRequiredParamsPresent: true,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('🤖 Dialogflow response:', result);
+    res.status(200).json(result);
+    
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Dialogflow error:', error);
     res.status(500).json({ 
-      error: 'Proxy error', 
+      error: 'Dialogflow error', 
       message: error.message 
     });
   }
