@@ -47,11 +47,50 @@ export default function Home() {
     handleVoiceProcess(option);
   };
 
-  const handleRestaurantClick = (restaurant: any) => {
+  const handleRestaurantClick = async (restaurant: any) => {
     console.log('🍽️ Selected restaurant:', restaurant);
     setCurrentAction('menu');
     setResponse(`Wybrano: ${restaurant.name}. Ładuję menu...`);
-    // Tutaj można dodać ładowanie menu dla wybranej restauracji
+    await loadMenu(restaurant.id);
+  };
+
+  const loadMenu = async (restaurantId: string) => {
+    try {
+      console.log('🍽️ Loading menu for restaurant:', restaurantId);
+      const data = await api(`/api/menu?restaurant_id=${restaurantId}`, { method: 'GET' });
+      console.log('📋 Menu data:', data);
+      
+      if (data.menu && Array.isArray(data.menu)) {
+        setMenuItems(data.menu);
+      } else {
+        // Fallback - przykładowe menu
+        const mockMenu = [
+          { id: '1', name: 'Pizza Margherita', price: 25.99, category: 'Pizza' },
+          { id: '2', name: 'Pizza Pepperoni', price: 28.99, category: 'Pizza' },
+          { id: '3', name: 'Spaghetti Carbonara', price: 22.99, category: 'Pasta' },
+          { id: '4', name: 'Schabowy z ziemniakami', price: 18.99, category: 'Dania główne' },
+          { id: '5', name: 'Zupa pomidorowa', price: 8.99, category: 'Zupy' }
+        ];
+        setMenuItems(mockMenu);
+      }
+    } catch (err) {
+      console.error('❌ Error loading menu:', err);
+      // Fallback - przykładowe menu
+      const mockMenu = [
+        { id: '1', name: 'Pizza Margherita', price: 25.99, category: 'Pizza' },
+        { id: '2', name: 'Pizza Pepperoni', price: 28.99, category: 'Pizza' },
+        { id: '3', name: 'Spaghetti Carbonara', price: 22.99, category: 'Pasta' },
+        { id: '4', name: 'Schabowy z ziemniakami', price: 18.99, category: 'Dania główne' },
+        { id: '5', name: 'Zupa pomidorowa', price: 8.99, category: 'Zupy' }
+      ];
+      setMenuItems(mockMenu);
+    }
+  };
+
+  const handleMenuItemClick = (item: any) => {
+    console.log('🍽️ Selected menu item:', item);
+    setResponse(`Wybrano: ${item.name} za ${item.price} zł. Dodaję do koszyka...`);
+    // Tutaj można dodać logikę dodawania do koszyka
   };
 
   const startRecording = async () => {
@@ -413,6 +452,36 @@ export default function Home() {
                           ⭐ {restaurant.rating}
                         </div>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Menu restauracji */}
+          {currentAction === 'menu' && menuItems.length > 0 && (
+            <div className="w-full max-w-2xl p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+              <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
+                📋 Menu restauracji
+              </h3>
+              <div className="space-y-2">
+                {menuItems.map((item, index) => (
+                  <div
+                    key={item.id || index}
+                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-700/70 transition-colors cursor-pointer"
+                    onClick={() => handleMenuItemClick(item)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="text-white font-medium text-sm">{item.name}</h4>
+                        {item.category && (
+                          <p className="text-slate-400 text-xs mt-1">{item.category}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center text-orange-400 text-sm font-semibold">
+                        {item.price ? `${item.price} zł` : 'Brak ceny'}
+                      </div>
                     </div>
                   </div>
                 ))}

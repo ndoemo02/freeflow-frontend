@@ -1,4 +1,11 @@
-// Proxy endpoint for Menu API
+// Direct Supabase endpoint for Menu API
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || 'https://xdhlztmjktminrwmzcpl.supabase.co',
+  process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkaGx6dG1qa3RtaW5yd216Y3BsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3MjgwMTEsImV4cCI6MjA3MjMwNDAxMX0.EmvBqbygr4VLD3PXFaPjbChakRi5YtSrxp8e_K7ZyGY'
+);
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,25 +18,48 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Forward request to backend
-    const backendUrl = 'https://freeflow-backend.vercel.app/api/menu';
+    const { restaurant_id, dish } = req.query;
     
-    const response = await fetch(backendUrl, {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...req.headers
-      },
-      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
-    });
+    console.log('🍽️ Fetching menu for restaurant:', restaurant_id);
+    
+    if (!restaurant_id) {
+      return res.status(400).json({ 
+        error: 'Missing restaurant_id parameter' 
+      });
+    }
 
-    const data = await response.json();
+    let query = supabase
+      .from('menu_items')
+      .select('*')
+      .eq('restaurant_id', restaurant_id);
+
+    // Jeśli podano dish, filtruj po nazwie
+    if (dish) {
+      query = query.ilike('name', `%${dish}%`);
+    }
+
+    const { data, error } = await query.order('name');
+
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      return res.status(500).json({ 
+        error: 'Database error', 
+        message: error.message 
+      });
+    }
+
+    console.log('✅ Found menu items:', data?.length || 0);
     
-    res.status(response.status).json(data);
+    res.status(200).json({ 
+      ok: true, 
+      menu: data || [],
+      count: data?.length || 0
+    });
+    
   } catch (error) {
-    console.error('Menu Proxy error:', error);
+    console.error('❌ Menu API error:', error);
     res.status(500).json({ 
-      error: 'Menu Proxy error', 
+      error: 'Server error', 
       message: error.message 
     });
   }
