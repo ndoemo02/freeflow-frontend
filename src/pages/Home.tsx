@@ -165,6 +165,8 @@ export default function Home() {
   const handleVoiceProcess = async (text: string) => {
     try {
       setTranscript(text);
+      setError("");
+      console.log('🎯 Sending to Dialogflow:', text);
       
       // Wyślij do Dialogflow
       const result = await api('/api/dialogflow', {
@@ -173,14 +175,19 @@ export default function Home() {
         body: JSON.stringify({ text }),
       });
 
+      console.log('🤖 Dialogflow response:', result);
+
       if (result.fulfillmentText) {
         setResponse(result.fulfillmentText);
         
         // TTS - odtwórz odpowiedź
         await playTTS(result.fulfillmentText);
+      } else {
+        setError('Brak odpowiedzi od Dialogflow');
       }
     } catch (err) {
-      setError('Błąd przetwarzania głosu');
+      console.error('❌ Voice process error:', err);
+      setError(`Błąd przetwarzania głosu: ${err.message}`);
     }
   };
 
