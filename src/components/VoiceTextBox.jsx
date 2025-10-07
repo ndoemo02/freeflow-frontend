@@ -32,6 +32,7 @@ export default function VoiceTextBox({
   const [supported, setSupported] = useState(true);
   const [demoText, setDemoText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [hasInteraction, setHasInteraction] = useState(false);
   const recognitionRef = useRef(null);
   const interimRef = useRef("");
 
@@ -137,8 +138,24 @@ export default function VoiceTextBox({
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      setHasInteraction(true);
       onSubmit?.(value?.trim?.() ?? "");
     }
+  };
+
+  // Ustaw hasInteraction na true gdy pojawi się historia rozmowy
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      setHasInteraction(true);
+    }
+  }, [chatHistory]);
+
+  // Ustaw hasInteraction na true gdy użytkownik zacznie pisać
+  const handleChange = (e) => {
+    if (e.target.value.trim()) {
+      setHasInteraction(true);
+    }
+    onChange?.(e.target.value);
   };
 
 
@@ -152,16 +169,16 @@ export default function VoiceTextBox({
     }).join('\n\n');
   };
 
-  const displayValue = demoText || `${formatChatHistory()}${chatHistory.length > 0 ? '\n\n' : ''}${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
+  const displayValue = demoText || `${hasInteraction ? formatChatHistory() : ''}${hasInteraction && chatHistory.length > 0 ? '\n\n' : ''}${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
 
   return (
     <div className="ff-voicebox">
       <textarea
-        className="ff-input-large"
-        rows={6}
+        className={`ff-input-large ${hasInteraction ? 'expanded' : ''}`}
+        rows={hasInteraction ? 6 : 2}
         placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę o 19:00 • Nocleg na weekend" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
-        onChange={(e) => onChange?.(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKey}
         readOnly={isTyping} // Zablokuj edycję podczas demo
       />
