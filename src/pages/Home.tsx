@@ -2,7 +2,8 @@
 import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
-import MenuView from "./MenuView";
+import MenuView from "../components/MenuView";
+import ChatHistory from "../components/ChatHistory";
 import { useUI } from "../state/ui";
 import api from "../lib/api";
 
@@ -17,6 +18,7 @@ export default function Home() {
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [currentAction, setCurrentAction] = useState("");
+  const [chatHistory, setChatHistory] = useState<{ speaker: 'user' | 'agent', text: string }[]>([]);
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -108,6 +110,7 @@ export default function Home() {
     setRestaurants([]);
     setMenuItems([]);
     setCurrentAction("");
+    setChatHistory([]);
   };
   const startRecording = async () => {
     setIsRecording(true);
@@ -231,10 +234,12 @@ export default function Home() {
     setIsProcessing(true);
     try {
       setTranscript(text);
+      setChatHistory(prev => [...prev, { speaker: 'user', text }]);
       setError("");
       setResponse("");
       setRestaurants([]);
       setMenuItems([]);
+      
       setCurrentAction("");
       console.log('🎯 Sending to Dialogflow:', text);
       
@@ -249,6 +254,7 @@ export default function Home() {
 
       if (result.fulfillmentText) {
         setResponse(result.fulfillmentText);
+        setChatHistory(prev => [...prev, { speaker: 'agent', text: result.fulfillmentText }]);
 
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
         if (result.customPayload && result.customPayload.menu_items) {
@@ -437,7 +443,7 @@ export default function Home() {
               ? 'SHOWING_RESULTS'
               : 'IDLE';
           {/* Status Display */}
-          {(transcript || response || error) && (
+          {(isProcessing || error) && (
             <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
               {error && (
                 <div className="text-red-400 text-sm mb-2">
@@ -449,39 +455,8 @@ export default function Home() {
                   ⏳ Przetwarzam...
                 </div>
               )}
-              {transcript && (
-                <div className="text-slate-300 text-sm mb-2">
-                  <span className="text-orange-400">🎤 Usłyszałem:</span> {transcript}
-                </div>
-              )}
-              {response && (
-                <div className="text-green-400 text-sm">
-                  <span className="text-blue-400">🤖 Odpowiadam:</span> {response}
-                </div>
-              )}
             </div>
           )}
-
-          {/* Status Display - stara wersja do usunięcia po weryfikacji powyższej */}
-          {/* {(transcript || response || error) && (
-            <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
-              {error && (
-                <div className="text-red-400 text-sm mb-2">
-                  ❌ {error}
-                </div>
-              )}
-              {transcript && (
-                <div className="text-slate-300 text-sm mb-2">
-                  <span className="text-orange-400">🎤 Usłyszałem:</span> {transcript}
-                </div>
-              )}
-              {response && (
-                <div className="text-green-400 text-sm">
-                  <span className="text-blue-400">🤖 Odpowiadam:</span> {response}
-                </div>
-              )}
-            </div>
-          )} */}
 
             switch (viewState) {
               case 'LOADING':
@@ -494,6 +469,7 @@ export default function Home() {
               case 'SHOWING_RESULTS':
                 return (
                   <div className="w-full max-w-2xl">
+                    <ChatHistory messages={chatHistory} />
                     {currentAction === 'restaurants' && restaurants.length > 0 && (
                       <div className="w-full p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
                         <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
