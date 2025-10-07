@@ -93,7 +93,7 @@ export default function MenuDrawer() {
           <motion.aside
             role="dialog"
             aria-label="Menu"
-            className="fixed top-4 right-4 z-50 w-80 max-h-[calc(100vh-2rem)] bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden"
+            className="fixed top-4 right-4 z-50 w-80 h-[calc(100vh-2rem)] bg-black/40 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden flex flex-col"
             initial={{ scale: 0.8, opacity: 0, y: -20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: -20 }}
@@ -120,7 +120,7 @@ export default function MenuDrawer() {
             </div>
 
             {/* Kompaktowe Menu Content z Glassmorphism i przewijaniem */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
               {menuSections.map((section, sectionIndex) => (
                 <motion.div
                   key={section.id}
