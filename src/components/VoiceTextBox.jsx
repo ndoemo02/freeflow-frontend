@@ -29,8 +29,6 @@ export default function VoiceTextBox({
 }) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(true);
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [demoText, setDemoText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const recognitionRef = useRef(null);
@@ -95,21 +93,6 @@ export default function VoiceTextBox({
     setListening(false);
   };
 
-  // Filtruj podpowiedzi na podstawie aktualnego tekstu
-  useEffect(() => {
-    const currentText = value?.toLowerCase() || "";
-    if (currentText.length > 0) {
-      const filtered = SUGGESTIONS.filter(suggestion => 
-        suggestion.toLowerCase().includes(currentText) || 
-        currentText.includes(suggestion.toLowerCase().split(' ')[0])
-      );
-      setSuggestions(filtered.slice(0, 3)); // Maksymalnie 3 podpowiedzi
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setSuggestions(SUGGESTIONS.slice(0, 3)); // Pokaż pierwsze 3 podpowiedzi gdy pole jest puste
-      setShowSuggestions(true);
-    }
-  }, [value]);
 
   // Animacja pisania literka po literce
   const typeText = (text, callback) => {
@@ -127,12 +110,8 @@ export default function VoiceTextBox({
     }, 100); // 100ms na literkę
   };
 
-  // Pokaż podpowiedzi automatycznie po załadowaniu komponentu
+  // Rozpocznij demo po 1 sekundzie
   useEffect(() => {
-    setSuggestions(SUGGESTIONS.slice(0, 3));
-    setShowSuggestions(true);
-    
-    // Rozpocznij demo po 1 sekundzie
     setTimeout(() => {
       typeText("Chciałbym zamówić pizzę", () => {
         // Po napisaniu pierwszej podpowiedzi, pokaż następne
@@ -161,10 +140,6 @@ export default function VoiceTextBox({
     }
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    onChange?.(suggestion);
-    setShowSuggestions(false);
-  };
 
   const displayValue = demoText || `${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
 
@@ -177,26 +152,8 @@ export default function VoiceTextBox({
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}
         onKeyDown={handleKey}
-        onFocus={() => setShowSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 500)} // Dłuższe opóźnienie żeby można było kliknąć
         readOnly={isTyping} // Zablokuj edycję podczas demo
       />
-      
-      {/* Podpowiedzi */}
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="ff-suggestions">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              className="ff-suggestion-item"
-              onClick={() => handleSuggestionClick(suggestion)}
-              type="button"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
