@@ -63,31 +63,60 @@ export default function Settings() {
 
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Mapuj nazwy głosów Google na głosy przeglądarki
-      const voiceMap: { [key: string]: string } = {
-        'pl-PL-Standard-A': 'pl-PL',
-        'pl-PL-Standard-B': 'pl-PL',
-        'pl-PL-Wavenet-A': 'pl-PL',
-        'pl-PL-Wavenet-B': 'pl-PL',
-        'pl-PL-Wavenet-C': 'pl-PL',
-        'pl-PL-Wavenet-D': 'pl-PL',
-        'pl-PL-Wavenet-E': 'pl-PL',
-        'pl-PL-Chirp3-HD-Aoede': 'pl-PL',
-        'pl-PL-Chirp3-HD-Despina': 'pl-PL',
+      // Pobierz wszystkie dostępne głosy
+      const voices = speechSynthesis.getVoices();
+      console.log('🎵 Available voices:', voices.map(v => ({ name: v.name, lang: v.lang, gender: v.name.includes('Female') || v.name.includes('Kobieta') ? 'Female' : 'Male' })));
+
+      // Mapuj głosy Google na dostępne głosy przeglądarki z różnymi parametrami
+      const voiceConfigs: { [key: string]: { lang: string, rate: number, pitch: number, volume: number, gender?: string } } = {
+        'pl-PL-Standard-A': { lang: 'pl-PL', rate: 1.0, pitch: 1.2, volume: 1.0, gender: 'Female' },
+        'pl-PL-Standard-B': { lang: 'pl-PL', rate: 0.9, pitch: 0.8, volume: 1.0, gender: 'Male' },
+        'pl-PL-Wavenet-A': { lang: 'pl-PL', rate: 1.1, pitch: 1.3, volume: 0.9, gender: 'Female' },
+        'pl-PL-Wavenet-B': { lang: 'pl-PL', rate: 0.8, pitch: 0.7, volume: 1.0, gender: 'Male' },
+        'pl-PL-Wavenet-C': { lang: 'pl-PL', rate: 1.2, pitch: 0.9, volume: 0.8, gender: 'Male' },
+        'pl-PL-Wavenet-D': { lang: 'pl-PL', rate: 0.9, pitch: 1.4, volume: 1.0, gender: 'Female' },
+        'pl-PL-Wavenet-E': { lang: 'pl-PL', rate: 1.0, pitch: 1.1, volume: 0.9, gender: 'Female' },
+        'pl-PL-Chirp3-HD-Aoede': { lang: 'pl-PL', rate: 1.1, pitch: 1.5, volume: 1.0, gender: 'Female' },
+        'pl-PL-Chirp3-HD-Despina': { lang: 'pl-PL', rate: 0.9, pitch: 1.3, volume: 0.9, gender: 'Female' },
       };
 
-      const targetLang = voiceMap[voiceName] || 'pl-PL';
-      utterance.lang = targetLang;
-
-      // Znajdź polski głos
-      const voices = speechSynthesis.getVoices();
-      const polishVoice = voices.find(voice => voice.lang.startsWith('pl'));
+      const config = voiceConfigs[voiceName] || { lang: 'pl-PL', rate: 1.0, pitch: 1.0, volume: 1.0 };
       
-      if (polishVoice) {
-        utterance.voice = polishVoice;
-        console.log('🎵 Using voice:', polishVoice.name, polishVoice.lang);
+      // Ustaw parametry głosu
+      utterance.lang = config.lang;
+      utterance.rate = config.rate;
+      utterance.pitch = config.pitch;
+      utterance.volume = config.volume;
+
+      // Znajdź najlepszy głos
+      let selectedVoice = voices.find(voice => voice.lang.startsWith('pl'));
+      
+      // Jeśli nie ma polskiego głosu, użyj angielskiego z polskim akcentem
+      if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
+        if (selectedVoice) {
+          console.log('🎵 No Polish voice found, using English voice with Polish text');
+        }
+      }
+
+      // Spróbuj znaleźć głos o określonej płci
+      if (config.gender && selectedVoice) {
+        const genderVoice = voices.find(voice => 
+          voice.lang.startsWith('pl') && 
+          (voice.name.toLowerCase().includes(config.gender!.toLowerCase()) ||
+           voice.name.toLowerCase().includes('kobieta') ||
+           voice.name.toLowerCase().includes('female'))
+        );
+        if (genderVoice) {
+          selectedVoice = genderVoice;
+        }
+      }
+      
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('🎵 Using voice:', selectedVoice.name, selectedVoice.lang, 'Rate:', config.rate, 'Pitch:', config.pitch);
       } else {
-        console.log('🎵 No Polish voice found, using default');
+        console.log('🎵 No suitable voice found, using default');
       }
 
       utterance.onend = () => {
@@ -103,7 +132,7 @@ export default function Settings() {
       };
 
       speechSynthesis.speak(utterance);
-      console.log('🎵 Web Speech API playback started');
+      console.log('🎵 Web Speech API playback started with config:', config);
     });
   };
 
@@ -285,7 +314,7 @@ export default function Settings() {
                 <span className="font-semibold">
                   {import.meta.env.VITE_GOOGLE_API_KEY && import.meta.env.VITE_GOOGLE_API_KEY !== 'your_google_api_key_here' 
                     ? 'Powered by Google TTS' 
-                    : 'Web Speech API (Fallback)'}
+                    : 'Web Speech API (różne parametry)'}
                 </span>
               </div>
             </div>
@@ -356,6 +385,13 @@ export default function Settings() {
             transition={{ delay: 0.2 }}
           >
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Dostępne głosy (język polski)</h2>
+            <div className="mb-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-200 text-sm">
+                <strong>💡 Wskazówka:</strong> Każdy głos ma inne parametry (tempo, wysokość, głośność), 
+                więc będą brzmieć inaczej nawet w trybie Web Speech API. 
+                Dla najlepszej jakości dodaj klucz Google API do pliku .env
+              </p>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-600">
                 <thead className="bg-gray-700">
