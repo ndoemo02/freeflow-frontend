@@ -30,3 +30,5 @@ build/
 placeholder/
 tts.cache.patch/
 test.js
+.env
+.env.local

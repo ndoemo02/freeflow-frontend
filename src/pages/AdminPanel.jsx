@@ -117,11 +117,11 @@ export default function AdminPanel() {
   // Funkcja do określania typu konta
   const getAccountType = (userType) => {
     switch (userType) {
-      case 'business': return { label: 'BIZ', color: 'bg-blue-100 text-blue-800', icon: '🏢' };
-      case 'customer': return { label: 'CUS', color: 'bg-green-100 text-green-800', icon: '👤' };
-      case 'admin': return { label: 'ADM', color: 'bg-red-100 text-red-800', icon: '👑' };
-      case 'driver': return { label: 'DRV', color: 'bg-yellow-100 text-yellow-800', icon: '🚗' };
-      default: return { label: 'UNK', color: 'bg-gray-100 text-gray-800', icon: '❓' };
+      case 'business': return { label: 'BIZ', color: 'bg-blue-600 text-blue-100', icon: '🏢' };
+      case 'customer': return { label: 'CUS', color: 'bg-green-600 text-green-100', icon: '👤' };
+      case 'admin': return { label: 'ADM', color: 'bg-red-600 text-red-100', icon: '👑' };
+      case 'driver': return { label: 'DRV', color: 'bg-yellow-600 text-yellow-100', icon: '🚗' };
+      default: return { label: 'UNK', color: 'bg-gray-600 text-gray-100', icon: '❓' };
     }
   };
 
@@ -241,10 +241,12 @@ export default function AdminPanel() {
     scales: {
       y: {
         beginAtZero: true,
-        grid: { color: '#f1f5f9' }
+        grid: { color: '#374151' },
+        ticks: { color: '#9CA3AF' }
       },
       x: {
-        grid: { display: false }
+        grid: { display: false },
+        ticks: { color: '#9CA3AF' }
       }
     },
     elements: {
@@ -260,7 +262,8 @@ export default function AdminPanel() {
         position: 'bottom',
         labels: {
           usePointStyle: true,
-          padding: 20
+          padding: 20,
+          color: '#9CA3AF'
         }
       }
     }
@@ -305,24 +308,24 @@ export default function AdminPanel() {
           {loading ? (
             // Loading skeleton
             Array(4).fill(0).map((_, index) => (
-              <div key={index} className="bg-white p-8 rounded-2xl shadow-lg relative overflow-hidden animate-pulse">
+              <div key={index} className="bg-gray-800 p-8 rounded-2xl shadow-lg relative overflow-hidden animate-pulse border border-gray-700">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-                <div className="h-10 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded mb-4 w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-10 bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 bg-gray-700 rounded mb-4 w-3/4"></div>
+                <div className="h-3 bg-gray-700 rounded w-1/2"></div>
               </div>
             ))
           ) : (
             kpiData.map((kpi, index) => (
-              <div key={index} className="bg-white p-8 rounded-2xl shadow-lg relative overflow-hidden">
+              <div key={index} className="bg-gray-800 p-8 rounded-2xl shadow-lg relative overflow-hidden border border-gray-700">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-                <div className="text-4xl font-extrabold text-gray-800 mb-2 flex items-baseline gap-2">
+                <div className="text-4xl font-extrabold text-white mb-2 flex items-baseline gap-2">
                   {kpi.value}
-                  <span className="text-lg text-gray-500 font-normal">{kpi.unit}</span>
+                  <span className="text-lg text-gray-300 font-normal">{kpi.unit}</span>
                 </div>
-                <div className="text-gray-600 font-medium mb-4">{kpi.label}</div>
+                <div className="text-gray-300 font-medium mb-4">{kpi.label}</div>
                 <div className={`flex items-center gap-2 text-sm font-semibold ${
-                  kpi.positive ? 'text-green-600' : 'text-red-600'
+                  kpi.positive ? 'text-green-400' : 'text-red-400'
                 }`}>
                   <span className="text-base">{kpi.positive ? '↗' : '↘'}</span>
                   <span>{kpi.change}</span>
@@ -335,11 +338,11 @@ export default function AdminPanel() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
           {/* Orders Chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-lg">
+          <div className="lg:col-span-2 bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
             <div className="flex justify-between items-center mb-8">
               <div>
-                <div className="text-xl font-bold text-gray-800">Krzywa Zamówień</div>
-                <div className="text-sm text-gray-500 mt-1">Trend zamówień w czasie rzeczywistym</div>
+                <div className="text-xl font-bold text-white">Krzywa Zamówień</div>
+                <div className="text-sm text-gray-300 mt-1">Trend zamówień w czasie rzeczywistym</div>
               </div>
               <div className="flex gap-2">
                 {['Dzienna', 'Godzinowa', 'Tygodniowa'].map(type => (
@@ -349,7 +352,7 @@ export default function AdminPanel() {
                     className={`px-4 py-2 border rounded-full text-xs transition-all ${
                       chartType === type 
                         ? 'bg-indigo-500 text-white border-indigo-500' 
-                        : 'border-gray-200 hover:border-indigo-300'
+                        : 'border-gray-600 hover:border-indigo-400 text-gray-300 bg-gray-700'
                     }`}
                   >
                     {type}
@@ -363,10 +366,10 @@ export default function AdminPanel() {
           </div>
 
           {/* Hourly Distribution */}
-          <div className="bg-white rounded-2xl p-8 shadow-lg">
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
             <div className="mb-8">
-              <div className="text-xl font-bold text-gray-800">Rozkład Godzinowy</div>
-              <div className="text-sm text-gray-500 mt-1">Kiedy jest największy ruch</div>
+              <div className="text-xl font-bold text-white">Rozkład Godzinowy</div>
+              <div className="text-sm text-gray-300 mt-1">Kiedy jest największy ruch</div>
             </div>
             <div className="h-80">
               <Doughnut data={hourlyChartData} options={doughnutOptions} />
@@ -377,44 +380,44 @@ export default function AdminPanel() {
         {/* Bottom Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Top Dishes */}
-          <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <div className="text-xl font-bold text-gray-800 mb-6">Top Dania</div>
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
+            <div className="text-xl font-bold text-white mb-6">Top Dania</div>
             {topDishes.map((dish, index) => (
-              <div key={index} className="flex justify-between items-center py-4 border-b border-gray-100 last:border-b-0">
+              <div key={index} className="flex justify-between items-center py-4 border-b border-gray-700 last:border-b-0">
                 <div className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold">
                     {index + 1}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-800">{dish.name}</div>
-                    <div className="text-xs text-gray-500">{dish.description}</div>
+                    <div className="font-semibold text-white">{dish.name}</div>
+                    <div className="text-xs text-gray-300">{dish.description}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-gray-800">{dish.orders}</div>
-                  <div className="text-xs text-gray-500">zamówień</div>
+                  <div className="font-bold text-white">{dish.orders}</div>
+                  <div className="text-xs text-gray-300">zamówień</div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Top Restaurants */}
-          <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <div className="text-xl font-bold text-gray-800 mb-6">Top Restauracje</div>
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
+            <div className="text-xl font-bold text-white mb-6">Top Restauracje</div>
             {topRestaurants.map((restaurant, index) => (
-              <div key={index} className="flex justify-between items-center py-4 border-b border-gray-100 last:border-b-0">
+              <div key={index} className="flex justify-between items-center py-4 border-b border-gray-700 last:border-b-0">
                 <div className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold">
                     {index + 1}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-800">{restaurant.name}</div>
-                    <div className="text-xs text-gray-500">{restaurant.location}</div>
+                    <div className="font-semibold text-white">{restaurant.name}</div>
+                    <div className="text-xs text-gray-300">{restaurant.location}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-gray-800">{restaurant.revenue}</div>
-                  <div className="text-xs text-gray-500">przychód</div>
+                  <div className="font-bold text-white">{restaurant.revenue}</div>
+                  <div className="text-xs text-gray-300">przychód</div>
                 </div>
               </div>
             ))}
@@ -423,15 +426,15 @@ export default function AdminPanel() {
 
         {/* Accounts Management Section */}
         <motion.div 
-          className="bg-white rounded-2xl p-8 shadow-lg"
+          className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Server Accounts</h2>
-              <p className="text-gray-600">Manage user accounts and roles</p>
+              <h2 className="text-2xl font-bold text-white mb-2">Server Accounts</h2>
+              <p className="text-gray-300">Manage user accounts and roles</p>
             </div>
             <button
               onClick={loadAccounts}
@@ -446,7 +449,7 @@ export default function AdminPanel() {
             <div className="space-y-4">
               {Array(5).fill(0).map((_, index) => (
                 <div key={index} className="animate-pulse">
-                  <div className="h-16 bg-gray-200 rounded-lg"></div>
+                  <div className="h-16 bg-gray-700 rounded-lg"></div>
                 </div>
               ))}
             </div>
@@ -454,11 +457,11 @@ export default function AdminPanel() {
             <div className="space-y-4">
               {accounts.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-3xl">👥</span>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No accounts found</h3>
-                  <p className="text-gray-600">No user accounts registered yet</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">No accounts found</h3>
+                  <p className="text-gray-300">No user accounts registered yet</p>
                 </div>
               ) : (
                 accounts.map((account, index) => {
@@ -466,23 +469,23 @@ export default function AdminPanel() {
                   return (
                     <motion.div
                       key={account.id}
-                      className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-200"
+                      className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl p-6 border border-gray-600 hover:shadow-lg transition-all duration-200"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
                             <span className="text-xl">{accountType.icon}</span>
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900 text-lg">
+                            <h3 className="font-semibold text-white text-lg">
                               {account.first_name || 'Brak'} {account.last_name || 'nazwiska'}
                             </h3>
-                            <p className="text-gray-600 text-sm">{account.email}</p>
+                            <p className="text-gray-300 text-sm">{account.email}</p>
                             {account.phone && (
-                              <p className="text-gray-500 text-xs">📞 {account.phone}</p>
+                              <p className="text-gray-400 text-xs">📞 {account.phone}</p>
                             )}
                           </div>
                         </div>
@@ -491,11 +494,11 @@ export default function AdminPanel() {
                             {accountType.label}
                           </span>
                           <div className="text-right">
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-gray-300">
                               Joined: {new Date(account.created_at).toLocaleDateString()}
                             </div>
                             {account.business_id && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-400">
                                 Business ID: {account.business_id}
                               </div>
                             )}
