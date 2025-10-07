@@ -558,13 +558,13 @@ export default function Home() {
                 placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
                 className="
                   w-full min-h-[50px]
-                  rounded-lg bg-orange-900/15 ring-1 ring-orange-400/25 backdrop-blur
+                  rounded-lg bg-black/30 border border-white/20 backdrop-blur
                   shadow-[0_6px_20px_rgba(0,0,0,.2)]
                   px-4 pr-12 py-3
-                  text-orange-100 placeholder:text-orange-100/60
+                  text-orange-100 placeholder-gray-400
                   text-center text-xs sm:text-sm
                   focus:outline-none focus:ring-2 focus:ring-orange-400/50
-                  border-0 transition-all
+                  transition-all
                 "
               />
               <button
