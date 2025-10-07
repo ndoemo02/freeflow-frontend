@@ -235,7 +235,7 @@ export default function Home() {
   const handleTextInputSubmit = async (text: string) => {
     if (!text.trim()) return;
     await handleVoiceProcess(text);
-    setTranscript(""); // Wyczyść pole po wysłaniu
+    setTranscript(""); // Wyczyść pole po wysłaniu (tylko aktualny tekst, historia zostaje)
   };
 
   const handleVoiceProcess = async (text: string) => {
@@ -555,6 +555,7 @@ export default function Home() {
               value={transcript}
               onChange={setTranscript}
               onSubmit={handleTextInputSubmit}
+              chatHistory={chatHistory}
               placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
             />
           </div>

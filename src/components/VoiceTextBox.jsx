@@ -25,6 +25,7 @@ export default function VoiceTextBox({
   value,
   onChange,
   onSubmit,
+  chatHistory = [],
   placeholder = "Mów tutaj…",
 }) {
   const [listening, setListening] = useState(false);
@@ -141,13 +142,23 @@ export default function VoiceTextBox({
   };
 
 
-  const displayValue = demoText || `${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
+  // Formatuj historię rozmowy
+  const formatChatHistory = () => {
+    if (chatHistory.length === 0) return "";
+    
+    return chatHistory.map((entry, index) => {
+      const prefix = entry.speaker === 'user' ? '👤 Ty: ' : '🤖 Agent: ';
+      return `${prefix}${entry.text}`;
+    }).join('\n\n');
+  };
+
+  const displayValue = demoText || `${formatChatHistory()}${chatHistory.length > 0 ? '\n\n' : ''}${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
 
   return (
     <div className="ff-voicebox">
       <textarea
         className="ff-input-large"
-        rows={2}
+        rows={6}
         placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę o 19:00 • Nocleg na weekend" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}
