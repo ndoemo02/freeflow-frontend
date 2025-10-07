@@ -35,35 +35,132 @@ export default function Settings() {
     setStatusMessage('');
 
     try {
-      const audioData = await generateTts(text, selectedVoice);
-      const mimeType = audioData.mimeType;
-
-      if (audioData.audioData && mimeType && mimeType.startsWith("audio/")) {
-        const sampleRateMatch = mimeType.match(/rate=(\d+)/);
-        if (!sampleRateMatch) {
-          throw new Error("Nie można odczytać częstotliwości próbkowania z typu MIME.");
-        }
-        const sampleRate = parseInt(sampleRateMatch[1], 10);
-        const pcmData = base64ToArrayBuffer(audioData.audioData);
-        const pcm16 = new Int16Array(pcmData);
-        const wavBlob = pcmToWav(pcm16, sampleRate);
-        const audioUrl = URL.createObjectURL(wavBlob);
-        
-        const audio = new Audio(audioUrl);
-        audio.play();
-        audio.onended = () => setIsLoading(false);
+      // Sprawdź czy mamy klucz Google API
+      const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+      
+      if (!apiKey || apiKey === 'your_google_api_key_here') {
+        // Fallback do Web Speech API
+        console.log('🎵 Using Web Speech API fallback...');
+        await playWithWebSpeechAPI(text, selectedVoice);
       } else {
-        throw new Error("Otrzymano nieprawidłowe dane audio z API.");
+        // Użyj Google TTS API
+        console.log('🎵 Using Google TTS API...');
+        await playWithGoogleTTS(text, selectedVoice);
       }
     } catch (error) {
-      console.error("Błąd podczas generowania mowy:", error);
-      setStatusMessage("Wystąpił błąd. Spróbuj ponownie.");
+      console.error("❌ Błąd podczas generowania mowy:", error);
+      setStatusMessage(error instanceof Error ? error.message : "Wystąpił błąd. Spróbuj ponownie.");
       setIsLoading(false);
+    }
+  };
+
+  const playWithWebSpeechAPI = async (text: string, voiceName: string) => {
+    return new Promise<void>((resolve, reject) => {
+      if (!('speechSynthesis' in window)) {
+        reject(new Error('Web Speech API nie jest obsługiwane w tej przeglądarce.'));
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Mapuj nazwy głosów Google na głosy przeglądarki
+      const voiceMap: { [key: string]: string } = {
+        'pl-PL-Standard-A': 'pl-PL',
+        'pl-PL-Standard-B': 'pl-PL',
+        'pl-PL-Wavenet-A': 'pl-PL',
+        'pl-PL-Wavenet-B': 'pl-PL',
+        'pl-PL-Wavenet-C': 'pl-PL',
+        'pl-PL-Wavenet-D': 'pl-PL',
+        'pl-PL-Wavenet-E': 'pl-PL',
+        'pl-PL-Chirp3-HD-Aoede': 'pl-PL',
+        'pl-PL-Chirp3-HD-Despina': 'pl-PL',
+      };
+
+      const targetLang = voiceMap[voiceName] || 'pl-PL';
+      utterance.lang = targetLang;
+
+      // Znajdź polski głos
+      const voices = speechSynthesis.getVoices();
+      const polishVoice = voices.find(voice => voice.lang.startsWith('pl'));
+      
+      if (polishVoice) {
+        utterance.voice = polishVoice;
+        console.log('🎵 Using voice:', polishVoice.name, polishVoice.lang);
+      } else {
+        console.log('🎵 No Polish voice found, using default');
+      }
+
+      utterance.onend = () => {
+        console.log('🎵 Web Speech API playback ended');
+        setIsLoading(false);
+        resolve();
+      };
+
+      utterance.onerror = (event) => {
+        console.error('🎵 Web Speech API error:', event);
+        setIsLoading(false);
+        reject(new Error('Błąd odtwarzania głosu'));
+      };
+
+      speechSynthesis.speak(utterance);
+      console.log('🎵 Web Speech API playback started');
+    });
+  };
+
+  const playWithGoogleTTS = async (text: string, voiceName: string) => {
+    console.log('🎵 Starting Google TTS generation...');
+    const audioData = await generateTts(text, voiceName);
+    const mimeType = audioData.mimeType;
+
+    console.log('🎵 Audio data received:', {
+      hasAudioData: !!audioData.audioData,
+      mimeType: mimeType,
+      audioDataLength: audioData.audioData?.length
+    });
+
+    if (audioData.audioData && mimeType && mimeType.startsWith("audio/")) {
+      const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+      if (!sampleRateMatch) {
+        throw new Error("Nie można odczytać częstotliwości próbkowania z typu MIME.");
+      }
+      const sampleRate = parseInt(sampleRateMatch[1], 10);
+      console.log('🎵 Sample rate:', sampleRate);
+      
+      const pcmData = base64ToArrayBuffer(audioData.audioData);
+      const pcm16 = new Int16Array(pcmData);
+      const wavBlob = pcmToWav(pcm16, sampleRate);
+      const audioUrl = URL.createObjectURL(wavBlob);
+      
+      console.log('🎵 Audio URL created:', audioUrl);
+      
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        console.log('🎵 Google TTS playback ended');
+        setIsLoading(false);
+      };
+      audio.onerror = (e) => {
+        console.error('🎵 Google TTS playback error:', e);
+        setIsLoading(false);
+      };
+      
+      await audio.play();
+      console.log('🎵 Google TTS playback started');
+    } else {
+      throw new Error("Otrzymano nieprawidłowe dane audio z API.");
     }
   };
 
   const generateTts = async (text: string, voiceName: string) => {
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || "";
+    
+    console.log('🔑 API Key:', apiKey ? 'Ustawiony' : 'BRAK');
+    console.log('📝 Text:', text);
+    console.log('🎤 Voice:', voiceName);
+    
+    if (!apiKey || apiKey === 'your_google_api_key_here') {
+      throw new Error('Brak klucza Google API. Dodaj VITE_GOOGLE_API_KEY do pliku .env');
+    }
+    
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
     const payload = {
@@ -81,18 +178,25 @@ export default function Settings() {
       model: "gemini-2.5-flash-preview-tts"
     };
 
+    console.log('📤 Request payload:', payload);
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
+    console.log('📥 Response status:', response.status);
+
     if (!response.ok) {
       const errorBody = await response.json();
+      console.error('❌ API Error:', errorBody);
       throw new Error(`Błąd API: ${response.status} - ${errorBody.error?.message || 'Nieznany błąd'}`);
     }
 
     const result = await response.json();
+    console.log('✅ API Response:', result);
+    
     const part = result?.candidates?.[0]?.content?.parts?.[0];
 
     return {
@@ -178,7 +282,11 @@ export default function Settings() {
                   <path d="M12 12L18 6"></path>
                   <path d="M12 12v6"></path>
                 </svg>
-                <span className="font-semibold">Powered by Google</span>
+                <span className="font-semibold">
+                  {import.meta.env.VITE_GOOGLE_API_KEY && import.meta.env.VITE_GOOGLE_API_KEY !== 'your_google_api_key_here' 
+                    ? 'Powered by Google TTS' 
+                    : 'Web Speech API (Fallback)'}
+                </span>
               </div>
             </div>
 
