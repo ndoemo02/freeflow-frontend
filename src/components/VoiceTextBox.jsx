@@ -204,7 +204,7 @@ export default function VoiceTextBox({
       <textarea
         className={`ff-input-large ${hasInteraction ? 'expanded' : ''}`}
         rows={hasInteraction ? 6 : 2}
-        placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę • Nocleg na weekend • Rezerwacja stolika • Menu na dzisiaj" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
+        placeholder={supported ? "Mów tutaj..." : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKey}
