@@ -477,7 +477,6 @@ export default function Home() {
               case 'SHOWING_RESULTS':
                 return (
                   <div className="w-full max-w-2xl">
-                    <ChatHistory messages={chatHistory} />
                     {currentAction === 'restaurants' && restaurants.length > 0 && (
                       <div className="w-full p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
                         <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
