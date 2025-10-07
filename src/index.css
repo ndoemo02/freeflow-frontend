@@ -215,6 +215,29 @@ html, body, #root { height: 100%; }
   box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
 }
 
+.ff-input-large {
+  padding: 1.5rem 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 1.25rem;
+  min-height: 120px;
+  width: 100%;
+  resize: vertical;
+}
+
+.ff-input-large::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.1rem;
+}
+
+.ff-input-large:focus {
+  outline: none;
+  border-color: #ff6a00;
+  box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
+}
+
 .ff-suggestions {
   position: absolute;
   top: 100%;
