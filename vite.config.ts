@@ -1,11 +1,12 @@
-// vite.config.js
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+/// <reference types="vitest" />
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '192.168.100.13',  // konkretny adres IP
+    host: '192.168.100.13',
     port: 5173,
     strictPort: true,
     cors: true,
@@ -13,7 +14,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3003',
         changeOrigin: true,
-        // Zostaw prefix /api (backend też używa /api/...)
         rewrite: (p) => p.replace(/^\/api/, '/api'),
       },
     },
@@ -25,4 +25,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': '/src' },
   },
-})
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "./src/setupTests.ts",
+  },
+});
