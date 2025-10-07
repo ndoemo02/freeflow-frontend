@@ -5,6 +5,7 @@ import MenuDrawer from "../ui/MenuDrawer";
 import MenuView from "../components/MenuView";
 import ChatHistory from "../components/ChatHistory";
 import { useUI } from "../state/ui";
+import { Send } from 'lucide-react';
 import api from "../lib/api";
 
 export default function Home() {
@@ -228,6 +229,12 @@ export default function Home() {
     } finally {
       setIsRecording(false);
     }
+  };
+
+  const handleTextInputSubmit = async (text: string) => {
+    if (!text.trim()) return;
+    await handleVoiceProcess(text);
+    setTranscript(""); // Wyczyść pole po wysłaniu
   };
 
   const handleVoiceProcess = async (text: string) => {
@@ -542,50 +549,39 @@ export default function Home() {
           })()}
 
           {/* Pole transkrypcji - teraz z możliwością wpisania tekstu */}
-          <div className="w-full max-w-2xl">
-            <input
-              type="text"
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && transcript.trim()) {
-                  handleVoiceProcess(transcript.trim());
-                }
-              }}
-              placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
-              className="
-                w-full min-h-[50px]
-                rounded-lg bg-orange-900/15 ring-1 ring-orange-400/25 backdrop-blur
-                shadow-[0_6px_20px_rgba(0,0,0,.2)]
-                px-4 py-3
-                text-orange-100 placeholder:text-orange-100/60
-                text-center text-xs sm:text-sm
-                focus:outline-none focus:ring-2 focus:ring-orange-400/50
-                border-0
-              "
-            />
-            {transcript && (
-              <div className="mt-2 flex gap-2 justify-center">
-                <button
-                  onClick={() => handleVoiceProcess(transcript)}
-                  className="
-                    px-4 py-2 rounded-lg bg-orange-500 text-white text-sm
-                    hover:bg-orange-400 transition-colors
-                  "
-                >
-                  Wyślij
-                </button>
-                <button
-                  onClick={clearResults}
-                  className="
-                    px-4 py-2 rounded-lg bg-slate-600 text-white text-sm
-                    hover:bg-slate-500 transition-colors
-                  "
-                >
-                  Wyczyść
-                </button>
-              </div>
-            )}
+          <div className="w-full max-w-2xl relative">
+            <form onSubmit={(e) => { e.preventDefault(); handleTextInputSubmit(transcript); }}>
+              <input
+                type="text"
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
+                className="
+                  w-full min-h-[50px]
+                  rounded-lg bg-orange-900/15 ring-1 ring-orange-400/25 backdrop-blur
+                  shadow-[0_6px_20px_rgba(0,0,0,.2)]
+                  px-4 pr-12 py-3
+                  text-orange-100 placeholder:text-orange-100/60
+                  text-center text-xs sm:text-sm
+                  focus:outline-none focus:ring-2 focus:ring-orange-400/50
+                  border-0 transition-all
+                "
+              />
+              <button
+                type="submit"
+                aria-label="Wyślij wiadomość"
+                disabled={!transcript.trim() || isProcessing}
+                className="
+                  absolute right-3 top-1/2 -translate-y-1/2
+                  w-8 h-8 rounded-full flex items-center justify-center
+                  text-orange-200 bg-orange-500/30
+                  hover:bg-orange-500/50 transition-colors
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
 
           {/* 3 panele w rzędzie */}
