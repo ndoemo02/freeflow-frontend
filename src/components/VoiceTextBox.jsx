@@ -147,7 +147,7 @@ export default function VoiceTextBox({
     <div className="ff-voicebox">
       <textarea
         className="ff-input-large"
-        rows={4}
+        rows={2}
         placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę o 19:00 • Nocleg na weekend" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}

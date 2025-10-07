@@ -441,7 +441,7 @@ export default function Home() {
       {/* Główna kolumna: mobile layout */}
       <div className="mx-auto max-w-3xl px-4 min-h-screen flex flex-col justify-center items-center">
         
-        <div className="w-full flex flex-col items-center space-y-1 pt-8">
+        <div className="w-full flex flex-col items-center space-y-1 pt-4">
           
           {(() => {
             const hasResults = restaurants.length > 0 || menuItems.length > 0;
