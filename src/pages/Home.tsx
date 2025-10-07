@@ -550,7 +550,7 @@ export default function Home() {
           })()}
 
           {/* Pole transkrypcji z animacją demo */}
-          <div className="w-full max-w-2xl relative">
+          <div className="w-full max-w-2xl relative -mt-8 mb-4">
             <VoiceTextBox
               value={transcript}
               onChange={setTranscript}
