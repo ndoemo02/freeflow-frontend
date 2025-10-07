@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import MenuDrawer from "../ui/MenuDrawer";
 import MenuView from "./MenuView";
 import ChatHistory from "./ChatHistory";
+import VoiceTextBox from "../components/VoiceTextBox";
 import { useUI } from "../state/ui";
 import { Send } from 'lucide-react';
 import api from "../lib/api";
@@ -548,40 +549,14 @@ export default function Home() {
             }
           })()}
 
-          {/* Pole transkrypcji - teraz z możliwością wpisania tekstu */}
+          {/* Pole transkrypcji z animacją demo */}
           <div className="w-full max-w-2xl relative">
-            <form onSubmit={(e) => { e.preventDefault(); handleTextInputSubmit(transcript); }}>
-              <input
-                type="text"
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
-                className="
-                  w-full min-h-[50px]
-                  rounded-lg bg-black/30 border border-white/20 backdrop-blur
-                  shadow-[0_6px_20px_rgba(0,0,0,.2)]
-                  px-4 pr-12 py-3
-                  text-orange-100 placeholder-gray-400
-                  text-center text-xs sm:text-sm
-                  focus:outline-none focus:ring-2 focus:ring-orange-400/50
-                  transition-all
-                "
-              />
-              <button
-                type="submit"
-                aria-label="Wyślij wiadomość"
-                disabled={!transcript.trim() || isProcessing}
-                className="
-                  absolute right-3 top-1/2 -translate-y-1/2
-                  w-8 h-8 rounded-full flex items-center justify-center
-                  text-orange-200 bg-orange-500/30
-                  hover:bg-orange-500/50 transition-colors
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                "
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+            <VoiceTextBox
+              value={transcript}
+              onChange={setTranscript}
+              onSubmit={handleTextInputSubmit}
+              placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
+            />
           </div>
 
           {/* 3 panele w rzędzie */}
