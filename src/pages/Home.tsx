@@ -2,8 +2,8 @@
 import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
-import MenuView from "../components/MenuView";
-import ChatHistory from "../components/ChatHistory";
+import MenuView from "./MenuView";
+import ChatHistory from "./ChatHistory";
 import { useUI } from "../state/ui";
 import { Send } from 'lucide-react';
 import api from "../lib/api";
