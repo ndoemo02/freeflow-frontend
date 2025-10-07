@@ -215,6 +215,46 @@ html, body, #root { height: 100%; }
   box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
 }
 
+.ff-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  margin-top: 0.25rem;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+}
+
+.ff-suggestion-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ff-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.ff-suggestion-item:hover {
+  background: rgba(255, 106, 0, 0.1);
+  color: white;
+}
+
+.ff-voicebox {
+  position: relative;
+}
+
 .ff-btn {
   padding: 0.75rem 1rem;
   border: none;
