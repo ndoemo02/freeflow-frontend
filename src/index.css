@@ -196,6 +196,25 @@ html, body, #root { height: 100%; }
   box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
 }
 
+.ff-input-transparent {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: white;
+  font-size: 1rem;
+}
+
+.ff-input-transparent::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.ff-input-transparent:focus {
+  outline: none;
+  border-color: #ff6a00;
+  box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
+}
+
 .ff-btn {
   padding: 0.75rem 1rem;
   border: none;

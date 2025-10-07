@@ -88,25 +88,13 @@ export default function VoiceTextBox({
   return (
     <div className="ff-voicebox">
       <textarea
-        className="ff-input"
+        className="ff-input-transparent"
         rows={2}
         placeholder={supported ? placeholder : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}
         onKeyDown={handleKey}
       />
-      <div className="ff-voicebox__actions">
-        {!listening ? (
-          <button className="ff-btn ff-btn--primary" onClick={start} disabled={!supported}>
-            ● Start
-          </button>
-        ) : (
-          <button className="ff-btn ff-btn--danger" onClick={stop}>■ Stop</button>
-        )}
-        <button className="ff-btn" onClick={() => onSubmit?.(value?.trim?.() ?? "")}>
-          Wyślij
-        </button>
-      </div>
     </div>
   );
 }
