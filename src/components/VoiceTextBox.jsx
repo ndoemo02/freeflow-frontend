@@ -11,7 +11,23 @@ const SUGGESTIONS = [
   "Godziny otwarcia",
   "Dostawa do domu",
   "Płatność kartą",
-  "Anuluj zamówienie"
+  "Anuluj zamówienie",
+  "Chciałbym zamówić kawę",
+  "Zamawiam taksówkę na lotnisko",
+  "Hotel na jedną noc",
+  "Rezerwacja na 4 osoby",
+  "Co polecacie na obiad?",
+  "Czy macie wegetariańskie opcje?",
+  "Dostawa do biura",
+  "Płatność gotówką",
+  "Sprawdź moje zamówienie",
+  "Zmiana adresu dostawy",
+  "Chciałbym zamówić sushi",
+  "Taksówka na dworzec PKP",
+  "Apartament na tydzień",
+  "Stolik przy oknie",
+  "Aktualne promocje",
+  "Czas oczekiwania na zamówienie"
 ];
 
 /**
@@ -112,27 +128,39 @@ export default function VoiceTextBox({
     }, 100); // 100ms na literkę
   };
 
-  // Rozpocznij demo po 1 sekundzie
+  // Rozpocznij demo po 1 sekundzie z pętlą przykładów
   useEffect(() => {
-    setTimeout(() => {
-      typeText("Chciałbym zamówić pizzę", () => {
-        // Po napisaniu pierwszej podpowiedzi, pokaż następne
+    let currentIndex = 0;
+    let isRunning = true;
+
+    const showNextExample = () => {
+      if (!isRunning) return;
+      
+      const example = SUGGESTIONS[currentIndex];
+      typeText(example, () => {
         setTimeout(() => {
           setDemoText("");
-          typeText("Zamawiam taksówkę o 19:00", () => {
-            setTimeout(() => {
-              setDemoText("");
-              typeText("Nocleg na weekend", () => {
-                // Po zakończeniu demo, wyczyść pole
-                setTimeout(() => {
-                  setDemoText("");
-                }, 2000);
-              });
-            }, 2000);
-          });
+          currentIndex = (currentIndex + 1) % SUGGESTIONS.length;
+          setTimeout(showNextExample, 1500);
         }, 2000);
       });
+    };
+
+    // Rozpocznij po 1 sekundzie
+    setTimeout(() => {
+      showNextExample();
     }, 1000);
+
+    // Zatrzymaj demo po 30 sekundach
+    const stopDemo = setTimeout(() => {
+      isRunning = false;
+      setDemoText("");
+    }, 30000);
+
+    return () => {
+      isRunning = false;
+      clearTimeout(stopDemo);
+    };
   }, []);
 
   const handleKey = (e) => {
@@ -176,7 +204,7 @@ export default function VoiceTextBox({
       <textarea
         className={`ff-input-large ${hasInteraction ? 'expanded' : ''}`}
         rows={hasInteraction ? 6 : 2}
-        placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę o 19:00 • Nocleg na weekend" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
+        placeholder={supported ? "Chciałbym zamówić pizzę • Zamawiam taksówkę • Nocleg na weekend • Rezerwacja stolika • Menu na dzisiaj" : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKey}
