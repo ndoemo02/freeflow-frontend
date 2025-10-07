@@ -124,28 +124,28 @@ export default function MenuDrawer() {
               {menuSections.map((section, sectionIndex) => (
                 <motion.div
                   key={section.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: sectionIndex * 0.05 }}
+                  transition={{ delay: sectionIndex * 0.02, duration: 0.15 }}
                   className="space-y-2"
                 >
                   {/* Glassmorphism Section Header */}
                   <button
                     onClick={() => toggleSection(section.id)}
-                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20 hover:bg-black/50 hover:border-white/30 transition-all duration-300 group shadow-lg hover:shadow-white/10"
+                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20 hover:bg-black/50 hover:border-white/30 transition-all duration-150 group shadow-lg hover:shadow-white/10"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
                         <span className="text-lg">{section.icon}</span>
                       </div>
-                      <span className="text-white font-semibold text-sm group-hover:text-orange-300 transition-colors duration-300">
+                      <span className="text-white font-semibold text-sm group-hover:text-orange-300 transition-colors duration-150">
                         {section.title}
                       </span>
                     </div>
                     <motion.div
                       animate={{ rotate: expandedSections[section.id] ? 180 : 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="text-white/60 group-hover:text-white transition-colors duration-300"
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="text-white/60 group-hover:text-white transition-colors duration-200"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -160,7 +160,7 @@ export default function MenuDrawer() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
                         className="overflow-hidden"
                       >
                         <div className="ml-6 space-y-2 border-l-2 border-white/20 pl-4">
