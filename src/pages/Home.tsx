@@ -102,6 +102,13 @@ export default function Home() {
     handleVoiceProcess(message);
   };
 
+  const clearResults = () => {
+    setTranscript("");
+    setResponse("");
+    setRestaurants([]);
+    setMenuItems([]);
+    setCurrentAction("");
+  };
   const startRecording = async () => {
     setIsRecording(true);
     setError("");
@@ -418,10 +425,17 @@ export default function Home() {
       <MenuDrawer />
 
       {/* Główna kolumna: mobile layout */}
-      <div className="mx-auto max-w-3xl px-4 min-h-screen flex flex-col justify-center">
+      <div className="mx-auto max-w-3xl px-4 min-h-screen flex flex-col justify-center items-center">
         
-        <div className="flex flex-col items-center space-y-2 pt-16">
+        <div className="w-full flex flex-col items-center space-y-2 pt-16">
           
+          {(() => {
+            const hasResults = restaurants.length > 0 || menuItems.length > 0;
+            const viewState = isProcessing
+              ? 'LOADING'
+              : hasResults
+              ? 'SHOWING_RESULTS'
+              : 'IDLE';
           {/* Status Display */}
           {(transcript || response || error) && (
             <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
@@ -469,91 +483,87 @@ export default function Home() {
             </div>
           )} */}
 
-          {/* Lista restauracji */}
-          {currentAction === 'restaurants' && restaurants.length > 0 && (
-            <div className="w-full max-w-2xl p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
-              <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
-                🍽️ Restauracje w okolicy
-              </h3>
-              <div className="space-y-2">
-                {restaurants.map((restaurant, index) => (
-                  <div
-                    key={restaurant.id || index}
-                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-600/60 transition-colors cursor-pointer"
-                    onClick={() => handleRestaurantSelect(restaurant)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium text-sm">{restaurant.name}</h4>
-                        <p className="text-slate-300 text-xs mt-1">{restaurant.address}</p>
-                      </div>
-                      {restaurant.rating && (
-                        <div className="flex items-center text-yellow-400 text-xs">
-                          ⭐ {restaurant.rating}
-                        </div>
-                      )}
-                    </div>
+            switch (viewState) {
+              case 'LOADING':
+                return (
+                  <div className="flex flex-col items-center justify-center h-64">
+                    <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-orange-200">Przetwarzam...</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Menu restauracji */}
-          {currentAction === 'menu' && (
-            <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
-          )}
-
-          {/* Logo z animacjami */}
-          <div 
-            className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
-            onClick={handleLogoClick}
-          >
-            {/* Fale neonowe podczas nagrywania - za logo */}
-            {isRecording && (
-              <>
-                <div className="absolute inset-[-8px] rounded-full border-2 border-orange-400/60 bg-transparent animate-ping z-0" style={{animationDelay: '0.1s'}} />
-                <div className="absolute inset-[-16px] rounded-full border-2 border-orange-400/40 bg-transparent animate-ping z-0" style={{animationDelay: '0.4s'}} />
-                <div className="absolute inset-[-24px] rounded-full border-2 border-orange-400/20 bg-transparent animate-ping z-0" style={{animationDelay: '0.7s'}} />
-              </>
-            )}
-            
-            {/* Gradient tła - za logo */}
-            <div
-              className="
-                absolute inset-0 rounded-[40px] z-0
-                bg-[conic-gradient(at_50%_30%,#ff7a18_0deg,#7c3aed_120deg,#0ea5e9_240deg,#ff7a18_360deg)]
-                opacity-[.08]
-                blur-3xl
-              "
-            />
-            
-            {/* Dodatkowy glow podczas nagrywania - za logo */}
-            {isRecording && (
-              <div className="absolute inset-0 rounded-[40px] bg-orange-400/20 blur-2xl animate-pulse z-0" />
-            )}
-            
-            {/* Logo z pulsowaniem - na wierzchu */}
-            <img
-              src="/images/freeflow-drop.png"
-              alt="FreeFlow logo"
-              className={`
-                relative z-10 h-full w-full object-contain drop-shadow-[0_25px_45px_rgba(0,0,0,.45)]
-                transition-transform duration-300 cursor-pointer
-                ${isRecording ? 'animate-pulse scale-105' : 'hover:scale-105'}
-              `}
-              role="button"
-              tabIndex={0}
-              aria-label="FreeFlow - naciśnij aby mówić"
-              title="Naciśnij aby mówić"
-              onClick={handleLogoClick}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleLogoClick();
-                }
-              }}
-            />
-          </div>
+                );
+              case 'SHOWING_RESULTS':
+                return (
+                  <div className="w-full max-w-2xl">
+                    {currentAction === 'restaurants' && restaurants.length > 0 && (
+                      <div className="w-full p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+                        <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
+                          🍽️ Restauracje w okolicy
+                        </h3>
+                        <div className="space-y-2">
+                          {restaurants.map((restaurant, index) => (
+                            <div
+                              key={restaurant.id || index}
+                              className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-600/60 transition-colors cursor-pointer"
+                              onClick={() => handleRestaurantSelect(restaurant)}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <h4 className="text-white font-medium text-sm">{restaurant.name}</h4>
+                                  <p className="text-slate-300 text-xs mt-1">{restaurant.address}</p>
+                                </div>
+                                {restaurant.rating && (
+                                  <div className="flex items-center text-yellow-400 text-xs">
+                                    ⭐ {restaurant.rating}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {currentAction === 'menu' && (
+                      <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
+                    )}
+                  </div>
+                );
+              case 'IDLE':
+              default:
+                return (
+                  <div 
+                    className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
+                    onClick={handleLogoClick}
+                  >
+                    {isRecording && (
+                      <>
+                        <div className="absolute inset-[-8px] rounded-full border-2 border-orange-400/60 bg-transparent animate-ping z-0" style={{animationDelay: '0.1s'}} />
+                        <div className="absolute inset-[-16px] rounded-full border-2 border-orange-400/40 bg-transparent animate-ping z-0" style={{animationDelay: '0.4s'}} />
+                        <div className="absolute inset-[-24px] rounded-full border-2 border-orange-400/20 bg-transparent animate-ping z-0" style={{animationDelay: '0.7s'}} />
+                      </>
+                    )}
+                    <div className="absolute inset-0 rounded-[40px] z-0 bg-[conic-gradient(at_50%_30%,#ff7a18_0deg,#7c3aed_120deg,#0ea5e9_240deg,#ff7a18_360deg)] opacity-[.08] blur-3xl" />
+                    {isRecording && (
+                      <div className="absolute inset-0 rounded-[40px] bg-orange-400/20 blur-2xl animate-pulse z-0" />
+                    )}
+                    <img
+                      src="/images/freeflow-drop.png"
+                      alt="FreeFlow logo"
+                      className={`relative z-10 h-full w-full object-contain drop-shadow-[0_25px_45px_rgba(0,0,0,.45)] transition-transform duration-300 cursor-pointer ${isRecording ? 'animate-pulse scale-105' : 'hover:scale-105'}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="FreeFlow - naciśnij aby mówić"
+                      title="Naciśnij aby mówić"
+                      onClick={handleLogoClick}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          handleLogoClick();
+                        }
+                      }}
+                    />
+                  </div>
+                );
+            }
+          })()}
 
           {/* Pole transkrypcji - teraz z możliwością wpisania tekstu */}
           <div className="w-full max-w-2xl">
@@ -590,7 +600,7 @@ export default function Home() {
                   Wyślij
                 </button>
                 <button
-                  onClick={() => setTranscript("")}
+                  onClick={clearResults}
                   className="
                     px-4 py-2 rounded-lg bg-slate-600 text-white text-sm
                     hover:bg-slate-500 transition-colors
