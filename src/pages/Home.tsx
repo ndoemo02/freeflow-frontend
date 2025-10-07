@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
+import MenuView from "./MenuView";
 import { useUI } from "../state/ui";
 import api from "../lib/api";
 
@@ -12,6 +13,7 @@ export default function Home() {
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("pl-PL-Standard-A");
+  const [isProcessing, setIsProcessing] = useState(false);
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [currentAction, setCurrentAction] = useState("");
@@ -47,11 +49,18 @@ export default function Home() {
     handleVoiceProcess(option);
   };
 
-  const handleRestaurantClick = async (restaurant: any) => {
-    console.log('🍽️ Selected restaurant:', restaurant);
-    setCurrentAction('menu');
-    setResponse(`Wybrano: ${restaurant.name}. Ładuję menu...`);
-    await loadMenu(restaurant.id);
+  const handleRestaurantSelect = async (restaurant: any) => {
+    const message = `wybieram ${restaurant.name}`;
+    console.log(`Restaurant selected, sending to Dialogflow: "${message}"`);
+
+    // Pokaż wskaźnik ładowania
+    setIsProcessing(true);
+    try {
+      // Wywołaj główną funkcję przetwarzającą, która komunikuje się z Dialogflow
+      await handleVoiceProcess(message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const loadMenu = async (restaurantId: string) => {
@@ -87,10 +96,10 @@ export default function Home() {
     }
   };
 
-  const handleMenuItemClick = (item: any) => {
-    console.log('🍽️ Selected menu item:', item);
-    setResponse(`Wybrano: ${item.name} za ${item.price} zł. Dodaję do koszyka...`);
-    // Tutaj można dodać logikę dodawania do koszyka
+  const handleAddToCart = (item: any) => {
+    console.log('🛒 Adding to cart:', item);
+    const message = `dodaj do koszyka ${item.name}`;
+    handleVoiceProcess(message);
   };
 
   const startRecording = async () => {
@@ -212,6 +221,7 @@ export default function Home() {
   };
 
   const handleVoiceProcess = async (text: string) => {
+    setIsProcessing(true);
     try {
       setTranscript(text);
       setError("");
@@ -232,27 +242,31 @@ export default function Home() {
 
       if (result.fulfillmentText) {
         setResponse(result.fulfillmentText);
-        
-        // Sprawdź czy to zapytanie o restauracje
-        if (text.toLowerCase().includes('restauracje') || text.toLowerCase().includes('jedzenie') || text.toLowerCase().includes('pizza')) {
-          setCurrentAction('restaurants');
-          await loadRestaurants();
-        }
-        
-        // Sprawdź czy to zapytanie o menu
-        if (text.toLowerCase().includes('menu') || text.toLowerCase().includes('co macie')) {
+
+        // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
+        if (result.customPayload && result.customPayload.menu_items) {
+          console.log('📄 Received custom_payload with menu items:', result.customPayload.menu_items);
+          // 2. Ustaw menu_items w stanie i akcję na 'menu'
+          setMenuItems(result.customPayload.menu_items);
           setCurrentAction('menu');
-          // Tutaj można dodać ładowanie menu
+        } else if (result.action === 'show_restaurants' || text.toLowerCase().includes('restauracje')) {
+          // Jeśli nie ma menu, ale akcja to pokazanie restauracji
+          setCurrentAction('restaurants'); // Pokaż listę restauracji
+          await loadRestaurants(); // Załaduj dane restauracji
         }
-        
-        // TTS - odtwórz odpowiedź
-        await playTTS(result.fulfillmentText);
+
+        // Jeśli nie ma payloadu, ale jest tekst odpowiedzi, odtwórz go
+        if (result.fulfillmentText) {
+          await playTTS(result.fulfillmentText);
+        }
       } else {
         setError('Brak odpowiedzi od Dialogflow');
       }
     } catch (err) {
       console.error('❌ Voice process error:', err);
       setError(`Błąd przetwarzania głosu: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -416,6 +430,11 @@ export default function Home() {
                   ❌ {error}
                 </div>
               )}
+              {isProcessing && !error && (
+                <div className="text-blue-300 text-sm mb-2 animate-pulse">
+                  ⏳ Przetwarzam...
+                </div>
+              )}
               {transcript && (
                 <div className="text-slate-300 text-sm mb-2">
                   <span className="text-orange-400">🎤 Usłyszałem:</span> {transcript}
@@ -429,6 +448,27 @@ export default function Home() {
             </div>
           )}
 
+          {/* Status Display - stara wersja do usunięcia po weryfikacji powyższej */}
+          {/* {(transcript || response || error) && (
+            <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+              {error && (
+                <div className="text-red-400 text-sm mb-2">
+                  ❌ {error}
+                </div>
+              )}
+              {transcript && (
+                <div className="text-slate-300 text-sm mb-2">
+                  <span className="text-orange-400">🎤 Usłyszałem:</span> {transcript}
+                </div>
+              )}
+              {response && (
+                <div className="text-green-400 text-sm">
+                  <span className="text-blue-400">🤖 Odpowiadam:</span> {response}
+                </div>
+              )}
+            </div>
+          )} */}
+
           {/* Lista restauracji */}
           {currentAction === 'restaurants' && restaurants.length > 0 && (
             <div className="w-full max-w-2xl p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
@@ -439,8 +479,8 @@ export default function Home() {
                 {restaurants.map((restaurant, index) => (
                   <div
                     key={restaurant.id || index}
-                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-700/70 transition-colors cursor-pointer"
-                    onClick={() => handleRestaurantClick(restaurant)}
+                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-600/60 transition-colors cursor-pointer"
+                    onClick={() => handleRestaurantSelect(restaurant)}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -460,34 +500,10 @@ export default function Home() {
           )}
 
           {/* Menu restauracji */}
-          {currentAction === 'menu' && menuItems.length > 0 && (
-            <div className="w-full max-w-2xl p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
-              <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
-                📋 Menu restauracji
-              </h3>
-              <div className="space-y-2">
-                {menuItems.map((item, index) => (
-                  <div
-                    key={item.id || index}
-                    className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-700/70 transition-colors cursor-pointer"
-                    onClick={() => handleMenuItemClick(item)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="text-white font-medium text-sm">{item.name}</h4>
-                        {item.category && (
-                          <p className="text-slate-400 text-xs mt-1">{item.category}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center text-orange-400 text-sm font-semibold">
-                        {item.price ? `${item.price} zł` : 'Brak ceny'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {currentAction === 'menu' && (
+            <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
           )}
+
           {/* Logo z animacjami */}
           <div 
             className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
