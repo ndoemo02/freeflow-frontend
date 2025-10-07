@@ -24,7 +24,7 @@ export default function MenuDrawer() {
     }))
   }
 
-  // Nowoczesne kategorie menu z podkategoriami
+  // Przeorganizowane kategorie menu
   const menuSections = [
     {
       id: "main",
@@ -36,24 +36,32 @@ export default function MenuDrawer() {
       ]
     },
     {
-      id: "panels",
-      title: "Panele",
-      icon: "👥",
+      id: "user",
+      title: "Użytkownik",
+      icon: "👤",
       items: [
-        { to: "/panel/customer", label: "Panel Klienta", icon: "👤", desc: "Zamówienia i historia" },
+        { to: "/register", label: "Zarejestruj się", icon: "📝", desc: "Nowe konto", highlight: true },
+        { to: "/panel/customer", label: "Panel Klienta", icon: "👤", desc: "Zamówienia i historia" }
+      ]
+    },
+    {
+      id: "business",
+      title: "Biznes",
+      icon: "🏪",
+      items: [
+        { to: "/business/register", label: "Rejestracja firmy", icon: "📝", desc: "Nowa firma", highlight: true },
         { to: "/panel/business", label: "Panel Biznesu", icon: "🏪", desc: "Zarządzanie firmą" },
-        { to: "/panel/taxi", label: "Panel Taxi", icon: "🚕", desc: "Przejazdy i kursy" },
         { to: "/panel/restaurant", label: "Panel Restauracji", icon: "🍽️", desc: "Menu i zamówienia" },
+        { to: "/panel/taxi", label: "Panel Taxi", icon: "🚕", desc: "Przejazdy i kursy" },
         { to: "/panel/hotel", label: "Panel Hotelu", icon: "🏨", desc: "Rezerwacje i pokoje" }
       ]
     },
     {
-      id: "management",
-      title: "Zarządzanie",
+      id: "admin",
+      title: "Administracja",
       icon: "⚙️",
       items: [
         { to: "/admin", label: "Panel Admin", icon: "📊", desc: "Statystyki i analityka" },
-        { to: "/business/register", label: "Rejestracja firmy", icon: "📝", desc: "Nowa firma", highlight: true },
         { to: "/settings", label: "Ustawienia", icon: "⚙️", desc: "Konfiguracja systemu" }
       ]
     },
@@ -111,8 +119,8 @@ export default function MenuDrawer() {
               </button>
             </div>
 
-            {/* Kompaktowe Menu Content z Glassmorphism */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Kompaktowe Menu Content z Glassmorphism i przewijaniem */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[calc(100vh-200px)] scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
               {menuSections.map((section, sectionIndex) => (
                 <motion.div
                   key={section.id}
