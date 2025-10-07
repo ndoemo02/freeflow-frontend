@@ -515,7 +515,7 @@ export default function Home() {
               default:
                 return (
                   <div 
-                    className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
+                    className="w-[280px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
                     onClick={handleLogoClick}
                   >
                     {isRecording && (
@@ -550,7 +550,7 @@ export default function Home() {
           })()}
 
           {/* Pole transkrypcji z animacją demo */}
-          <div className="w-full max-w-2xl relative -mt-32 mb-1">
+          <div className="w-full max-w-2xl relative -mt-40 mb-1">
             <VoiceTextBox
               value={transcript}
               onChange={setTranscript}
@@ -560,7 +560,7 @@ export default function Home() {
           </div>
 
           {/* 3 panele w rzędzie */}
-          <div className="w-full max-w-2xl grid grid-cols-3 gap-2 -mt-12">
+          <div className="w-full max-w-2xl grid grid-cols-3 gap-2 -mt-16">
             <Tile onClick={() => handleOptionClick('Jedzenie')}>🍽️&nbsp;Jedzenie</Tile>
             <Tile onClick={() => handleOptionClick('Taxi')}>🚕&nbsp;Taxi</Tile>
             <Tile onClick={() => handleOptionClick('Hotel')}>🏨&nbsp;Hotel</Tile>
