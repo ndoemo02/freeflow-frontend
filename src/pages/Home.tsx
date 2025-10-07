@@ -562,9 +562,9 @@ export default function Home() {
 
           {/* 3 panele w rzędzie */}
           <div className="w-full max-w-2xl grid grid-cols-3 gap-2 -mt-4">
-            <Tile onClick={() => handleOptionClick('Jedzenie')}>🍽️&nbsp;Jedzenie</Tile>
-            <Tile onClick={() => handleOptionClick('Taxi')}>🚕&nbsp;Taxi</Tile>
-            <Tile onClick={() => handleOptionClick('Hotel')}>🏨&nbsp;Hotel</Tile>
+            <Tile onClick={() => handleOptionClick('Jedzenie')}><span className="text-2xl">🍽️</span>&nbsp;Jedzenie</Tile>
+            <Tile onClick={() => handleOptionClick('Taxi')}><span className="text-2xl">🚕</span>&nbsp;Taxi</Tile>
+            <Tile onClick={() => handleOptionClick('Hotel')}><span className="text-2xl">🏨</span>&nbsp;Hotel</Tile>
           </div>
         </div>
         
@@ -580,13 +580,15 @@ function Tile({ children, onClick }: { children: React.ReactNode; onClick?: () =
       type="button"
       onClick={onClick}
       className="
-        h-10 w-full
-        rounded-md bg-orange-900/20 ring-1 ring-orange-400/30 backdrop-blur
-        text-orange-100 font-medium text-xs sm:text-sm
+        h-16 w-full
+        rounded-lg bg-orange-900/20 ring-1 ring-orange-400/30 backdrop-blur
+        text-orange-100 font-semibold text-sm sm:text-base
         shadow-[0_4px_15px_rgba(0,0,0,.25)]
         hover:bg-orange-900/30 hover:ring-orange-400/50 hover:scale-105 
         active:scale-95 transition-all duration-200
         cursor-pointer
+        flex items-center justify-center
+        text-lg
       "
     >
       {children}
