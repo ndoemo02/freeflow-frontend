@@ -31,6 +31,8 @@ export default function VoiceTextBox({
   const [supported, setSupported] = useState(true);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [demoText, setDemoText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const recognitionRef = useRef(null);
   const interimRef = useRef("");
 
@@ -109,6 +111,49 @@ export default function VoiceTextBox({
     }
   }, [value]);
 
+  // Animacja pisania literka po literce
+  const typeText = (text, callback) => {
+    setIsTyping(true);
+    let currentIndex = 0;
+    const interval = setInterval(() => {
+      if (currentIndex < text.length) {
+        setDemoText(text.slice(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(interval);
+        setIsTyping(false);
+        if (callback) callback();
+      }
+    }, 100); // 100ms na literkę
+  };
+
+  // Pokaż podpowiedzi automatycznie po załadowaniu komponentu
+  useEffect(() => {
+    setSuggestions(SUGGESTIONS.slice(0, 3));
+    setShowSuggestions(true);
+    
+    // Rozpocznij demo po 1 sekundzie
+    setTimeout(() => {
+      typeText("Chciałbym zamówić pizzę", () => {
+        // Po napisaniu pierwszej podpowiedzi, pokaż następne
+        setTimeout(() => {
+          setDemoText("");
+          typeText("Zamawiam taksówkę o 19:00", () => {
+            setTimeout(() => {
+              setDemoText("");
+              typeText("Nocleg na weekend", () => {
+                // Po zakończeniu demo, wyczyść pole
+                setTimeout(() => {
+                  setDemoText("");
+                }, 2000);
+              });
+            }, 2000);
+          });
+        }, 2000);
+      });
+    }, 1000);
+  }, []);
+
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -121,19 +166,20 @@ export default function VoiceTextBox({
     setShowSuggestions(false);
   };
 
-  const displayValue = `${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
+  const displayValue = demoText || `${value || ""}${interimRef.current ? `${value ? " " : ""}${interimRef.current}` : ""}`;
 
   return (
     <div className="ff-voicebox">
       <textarea
-        className="ff-input-transparent"
+        className={`ff-input-transparent ${isTyping ? 'typing' : ''}`}
         rows={2}
         placeholder={supported ? placeholder : "Mikrofon wymaga HTTPS lub localhost (brak wsparcia)"}
         value={displayValue}
         onChange={(e) => onChange?.(e.target.value)}
         onKeyDown={handleKey}
         onFocus={() => setShowSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} // Opóźnienie żeby można było kliknąć
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 500)} // Dłuższe opóźnienie żeby można było kliknąć
+        readOnly={isTyping} // Zablokuj edycję podczas demo
       />
       
       {/* Podpowiedzi */}
