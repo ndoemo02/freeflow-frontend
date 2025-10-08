@@ -12,7 +12,9 @@ export default async function handler(req, res) {
 
   try {
     // Forward request to backend
-    const backendUrl = 'https://freeflow-backend.vercel.app/api/tts';
+    const backendUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://freeflow-backend.vercel.app/api/tts'
+      : 'http://localhost:3003/api/tts';
     
     const response = await fetch(backendUrl, {
       method: req.method,

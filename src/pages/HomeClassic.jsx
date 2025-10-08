@@ -1,7 +1,7 @@
 // src/pages/HomeClassic.jsx
 import React, { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
-import { speakTts } from "../lib/ttsClient.js";
+import { speakTts, speakWithVoice } from "../lib/ttsClient.js";
 import { addToCart, total, getCart, clearCart } from '../lib/cart';
 import ResultsList from "../components/ResultsList";
 import { manageTurn } from "../lib/DialogManager";
@@ -73,7 +73,7 @@ export default function HomeClassic() {
     try {
       speakingRef.current = true;
       setSpeaking(true);
-      await speakTts(text, { lang: "pl-PL", voice: "pl-PL-Wavenet-D" });
+      await speakWithVoice(text, "pl-PL-Wavenet-D");
     } catch (e) {
       console.warn("TTS failed", e);
     } finally {
@@ -375,7 +375,7 @@ export default function HomeClassic() {
         qty: dialogSlots.quantity,
         price: dialogSlots.price,
       });
-      speakTts(`Dodałem do koszyka. Razem ${total()} zł`, { lang: 'pl-PL' }).catch(() => {});
+      speakTts(`Dodałem do koszyka. Razem ${total()} zł`).catch(() => {});
     };
 
     const onCheckout = async () => {
@@ -390,7 +390,7 @@ export default function HomeClassic() {
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         clearCart();
-        speakTts('Zamówienie złożone. Dziękuję!', { lang: 'pl-PL' }).catch(() => {});
+        speakTts('Zamówienie złożone. Dziękuję!').catch(() => {});
       } catch (e) {
         console.warn('Checkout failed', e);
       }
