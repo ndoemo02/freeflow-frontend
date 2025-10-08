@@ -234,7 +234,7 @@ export default function CustomerPanel(){
       const { error } = await supabase
         .from('orders')
         .insert({
-          customer_id: user.id,
+          user_id: user.id,
           pickup_address: rideForm.pickupAddress,
           destination_address: rideForm.destinationAddress,
           estimated_price: rideForm.estimatedPrice,
@@ -277,15 +277,10 @@ export default function CustomerPanel(){
       const selectedRestaurantData = restaurants.find(r => r.id === selectedRestaurant)
       
       const { error } = await supabase.from('orders').insert({
-        customer_id: user.id,
+        user_id: user.id,
         restaurant_id: selectedRestaurant,
         status: 'pending',
-        total: getCartTotal(),
-        items: JSON.stringify(cart.map(item => ({
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity
-        })))
+        total_price: getCartTotal()
       })
 
               if (error) throw error
@@ -380,14 +375,14 @@ function CustomerStats({ userId, refreshTrigger }){
     try{
       const { data, error } = await supabase
         .from('orders')
-        .select('status,total')
-        .eq('customer_id', userId)
+        .select('status,total_price')
+        .eq('user_id', userId)
       if (error) throw error
       const totalOrders = (data || []).filter(o => o.status !== 'cancelled').length
       const completedOrders = (data || []).filter(o => o.status === 'completed' || o.status === 'delivered').length
       const totalSpent = (data || [])
         .filter(o => o.status !== 'cancelled') // Wyklucz anulowane zamówienia
-        .reduce((s,o)=>s + (o.total || 0), 0)
+        .reduce((s,o)=>s + (o.total_price || 0), 0)
       setStats({ totalOrders, completedOrders, totalSpent })
     } finally { setLoading(false) }
   }
@@ -506,7 +501,7 @@ function OrdersTab({ userId, refreshTrigger }){
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_id', userId)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
       console.log('Orders loaded:', data)
@@ -602,7 +597,7 @@ function OrdersTab({ userId, refreshTrigger }){
                   })()}
                 </div>
                 <div className="text-lg font-bold text-brand-400">
-                  {order.total?.toFixed(2)} zł
+                  {order.total_price?.toFixed(2)} zł
                 </div>
               </div>
             </div>
@@ -670,7 +665,7 @@ function OrdersTab({ userId, refreshTrigger }){
               <div className="pt-4 border-t border-white/10">
                 <div className="flex justify-between items-center text-xl font-bold">
                   <span className="text-white">Razem:</span>
-                  <span className="text-brand-400">{selectedOrder.total?.toFixed(2)} zł</span>
+                  <span className="text-brand-400">{selectedOrder.total_price?.toFixed(2)} zł</span>
                 </div>
               </div>
 
