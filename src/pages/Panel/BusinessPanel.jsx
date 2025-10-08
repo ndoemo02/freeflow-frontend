@@ -238,10 +238,10 @@ export default function BusinessPanel(){
 				{/* Restaurants select */}
 				<div className="mb-6 rounded-2xl border border-white/10 bg-glass p-6">
 					<label className="block text-sm text-gray-300 mb-2">Restauracja</label>
-					<select className="w-full rounded-xl bg-white/5 text-white border border-white/10 p-3" value={restaurantId} onChange={(e)=>setRestaurantId(e.target.value)}>
-						{loadingRests && <option>Ładowanie…</option>}
-						{!loadingRests && restaurants.length === 0 && <option value="">(brak restauracji)</option>}
-						{restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+					<select className="w-full rounded-xl bg-gray-800 text-white border border-white/10 p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={restaurantId} onChange={(e)=>setRestaurantId(e.target.value)}>
+						{loadingRests && <option className="bg-gray-800 text-white">Ładowanie…</option>}
+						{!loadingRests && restaurants.length === 0 && <option value="" className="bg-gray-800 text-white">(brak restauracji)</option>}
+						{restaurants.map(r => <option key={r.id} value={r.id} className="bg-gray-800 text-white">{r.name}</option>)}
 					</select>
 					<div className="mt-3 flex gap-2">
 						<button className="px-3 py-2 rounded-md bg-white/10 text-white border border-white/10" onClick={()=>setCreateOpen(true)}>+ Dodaj restaurację</button>

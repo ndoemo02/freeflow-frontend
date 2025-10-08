@@ -768,14 +768,14 @@ function OrderTab({
       <div>
         <label className="block text-sm text-gray-300 mb-2">Wybierz restaurację</label>
         <select 
-          className="w-full rounded-xl bg-white/5 text-white border border-white/10 p-3"
+          className="w-full rounded-xl bg-gray-800 text-white border border-white/10 p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           value={selectedRestaurant}
           onChange={(e) => setSelectedRestaurant(e.target.value)}
           disabled={loadingRestaurants}
         >
-          <option value="">{loadingRestaurants ? 'Ładowanie...' : 'Wybierz restaurację'}</option>
+          <option value="" className="bg-gray-800 text-white">{loadingRestaurants ? 'Ładowanie...' : 'Wybierz restaurację'}</option>
           {restaurants.map(restaurant => (
-            <option key={restaurant.id} value={restaurant.id}>
+            <option key={restaurant.id} value={restaurant.id} className="bg-gray-800 text-white">
               {restaurant.name} {restaurant.city && `- ${restaurant.city}`}
             </option>
           ))}
