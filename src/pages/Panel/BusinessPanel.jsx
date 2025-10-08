@@ -54,14 +54,41 @@ export default function BusinessPanel(){
     let alive = true
     const load = async () => {
       setLoadingRests(true)
-      const { data, error } = await supabase
-        .from('restaurants')
+      
+      // Get user's businesses
+      const { data: businesses, error: businessesError } = await supabase
+        .from('businesses')
         .select('id,name')
         .eq('owner_id', user.id)
         .order('name')
+      
       if (!alive) return
-      if (error) { setRestaurants([]) } else { setRestaurants(data || []) }
-      if ((data?.length || 0) > 0 && !restaurantId) setRestaurantId(data[0].id)
+      if (businessesError) { 
+        setRestaurants([])
+        setLoadingRests(false)
+        return 
+      }
+      
+      // Get corresponding restaurants
+      if (businesses && businesses.length > 0) {
+        const businessNames = businesses.map(b => b.name)
+        const { data: restaurants, error: restaurantsError } = await supabase
+          .from('restaurants')
+          .select('id,name')
+          .in('name', businessNames)
+          .order('name')
+        
+        if (!alive) return
+        if (restaurantsError) {
+          setRestaurants([])
+        } else {
+          setRestaurants(restaurants || [])
+          if ((restaurants?.length || 0) > 0 && !restaurantId) setRestaurantId(restaurants[0].id)
+        }
+      } else {
+        setRestaurants([])
+      }
+      
       setLoadingRests(false)
     }
     load()
@@ -131,13 +158,19 @@ export default function BusinessPanel(){
       setBusyAdd(true); setErr('')
       const price = parseFloat(String(newPrice).replace(',', '.'))
       if (!newName || isNaN(price)) throw new Error('Podaj nazwę i cenę')
-      const { error } = await supabase.from('menu_items').insert({ restaurant_id: restaurantId, name: newName, price })
+      const { error } = await supabase.from('menu_items').insert({ 
+        restaurant_id: restaurantId, 
+        name: newName, 
+        price_cents: Math.round(price * 100),
+        available: true,
+        category: 'danie'
+      })
       if (error) throw error
       setNewName(''); setNewPrice(''); setAddOpen(false)
       // refresh
       const { data } = await supabase
         .from('menu_items')
-        .select('id,name,price')
+        .select('id,name,price_cents')
         .eq('restaurant_id', restaurantId)
         .order('name')
       setItems(data || [])
@@ -282,7 +315,7 @@ export default function BusinessPanel(){
 								{!loadingItems && items.map(it => (
 									<tr key={it.id} className="border-t border-white/10">
 										<td className="py-2">{it.name}</td>
-										<td className="py-2">{Number(it.price).toFixed(2)} zł</td>
+										<td className="py-2">{(it.price_cents / 100).toFixed(2)} zł</td>
 									</tr>
 								))}
 							</tbody>
