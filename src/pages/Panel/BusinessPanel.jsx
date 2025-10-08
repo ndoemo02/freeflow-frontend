@@ -117,11 +117,7 @@ export default function BusinessPanel(){
       setLoadingOrders(true)
       const { data, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          restaurants!restaurant_id(name, city),
-          profiles!customer_id(first_name, last_name, phone, address, city)
-        `)
+        .select('*')
         .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false })
       if (!alive) return
@@ -322,16 +318,11 @@ export default function BusinessPanel(){
 										}}
 									>
 										<div className="text-white font-medium">
-											{o.user_profiles ? 
-												`${o.user_profiles.first_name || ''} ${o.user_profiles.last_name || ''}`.trim() || 'Klient' :
-												o.customer_name || 'Klient'
-											}
+											Klient #{o.user_id?.substring(0, 8) || 'Nieznany'}
 										</div>
 										<div className="text-gray-300 text-sm">
-											{o.restaurants?.name && (
-												<span className="text-blue-400 font-medium">📍 {o.restaurants.name}</span>
-											)}
-											<span className="ml-2">{o.status} • {(o.total ?? 0).toFixed(2)} zł</span>
+											<span className="text-blue-400 font-medium">📍 Zamówienie #{o.id.substring(0, 8)}</span>
+											<span className="ml-2">{o.status} • {(o.total_price ?? 0).toFixed(2)} zł</span>
 										</div>
 									</div>
 									<div className="text-gray-300 text-xs">{new Date(o.created_at).toLocaleString()}</div>

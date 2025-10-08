@@ -587,14 +587,7 @@ function OrdersTab({ userId, refreshTrigger }){
               
               <div className="flex justify-between items-center">
                 <div className="text-sm text-slate-300">
-                  Pozycje: {(() => {
-                    try {
-                      const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-                      return items?.map(item => `${item.name} (${item.qty}x)`).join(', ') || 'Brak szczegółów';
-                    } catch {
-                      return 'Brak szczegółów';
-                    }
-                  })()}
+                  Pozycje: Zamówienie złożone (szczegóły w koszyku)
                 </div>
                 <div className="text-lg font-bold text-brand-400">
                   {order.total_price?.toFixed(2)} zł
@@ -640,24 +633,8 @@ function OrdersTab({ userId, refreshTrigger }){
               <div>
                 <h4 className="text-lg font-semibold text-white mb-3">Pozycje zamówienia</h4>
                 <div className="space-y-2">
-                  {(() => {
-                    try {
-                      const items = typeof selectedOrder.items === 'string' ? JSON.parse(selectedOrder.items) : selectedOrder.items;
-                      return items?.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center py-2 border-b border-white/5">
-                          <div>
-                            <p className="text-white">{item.name}</p>
-                            <p className="text-sm text-slate-400">Ilość: {item.qty}</p>
-                          </div>
-                          <p className="text-brand-400 font-semibold">
-                            {(item.price * item.qty).toFixed(2)} zł
-                          </p>
-                        </div>
-                      )) || <p className="text-slate-400">Brak szczegółów pozycji</p>;
-                    } catch {
-                      return <p className="text-slate-400">Brak szczegółów pozycji</p>;
-                    }
-                  })()}
+                  <p className="text-slate-400">Szczegóły pozycji nie są dostępne w tej wersji systemu.</p>
+                  <p className="text-slate-400">Zamówienie zostało złożone pomyślnie za kwotę {selectedOrder.total_price?.toFixed(2)} zł.</p>
                 </div>
               </div>
 
