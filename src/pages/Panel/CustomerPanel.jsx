@@ -308,6 +308,25 @@ export default function CustomerPanel(){
     }
   }
 
+  const cancelOrder = async (orderId) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', orderId)
+        .eq('user_id', user.id) // Tylko własne zamówienia
+
+      if (error) throw error
+      
+      push('Zamówienie zostało anulowane', 'success')
+      setRefreshTrigger(prev => prev + 1)
+      setSelectedOrder(null) // Zamknij modal
+    } catch (e) {
+      push('Błąd podczas anulowania zamówienia', 'error')
+      console.error('Cancel order error:', e)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
       <div className="mx-auto max-w-6xl">
@@ -370,7 +389,7 @@ export default function CustomerPanel(){
             />
           )}
 
-                  {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} />}
+                  {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} />}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </div>
@@ -497,7 +516,7 @@ function Field({ label, value, editing, onChange, placeholder, readOnly }){
   )
 }
 
-function OrdersTab({ userId, refreshTrigger }){
+function OrdersTab({ userId, refreshTrigger, cancelOrder }){
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -600,8 +619,23 @@ function OrdersTab({ userId, refreshTrigger }){
                 <div className="text-sm text-slate-300">
                   Pozycje: Zamówienie złożone (szczegóły w koszyku)
                 </div>
-                <div className="text-lg font-bold text-brand-400">
-                  {order.total_price?.toFixed(2)} zł
+                <div className="flex items-center gap-3">
+                  <div className="text-lg font-bold text-brand-400">
+                    {order.total_price?.toFixed(2)} zł
+                  </div>
+                  {(order.status === 'pending' || order.status === 'confirmed') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm('Czy na pewno chcesz anulować to zamówienie?')) {
+                          cancelOrder(order.id)
+                        }
+                      }}
+                      className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                    >
+                      Anuluj
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -665,6 +699,22 @@ function OrdersTab({ userId, refreshTrigger }){
                   <p className="text-slate-400 text-sm">ID klienta: {selectedOrder.customer}</p>
                 </div>
               </div>
+
+              {/* Akcje */}
+              {(selectedOrder.status === 'pending' || selectedOrder.status === 'confirmed') && (
+                <div className="pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      if (confirm('Czy na pewno chcesz anulować to zamówienie?')) {
+                        cancelOrder(selectedOrder.id)
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-medium"
+                  >
+                    Anuluj zamówienie
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
