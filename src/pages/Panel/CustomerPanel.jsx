@@ -44,6 +44,7 @@ export default function CustomerPanel(){
   const [loadingMenu, setLoadingMenu] = useState(false)
   const [placingOrder, setPlacingOrder] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [lastOrder, setLastOrder] = useState(null)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -285,6 +286,14 @@ export default function CustomerPanel(){
 
               if (error) throw error
               
+              // Zapisz szczegóły ostatniego zamówienia
+              setLastOrder({
+                restaurant: selectedRestaurantData,
+                items: [...cart],
+                total: getCartTotal(),
+                timestamp: new Date().toISOString()
+              })
+              
               push('Zamówienie zostało złożone!', 'success')
               setCart([])
               setSelectedRestaurant('')
@@ -344,6 +353,8 @@ export default function CustomerPanel(){
               placingOrder={placingOrder}
               loadingRestaurants={loadingRestaurants}
               loadingMenu={loadingMenu}
+              lastOrder={lastOrder}
+              setLastOrder={setLastOrder}
             />
           )}
 
@@ -730,7 +741,9 @@ function OrderTab({
   placeOrder,
   placingOrder,
   loadingRestaurants,
-  loadingMenu
+  loadingMenu,
+  lastOrder,
+  setLastOrder
 }) {
   return (
     <div className="space-y-6">
@@ -832,6 +845,57 @@ function OrderTab({
               {placingOrder ? 'Składanie zamówienia...' : 'Złóż zamówienie'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Podsumowanie ostatniego zamówienia */}
+      {lastOrder && (
+        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-6 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-green-400 text-xl">✅</span>
+            <h3 className="text-lg font-semibold text-white">Ostatnie zamówienie</h3>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-300">Restauracja:</span>
+              <span className="text-white font-medium">{lastOrder.restaurant?.name}</span>
+            </div>
+            
+            <div>
+              <span className="text-gray-300 block mb-2">Pozycje:</span>
+              <div className="space-y-1">
+                {lastOrder.items.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm">
+                    <span className="text-white">
+                      {item.quantity}x {item.name}
+                    </span>
+                    <span className="text-brand-400">
+                      {(item.price * item.quantity).toFixed(2)} zł
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="pt-3 border-t border-white/10">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold text-white">Razem:</span>
+                <span className="text-xl font-bold text-green-400">{lastOrder.total.toFixed(2)} zł</span>
+              </div>
+            </div>
+            
+            <div className="text-xs text-gray-400">
+              Złożone: {new Date(lastOrder.timestamp).toLocaleString('pl-PL')}
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setLastOrder(null)}
+            className="mt-4 text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            Zamknij podsumowanie
+          </button>
         </div>
       )}
     </div>
