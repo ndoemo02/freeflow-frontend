@@ -48,45 +48,28 @@ export default function BusinessPanel(){
     }
   }, [user, navigate]);
 
-  // Load restaurants owned by current user
+  // Load restaurants (temporarily show all restaurants for testing)
   useEffect(() => {
     if (!user?.id) { setRestaurants([]); setRestaurantId(''); return }
     let alive = true
     const load = async () => {
       setLoadingRests(true)
       
-      // Get user's businesses
-      const { data: businesses, error: businessesError } = await supabase
-        .from('businesses')
+      // For now, get all restaurants since we don't have owner_id column
+      // TODO: Add owner_id column to restaurants table or implement proper ownership
+      const { data: restaurants, error: restaurantsError } = await supabase
+        .from('restaurants')
         .select('id,name')
-        .eq('owner_id', user.id)
         .order('name')
+        .limit(10) // Limit to first 10 restaurants for testing
       
       if (!alive) return
-      if (businessesError) { 
+      if (restaurantsError) {
+        console.error('Restaurants error:', restaurantsError)
         setRestaurants([])
-        setLoadingRests(false)
-        return 
-      }
-      
-      // Get corresponding restaurants
-      if (businesses && businesses.length > 0) {
-        const businessNames = businesses.map(b => b.name)
-        const { data: restaurants, error: restaurantsError } = await supabase
-          .from('restaurants')
-          .select('id,name')
-          .in('name', businessNames)
-          .order('name')
-        
-        if (!alive) return
-        if (restaurantsError) {
-          setRestaurants([])
-        } else {
-          setRestaurants(restaurants || [])
-          if ((restaurants?.length || 0) > 0 && !restaurantId) setRestaurantId(restaurants[0].id)
-        }
       } else {
-        setRestaurants([])
+        setRestaurants(restaurants || [])
+        if ((restaurants?.length || 0) > 0 && !restaurantId) setRestaurantId(restaurants[0].id)
       }
       
       setLoadingRests(false)
@@ -161,16 +144,15 @@ export default function BusinessPanel(){
       const { error } = await supabase.from('menu_items').insert({ 
         restaurant_id: restaurantId, 
         name: newName, 
-        price_cents: Math.round(price * 100),
-        available: true,
-        category: 'danie'
+        price: price,
+        description: 'Dodane przez właściciela'
       })
       if (error) throw error
       setNewName(''); setNewPrice(''); setAddOpen(false)
       // refresh
       const { data } = await supabase
         .from('menu_items')
-        .select('id,name,price_cents')
+        .select('id,name,price')
         .eq('restaurant_id', restaurantId)
         .order('name')
       setItems(data || [])
@@ -315,7 +297,7 @@ export default function BusinessPanel(){
 								{!loadingItems && items.map(it => (
 									<tr key={it.id} className="border-t border-white/10">
 										<td className="py-2">{it.name}</td>
-										<td className="py-2">{(it.price_cents / 100).toFixed(2)} zł</td>
+										<td className="py-2">{Number(it.price).toFixed(2)} zł</td>
 									</tr>
 								))}
 							</tbody>
