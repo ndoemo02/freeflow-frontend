@@ -45,6 +45,7 @@ export default function CustomerPanel(){
   const [placingOrder, setPlacingOrder] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [lastOrder, setLastOrder] = useState(null)
+  const [selectedOrder, setSelectedOrder] = useState(null)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -389,7 +390,7 @@ export default function CustomerPanel(){
             />
           )}
 
-                  {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} />}
+                  {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} />}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </div>
@@ -516,10 +517,9 @@ function Field({ label, value, editing, onChange, placeholder, readOnly }){
   )
 }
 
-function OrdersTab({ userId, refreshTrigger, cancelOrder }){
+function OrdersTab({ userId, refreshTrigger, cancelOrder, selectedOrder, setSelectedOrder }){
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState(null)
   const { push } = useToast()
   
   console.log('OrdersTab userId:', userId)
@@ -540,22 +540,6 @@ function OrdersTab({ userId, refreshTrigger, cancelOrder }){
       console.error('Error loading orders:', e)
       setOrders([]) 
     } finally { setLoading(false) }
-  }
-  async function cancelOrder(id){
-    console.log('Attempting to cancel order:', id)
-    try{
-      const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', id)
-      if (error) {
-        console.error('Supabase error:', error)
-        throw error
-      }
-      console.log('Order cancelled successfully')
-      push('Zamówienie zostało anulowane', 'success')
-      await load() // Dodaj await żeby poczekać na odświeżenie
-    } catch(e){ 
-      console.error('Cancel order error:', e)
-      push('Błąd podczas anulowania zamówienia', 'error')
-    }
   }
 
   async function confirmDelivery(id){
