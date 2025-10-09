@@ -468,3 +468,16 @@ html, body, #root { height: 100%; }
   opacity: 0.7;
   transform: translateX(2px);
 }
+
+/* Logo focus styles - remove blue outline */
+.ff-logo:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.3) !important;
+  border-radius: 8px;
+}
+
+.ff-logo:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.3) !important;
+  border-radius: 8px;
+}
