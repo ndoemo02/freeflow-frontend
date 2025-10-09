@@ -16,6 +16,9 @@ export default async function handler(req, res) {
       ? 'https://freeflow-backend.vercel.app/api/tts'
       : 'http://localhost:3003/api/tts';
     
+    console.log('🔄 TTS Proxy: Forwarding to backend:', backendUrl);
+    console.log('🔄 TTS Proxy: Request body:', JSON.stringify(req.body, null, 2));
+    
     const response = await fetch(backendUrl, {
       method: req.method,
       headers: {
@@ -26,6 +29,9 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+    
+    console.log('🔄 TTS Proxy: Backend response status:', response.status);
+    console.log('🔄 TTS Proxy: Backend response data:', data);
     
     res.status(response.status).json(data);
   } catch (error) {
