@@ -374,8 +374,12 @@ export default function CustomerPanel(){
       const userMessage = { id: Date.now(), role: 'user', text: voiceQuery }
       setVoiceMessages(prev => [...prev, userMessage])
 
-      // Process with DialogManager
-      const response = await manageTurn(voiceQuery, dialogSlots)
+      // Process with DialogManager - przekaż wybraną restaurację
+      const slotsWithRestaurant = {
+        ...dialogSlots,
+        restaurantId: selectedRestaurant || dialogSlots.restaurantId
+      }
+      const response = await manageTurn(voiceQuery, slotsWithRestaurant)
       
       // Add assistant response to chat
       const assistantMessage = { id: Date.now() + 1, role: 'assistant', text: response.speech }

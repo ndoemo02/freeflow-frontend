@@ -313,8 +313,49 @@ export async function manageTurn(userText: string, prev: Slots): Promise<TurnRes
     }
   }
 
-// Wyszukiwanie pozycji menu jeśli znamy restaurację
-if (prev.restaurantId) {
+// Jeśli nie ma restauracji, ale użytkownik mówi nazwę dania - wyszukaj w dostępnych restauracjach
+if (!prev.restaurantId && isFoodItem) {
+  console.log("🔍 No restaurant selected, searching for dish in available restaurants:", normalized);
+  
+  // Wyszukaj w dostępnych restauracjach
+  const resp = await fetch(`/api/restaurants?q=`);
+  const json = await resp.json();
+  const restaurants = Array.isArray(json?.results) ? json.results : [];
+  
+  if (restaurants.length > 0) {
+    // Sprawdź pierwszą restaurację (można rozszerzyć o wyszukiwanie we wszystkich)
+    const restaurant = restaurants[0];
+    const items = await searchMenuItems(restaurant.id, normalized);
+    
+    if (items.length > 0) {
+      const bestMatch = items[0];
+      return {
+        speech: `Znalazłem ${bestMatch.name} w ${restaurant.name} za ${bestMatch.price} zł. Dodaję do koszyka?`,
+        ui_suggestions: ["Tak", "Nie", "Pokaż inne"],
+        slots: { 
+          ...prev, 
+          restaurant: restaurant.name, 
+          restaurantId: restaurant.id,
+          menuItem: bestMatch.name, 
+          menuItemId: bestMatch.id, 
+          quantity: 1, 
+          price: bestMatch.price 
+        },
+        action: "add_to_cart"
+      };
+    }
+  }
+  
+  return {
+    speech: `Nie znalazłem "${normalized}" w dostępnych restauracjach. Wybierz restaurację z listy.`,
+    ui_suggestions: ["Pokaż restauracje", "KFC", "Pizza Hut"],
+    slots: prev,
+    action: "search_restaurants_general"
+  };
+}
+
+// Wyszukiwanie pozycji menu - sprawdź czy mamy restaurację lub czy to może być nazwa dania
+if (prev.restaurantId || isFoodItem) {
   const wantsMenuList =
     normalized.includes("menu") ||
     normalized.includes("co jest w menu") ||
@@ -346,7 +387,8 @@ if (prev.restaurantId) {
   }
 
 // jeśli user mówi konkretnie o produkcie – szukamy itemu i od razu proponujemy
-if (
+// Rozszerzone rozpoznawanie - sprawdź czy to może być nazwa dania
+const isFoodItem = 
   normalized.includes("pizza") ||
   normalized.includes("burger") ||
   normalized.includes("frytki") ||
@@ -356,8 +398,20 @@ if (
   normalized.includes("popcorn") ||
   normalized.includes("chicken") ||
   normalized.includes("zinger") ||
-  normalized.includes("wings")
-) {
+  normalized.includes("wings") ||
+  normalized.includes("gulasz") ||
+  normalized.includes("pierogi") ||
+  normalized.includes("sýr") ||
+  normalized.includes("zupa") ||
+  normalized.includes("czosnkowa") ||
+  normalized.includes("wieprzowy") ||
+  normalized.includes("knedlik") ||
+  normalized.includes("mięsem") ||
+  normalized.includes("smažený") ||
+  // Sprawdź czy tekst zawiera więcej niż 2 słowa (może być pełna nazwa dania)
+  (normalized.split(' ').length >= 2 && !normalized.includes("chcę") && !normalized.includes("pokaż"));
+
+if (isFoodItem) {
   console.log("🔍 Searching menu for:", normalized, "in restaurant:", prev.restaurantId);
   const items = await searchMenuItems(prev.restaurantId, normalized);
   console.log("📋 Menu search results:", items);
