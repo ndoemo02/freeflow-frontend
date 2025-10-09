@@ -5,6 +5,10 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
 import RideTab from '../../components/RideTab'
+import { useSpeechRecognition } from '../useSpeechRecognition'
+import { manageTurn } from '../../lib/DialogManager'
+import { speakTts } from '../../lib/ttsClient'
+import VoiceDock from '../../components/VoiceDock'
 
 export default function CustomerPanel(){
   const { user } = useAuth()
@@ -46,6 +50,23 @@ export default function CustomerPanel(){
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [lastOrder, setLastOrder] = useState(null)
   const [selectedOrder, setSelectedOrder] = useState(null)
+
+  // Voice ordering states
+  const [voiceQuery, setVoiceQuery] = useState('')
+  const [dialogSlots, setDialogSlots] = useState({})
+  const [voiceMessages, setVoiceMessages] = useState([])
+  const [speaking, setSpeaking] = useState(false)
+
+  // STT Hook
+  const {
+    recording,
+    interimText,
+    finalText,
+    startRecording,
+    stopRecording,
+  } = useSpeechRecognition({
+    onTranscriptChange: (transcript) => setVoiceQuery(transcript),
+  })
 
   // Redirect if not logged in
   useEffect(() => {
@@ -273,10 +294,21 @@ export default function CustomerPanel(){
       push('Wybierz restaurację', 'error')
       return
     }
+    if (!user || !user.id) {
+      push('Musisz być zalogowany aby złożyć zamówienie', 'error')
+      return
+    }
 
     try {
       setPlacingOrder(true)
       const selectedRestaurantData = restaurants.find(r => r.id === selectedRestaurant)
+      
+      console.log('🛒 Placing order:', {
+        user_id: user.id,
+        restaurant_id: selectedRestaurant,
+        total_price: getCartTotal(),
+        cart_items: cart.length
+      })
       
       const { error } = await supabase.from('orders').insert({
         user_id: user.id,
@@ -285,7 +317,10 @@ export default function CustomerPanel(){
         total_price: getCartTotal()
       })
 
-              if (error) throw error
+      if (error) {
+        console.error('❌ Supabase error:', error)
+        throw error
+      }
               
               // Zapisz szczegóły ostatniego zamówienia
               setLastOrder({
@@ -325,6 +360,93 @@ export default function CustomerPanel(){
     } catch (e) {
       push('Błąd podczas anulowania zamówienia', 'error')
       console.error('Cancel order error:', e)
+    }
+  }
+
+  // Voice ordering functions
+  const handleVoiceOrder = async () => {
+    if (!voiceQuery.trim()) return
+
+    try {
+      setSpeaking(true)
+      
+      // Add user message to chat
+      const userMessage = { id: Date.now(), role: 'user', text: voiceQuery }
+      setVoiceMessages(prev => [...prev, userMessage])
+
+      // Process with DialogManager
+      const response = await manageTurn(voiceQuery, dialogSlots)
+      
+      // Add assistant response to chat
+      const assistantMessage = { id: Date.now() + 1, role: 'assistant', text: response.speech }
+      setVoiceMessages(prev => [...prev, assistantMessage])
+
+      // Update dialog slots
+      setDialogSlots(response.slots)
+
+      // Handle actions
+      if (response.action === 'add_to_cart' && response.slots.menuItemId) {
+        await addToCartFromVoice(response.slots)
+      } else if (response.action === 'checkout') {
+        await placeOrder()
+      }
+
+      // Speak response
+      await speakTts(response.speech)
+      
+      // Clear query
+      setVoiceQuery('')
+    } catch (error) {
+      console.error('Voice order error:', error)
+      push('Błąd podczas przetwarzania zamówienia głosowego', 'error')
+    } finally {
+      setSpeaking(false)
+    }
+  }
+
+  const addToCartFromVoice = async (slots) => {
+    try {
+      const { menuItem, menuItemId, quantity = 1, price, restaurantId } = slots
+      
+      if (!menuItemId || !restaurantId) {
+        push('Brak informacji o pozycji menu', 'error')
+        return
+      }
+
+      // Find restaurant name
+      const restaurant = restaurants.find(r => r.id === restaurantId)
+      if (!restaurant) {
+        push('Nie znaleziono restauracji', 'error')
+        return
+      }
+
+      // Add to cart
+      const cartItem = {
+        id: menuItemId,
+        name: menuItem,
+        price: price,
+        quantity: quantity,
+        restaurant_id: restaurantId,
+        restaurant_name: restaurant.name
+      }
+
+      setCart(prev => {
+        const existing = prev.find(item => item.id === menuItemId)
+        if (existing) {
+          return prev.map(item => 
+            item.id === menuItemId 
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          )
+        }
+        return [...prev, cartItem]
+      })
+
+      setSelectedRestaurant(restaurantId)
+      push(`Dodano ${quantity}x ${menuItem} do koszyka`, 'success')
+    } catch (error) {
+      console.error('Add to cart error:', error)
+      push('Błąd podczas dodawania do koszyka', 'error')
     }
   }
 
@@ -393,6 +515,18 @@ export default function CustomerPanel(){
                   {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} />}
           {tab === 'settings' && <SettingsTab />}
         </div>
+
+        {/* Voice interface for ordering */}
+        {tab === 'order' && (
+          <VoiceDock
+            messages={voiceMessages}
+            value={voiceQuery}
+            onChange={setVoiceQuery}
+            onSubmit={handleVoiceOrder}
+            recording={recording}
+            onMicClick={recording ? stopRecording : startRecording}
+          />
+        )}
       </div>
     </div>
   )
