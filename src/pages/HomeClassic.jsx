@@ -70,15 +70,19 @@ export default function HomeClassic() {
 
   // TTS: jeden punkt wejścia, z deduplikacją i cache po stronie klienta
   const speakNow = async (text) => {
+    console.log("🎤 TTS: Starting to speak:", text);
     try {
       speakingRef.current = true;
       setSpeaking(true);
+      console.log("🎤 TTS: Calling speakWithVoice...");
       await speakWithVoice(text, "pl-PL-Wavenet-D");
+      console.log("🎤 TTS: Speech completed successfully");
     } catch (e) {
-      console.warn("TTS failed", e);
+      console.error("🎤 TTS failed:", e);
     } finally {
       speakingRef.current = false;
       setSpeaking(false);
+      console.log("🎤 TTS: Cleanup completed");
     }
   };
 

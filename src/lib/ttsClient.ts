@@ -34,6 +34,8 @@ export const POLISH_VOICES = {
 };
 
 export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTMLAudioElement> {
+  console.log("🎤 TTS Client: Starting TTS request for text:", text);
+  
   const defaultOpts: TtsOptions = {
     lang: 'pl-PL',
     voiceName: 'pl-PL-Wavenet-A',
@@ -51,20 +53,28 @@ export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTM
     ? 'https://freeflow-backend.vercel.app/api/tts'
     : 'http://localhost:3003/api/tts';
   
+  console.log("🎤 TTS Client: Making request to:", apiUrl);
+  console.log("🎤 TTS Client: Request body:", body);
+  
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body
   });
   
+  console.log("🎤 TTS Client: Response status:", response.status);
+  
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    console.error("🎤 TTS Client: Error response:", errorData);
     throw new Error(`TTS HTTP ${response.status}: ${errorData.message || response.statusText}`);
   }
   
   const data: TtsResponse = await response.json();
+  console.log("🎤 TTS Client: Response data:", data);
   
   if (!data.ok || !data.audioContent) {
+    console.error("🎤 TTS Client: TTS synthesis failed:", data);
     throw new Error(data.message || 'TTS synthesis failed');
   }
   
@@ -84,14 +94,23 @@ export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTM
   }
   
   const audio = new Audio(`data:${mimeType};base64,${data.audioContent}`);
+  console.log("🎤 TTS Client: Created audio element, starting playback...");
   
   return new Promise((resolve, reject) => {
-    audio.onended = () => resolve(audio);
+    audio.onended = () => {
+      console.log("🎤 TTS Client: Audio playback completed");
+      resolve(audio);
+    };
     audio.onerror = (error) => {
-      console.error('Audio playback error:', error);
+      console.error('🎤 TTS Client: Audio playback error:', error);
       reject(new Error('Audio playback failed'));
     };
-    audio.play().catch(reject);
+    audio.play().then(() => {
+      console.log("🎤 TTS Client: Audio playback started successfully");
+    }).catch((error) => {
+      console.error("🎤 TTS Client: Failed to start audio playback:", error);
+      reject(error);
+    });
   });
 }
 
