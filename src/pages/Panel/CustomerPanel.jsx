@@ -379,7 +379,14 @@ export default function CustomerPanel(){
         ...dialogSlots,
         restaurantId: selectedRestaurant || dialogSlots.restaurantId
       }
+      console.log('🎤 Voice order processing:', { voiceQuery, slotsWithRestaurant })
       const response = await manageTurn(voiceQuery, slotsWithRestaurant)
+      console.log('🎤 DialogManager response:', response)
+      
+      // Sprawdź czy response jest poprawny
+      if (!response || !response.speech) {
+        throw new Error('DialogManager returned invalid response')
+      }
       
       // Add assistant response to chat
       const assistantMessage = { id: Date.now() + 1, role: 'assistant', text: response.speech }

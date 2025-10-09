@@ -469,10 +469,41 @@ if (isFoodItem) {
   let slots: Slots = { ...prev };
   if (!slots.item && normalized.includes("pizza")) slots.item = "pizza";
 
-  // Pytania uzupełniające
-  if (!slots.item) return { speech: "Co podać?", ui_suggestions: ["pizza", "burger"], slots };
-  if (!slots.size) return { speech: "Jaki rozmiar?", ui_suggestions: ["S", "M", "L"], slots };
-  if (!slots.spice) return { speech: "Łagodna czy ostra?", ui_suggestions: ["Łagodna", "Ostra"], slots };
-
-  return nextStep(ensureDefaults(slots));
+  // Fallback - jeśli nic nie pasuje, spróbuj wyszukać w menu
+  console.log("🔍 No pattern matched, trying menu search for:", normalized);
+  
+  // Jeśli nie ma restauracji, pokaż dostępne
+  if (!prev.restaurantId) {
+    return {
+      speech: "Nie rozumiem. Wybierz restaurację z listy lub powiedz 'pokaż restauracje'.",
+      ui_suggestions: ["Pokaż restauracje", "KFC", "Pizza Hut"],
+      slots: prev,
+      action: "search_restaurants_general"
+    };
+  }
+  
+  // Jeśli ma restaurację, spróbuj wyszukać w menu
+  const items = await searchMenuItems(prev.restaurantId, normalized);
+  if (items.length > 0) {
+    const bestMatch = items[0];
+    return {
+      speech: `Znalazłem ${bestMatch.name} za ${bestMatch.price} zł. Dodaję do koszyka?`,
+      ui_suggestions: ["Tak", "Nie", "Pokaż inne"],
+      slots: { 
+        ...prev, 
+        menuItem: bestMatch.name, 
+        menuItemId: bestMatch.id, 
+        quantity: 1, 
+        price: bestMatch.price 
+      },
+      action: "add_to_cart"
+    };
+  }
+  
+  // Ostateczny fallback
+  return { 
+    speech: "Nie rozumiem. Spróbuj powiedzieć nazwę dania lub 'pokaż menu'.", 
+    ui_suggestions: ["Pokaż menu", "Pizza", "Burger"], 
+    slots: prev 
+  };
 }
