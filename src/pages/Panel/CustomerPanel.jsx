@@ -924,6 +924,95 @@ function OrderTab({
   lastOrder,
   setLastOrder
 }) {
+  // STT states for OrderTab
+  const [isRecording, setIsRecording] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [recognition, setRecognition] = useState(null)
+
+  // Initialize STT
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      const rec = new SpeechRecognition()
+      rec.lang = 'pl-PL'
+      rec.continuous = true
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+
+      rec.onresult = async (event) => {
+        let finalText = ''
+        let interimText = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i]
+          if (result.isFinal) {
+            finalText += result[0].transcript
+          } else {
+            interimText += result[0].transcript
+          }
+        }
+
+        setTranscript(finalText + (interimText ? ' ' + interimText : ''))
+
+        // Process final text
+        if (finalText.trim()) {
+          await processVoiceCommand(finalText.trim())
+        }
+      }
+
+      rec.onerror = (e) => {
+        console.error('STT Error:', e.error)
+        setIsRecording(false)
+      }
+
+      rec.onend = () => {
+        setIsRecording(false)
+      }
+
+      setRecognition(rec)
+    }
+  }, [])
+
+  // Process voice command
+  const processVoiceCommand = async (message) => {
+    try {
+      console.log('🎤 Processing voice command:', message)
+      
+      // Send to existing order system
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voice_command: message,
+          restaurant_id: selectedRestaurant,
+          user_email: 'voice@test.com' // You can get this from auth context
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Voice command processed:', data)
+        setTranscript('') // Clear transcript
+      } else {
+        console.error('❌ Voice command failed:', response.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Voice command error:', error)
+    }
+  }
+
+  // Toggle recording
+  const toggleRecording = () => {
+    if (!recognition) return
+
+    if (isRecording) {
+      recognition.stop()
+    } else {
+      recognition.start()
+      setIsRecording(true)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-white">Zamów jedzenie</h2>
@@ -931,20 +1020,47 @@ function OrderTab({
       {/* Restaurant Selection */}
       <div>
         <label className="block text-sm text-gray-300 mb-2">Wybierz restaurację</label>
-        <select 
-          className="w-full rounded-xl bg-gray-800 text-white border border-white/10 p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          value={selectedRestaurant}
-          onChange={(e) => setSelectedRestaurant(e.target.value)}
-          disabled={loadingRestaurants}
-        >
-          <option value="" className="bg-gray-800 text-white">{loadingRestaurants ? 'Ładowanie...' : 'Wybierz restaurację'}</option>
-          {restaurants.map(restaurant => (
-            <option key={restaurant.id} value={restaurant.id} className="bg-gray-800 text-white">
-              {restaurant.name} {restaurant.city && `- ${restaurant.city}`}
-            </option>
-          ))}
-        </select>
-            </div>
+        <div className="flex gap-2">
+          <select 
+            className="flex-1 rounded-xl bg-gray-800 text-white border border-white/10 p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={selectedRestaurant}
+            onChange={(e) => setSelectedRestaurant(e.target.value)}
+            disabled={loadingRestaurants}
+          >
+            <option value="" className="bg-gray-800 text-white">{loadingRestaurants ? 'Ładowanie...' : 'Wybierz restaurację'}</option>
+            {restaurants.map(restaurant => (
+              <option key={restaurant.id} value={restaurant.id} className="bg-gray-800 text-white">
+                {restaurant.name} {restaurant.city && `- ${restaurant.city}`}
+              </option>
+            ))}
+          </select>
+          
+          {/* Voice Order Button */}
+          <button
+            onClick={toggleRecording}
+            disabled={!recognition}
+            className={`
+              px-4 py-3 rounded-xl border transition-all duration-200
+              ${isRecording 
+                ? 'bg-red-600 border-red-500 text-white animate-pulse' 
+                : 'bg-gray-800 border-white/10 text-white hover:bg-gray-700'
+              }
+              ${!recognition ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            `}
+            title={isRecording ? 'Zatrzymaj nagrywanie' : 'Zamów głosem'}
+          >
+            {isRecording ? '🛑' : '🎤'}
+          </button>
+        </div>
+        
+        {/* Transcript Display */}
+        {transcript && (
+          <div className="mt-2 p-3 bg-gray-800/50 rounded-lg border border-white/10">
+            <div className="text-sm text-gray-400 mb-1">Rozpoznany tekst:</div>
+            <div className="text-green-400 font-medium">{transcript}</div>
+          </div>
+        )}
+      </div>
 
       {/* Menu Items */}
       {selectedRestaurant && (
