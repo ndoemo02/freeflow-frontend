@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   try {
     // Forward request to backend
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://freeflow-backend.vercel.app/api/tts'
-      : 'http://localhost:3003/api/tts';
+      ? 'https://freeflow-backend-4yzg4q2ra-lukis-projects-01382554.vercel.app/api/tts'
+      : 'http://localhost:3000/api/tts';
     
     console.log('🔄 TTS Proxy: Forwarding to backend:', backendUrl);
     console.log('🔄 TTS Proxy: Request body:', JSON.stringify(req.body, null, 2));
@@ -28,12 +28,19 @@ export default async function handler(req, res) {
       body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined
     });
 
-    const data = await response.json();
-    
     console.log('🔄 TTS Proxy: Backend response status:', response.status);
-    console.log('🔄 TTS Proxy: Backend response data:', data);
     
-    res.status(response.status).json(data);
+    if (response.ok) {
+      // TTS returns audio, not JSON
+      const audioBuffer = await response.arrayBuffer();
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.send(Buffer.from(audioBuffer));
+    } else {
+      // Error responses are JSON
+      const data = await response.json();
+      console.log('🔄 TTS Proxy: Backend error:', data);
+      res.status(response.status).json(data);
+    }
   } catch (error) {
     console.error('TTS Proxy error:', error);
     res.status(500).json({ 

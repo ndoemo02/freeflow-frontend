@@ -21,17 +21,57 @@ export interface TtsResponse {
   message?: string;
 }
 
-// Available Polish voices
-export const POLISH_VOICES = {
-  'pl-PL-Wavenet-A': { name: 'pl-PL-Wavenet-A', gender: 'FEMALE', description: 'Kobieta (Wavenet)' },
-  'pl-PL-Wavenet-B': { name: 'pl-PL-Wavenet-B', gender: 'MALE', description: 'Mężczyzna (Wavenet)' },
-  'pl-PL-Wavenet-C': { name: 'pl-PL-Wavenet-C', gender: 'FEMALE', description: 'Kobieta 2 (Wavenet)' },
-  'pl-PL-Wavenet-D': { name: 'pl-PL-Wavenet-D', gender: 'MALE', description: 'Mężczyzna 2 (Wavenet)' },
-  'pl-PL-Standard-A': { name: 'pl-PL-Standard-A', gender: 'FEMALE', description: 'Kobieta (Standard)' },
-  'pl-PL-Standard-B': { name: 'pl-PL-Standard-B', gender: 'MALE', description: 'Mężczyzna (Standard)' },
-  'pl-PL-Standard-C': { name: 'pl-PL-Standard-C', gender: 'FEMALE', description: 'Kobieta 2 (Standard)' },
-  'pl-PL-Standard-D': { name: 'pl-PL-Standard-D', gender: 'MALE', description: 'Mężczyzna 2 (Standard)' }
-};
+// Google Cloud TTS API function
+async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLAudioElement> {
+  console.log("🎤 Google TTS: Starting speech synthesis for text:", text);
+  
+  try {
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        text,
+        lang: opts.lang || 'pl-PL',
+        voiceName: opts.voiceName,
+        gender: opts.gender,
+        audioEncoding: opts.audioEncoding || 'MP3',
+        speakingRate: opts.speakingRate || 1.0,
+        pitch: opts.pitch || 0.0,
+        volumeGainDb: opts.volumeGainDb || 0.0
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`TTS API error: ${res.statusText}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    
+    return new Promise((resolve, reject) => {
+      audio.onloadeddata = () => {
+        console.log("🎤 Google TTS: Audio loaded, starting playback");
+        audio.play();
+      };
+      
+      audio.onended = () => {
+        console.log("🎤 Google TTS: Speech completed");
+        URL.revokeObjectURL(url); // Clean up
+        resolve(audio);
+      };
+      
+      audio.onerror = (event) => {
+        console.error("🎤 Google TTS: Audio error:", event);
+        URL.revokeObjectURL(url); // Clean up
+        reject(new Error("Audio playback failed"));
+      };
+    });
+  } catch (error) {
+    console.error("🎤 Google TTS: Request failed:", error);
+    throw error;
+  }
+}
 
 // Web Speech API fallback function
 async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HTMLAudioElement> {
@@ -53,150 +93,71 @@ async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HT
 
     // Try to find a Polish voice
     const voices = speechSynthesis.getVoices();
-    const polishVoice = voices.find(voice => 
-      voice.lang.startsWith('pl') || 
-      voice.name.toLowerCase().includes('polish') ||
-      voice.name.toLowerCase().includes('polski')
-    );
+    const polishVoices = voices.filter(voice => voice.lang.startsWith('pl'));
     
-    if (polishVoice) {
-      utterance.voice = polishVoice;
-      console.log("🎤 Web Speech API: Using Polish voice:", polishVoice.name);
+    if (polishVoices.length > 0) {
+      // Prefer Wavenet voices if available
+      const wavenetVoice = polishVoices.find(voice => voice.name.includes('Wavenet'));
+      utterance.voice = wavenetVoice || polishVoices[0];
+      console.log("🎤 Using Polish voice:", utterance.voice?.name);
     } else {
-      console.log("🎤 Web Speech API: No Polish voice found, using default");
+      console.log("⚠️ No Polish voices found, using default");
     }
 
-    // Create a dummy audio element for compatibility
-    const audio = new Audio();
-    
     utterance.onstart = () => {
       console.log("🎤 Web Speech API: Speech started");
     };
-    
+
     utterance.onend = () => {
       console.log("🎤 Web Speech API: Speech completed");
+      // Create a dummy audio element for compatibility
+      const audio = new Audio();
       resolve(audio);
     };
-    
+
     utterance.onerror = (event) => {
       console.error("🎤 Web Speech API: Speech error:", event.error);
-      reject(new Error(`Web Speech API error: ${event.error}`));
+      reject(new Error(`Speech synthesis failed: ${event.error}`));
     };
 
-    // Start speech synthesis
+    // Start speaking
     speechSynthesis.speak(utterance);
   });
 }
 
+// Main TTS function - tries OpenAI first, falls back to Web Speech API
 export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTMLAudioElement> {
-  console.log("🎤 TTS Client: Starting TTS request for text:", text);
+  console.log("🎤 TTS: Starting speech synthesis for text:", text);
   
+  // Default options
   const defaultOpts: TtsOptions = {
     lang: 'pl-PL',
-    voiceName: 'pl-PL-Wavenet-A',
-    audioEncoding: 'MP3',
     speakingRate: 1.0,
-    pitch: 0.0,
+    pitch: 1.0,
     volumeGainDb: 0.0,
     ...opts
   };
 
-  // Try Web Speech API first (browser native, no credentials needed)
-  if ('speechSynthesis' in window) {
-    console.log("🎤 TTS Client: Using Web Speech API fallback");
-    return speakWithWebSpeechAPI(text, defaultOpts);
-  }
-
-  const body = JSON.stringify({ text, ...defaultOpts });
-  
-  // Use the correct API endpoint based on environment
-  const apiUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://freeflow-backend.vercel.app/api/tts'
-    : 'http://localhost:3003/api/tts';
-  
-  console.log("🎤 TTS Client: Making request to:", apiUrl);
-  console.log("🎤 TTS Client: Request body:", body);
-
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body
-    });
+    // Try Google Cloud TTS first
+    console.log("🎤 TTS: Attempting Google Cloud TTS...");
+    return await speakWithGoogleTTS(text, defaultOpts);
+  } catch (googleError) {
+    console.warn("🎤 TTS: Google Cloud TTS failed, falling back to Web Speech API:", googleError);
     
-    console.log("🎤 TTS Client: Response status:", response.status);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("🎤 TTS Client: Error response:", errorData);
-      
-      // Fallback to Web Speech API on error
-      console.log("🎤 TTS Client: Falling back to Web Speech API");
-      return speakWithWebSpeechAPI(text, defaultOpts);
+    try {
+      // Fallback to Web Speech API
+      console.log("🎤 TTS: Attempting Web Speech API...");
+      return await speakWithWebSpeechAPI(text, defaultOpts);
+    } catch (webSpeechError) {
+      console.error("🎤 TTS: Both TTS methods failed:", { googleError, webSpeechError });
+      throw new Error(`TTS failed: ${webSpeechError.message}`);
     }
-    
-    const data: TtsResponse = await response.json();
-    console.log("🎤 TTS Client: Response data:", data);
-    
-    if (!data.ok || !data.audioContent) {
-      console.error("🎤 TTS Client: TTS synthesis failed:", data);
-      console.log("🎤 TTS Client: Falling back to Web Speech API");
-      return speakWithWebSpeechAPI(text, defaultOpts);
-    }
-    
-    // Determine MIME type based on audio encoding
-    let mimeType = 'audio/mpeg'; // default for MP3
-    switch (data.audioEncoding) {
-      case 'LINEAR16':
-        mimeType = 'audio/wav';
-        break;
-      case 'OGG_OPUS':
-        mimeType = 'audio/ogg';
-        break;
-      case 'MP3':
-      default:
-        mimeType = 'audio/mpeg';
-        break;
-    }
-    
-    const audio = new Audio(`data:${mimeType};base64,${data.audioContent}`);
-    console.log("🎤 TTS Client: Created audio element, starting playback...");
-    
-    return new Promise((resolve, reject) => {
-      audio.onended = () => {
-        console.log("🎤 TTS Client: Audio playback completed");
-        resolve(audio);
-      };
-      audio.onerror = (error) => {
-        console.error('🎤 TTS Client: Audio playback error:', error);
-        reject(new Error('Audio playback failed'));
-      };
-      audio.play().then(() => {
-        console.log("🎤 TTS Client: Audio playback started successfully");
-      }).catch((error) => {
-        console.error("🎤 TTS Client: Failed to start audio playback:", error);
-        reject(error);
-      });
-    });
-  } catch (error) {
-    console.error("🎤 TTS Client: Request failed:", error);
-    console.log("🎤 TTS Client: Falling back to Web Speech API");
-    return speakWithWebSpeechAPI(text, defaultOpts);
   }
-}
-
-// Helper function to get available voices by gender
-export function getVoicesByGender(gender: 'MALE' | 'FEMALE') {
-  return Object.values(POLISH_VOICES).filter(voice => voice.gender === gender);
-}
-
-// Helper function to get all available voices
-export function getAllVoices() {
-  return Object.values(POLISH_VOICES);
 }
 
 // Helper function to speak with specific voice
-export async function speakWithVoice(text: string, voiceName: keyof typeof POLISH_VOICES) {
+export async function speakWithVoice(text: string, voiceName: string) {
   return speakTts(text, { voiceName });
 }
 
@@ -204,3 +165,6 @@ export async function speakWithVoice(text: string, voiceName: keyof typeof POLIS
 export async function speakWithGender(text: string, gender: 'MALE' | 'FEMALE') {
   return speakTts(text, { gender });
 }
+
+// Simple speak function for quick usage
+export const speak = speakTts;

@@ -32,3 +32,4 @@ tts.cache.patch/
 test.js
 .env
 .env.local
+.vercel
