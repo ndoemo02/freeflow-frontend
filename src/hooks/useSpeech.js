@@ -83,7 +83,7 @@ export const useSpeech = (options = {}) => {
     console.log("🚀 Sending to backend:", { text, userId });
     
     try {
-      const res = await fetch("https://freeflow-backend.vercel.app/api/dialogflow-freeflow", {
+      const res = await fetch("https://freeflow-backend.vercel.app/api/freeflow-brain", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

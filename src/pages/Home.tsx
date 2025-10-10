@@ -249,20 +249,20 @@ export default function Home() {
       setMenuItems([]);
       
       setCurrentAction("");
-      console.log('🎯 Sending to Dialogflow:', text);
+      console.log('🎯 Sending to FreeFlow Brain:', text);
       
-      // Wyślij do Dialogflow
-      const result = await api('https://freeflow-backend.vercel.app/api/dialogflow-freeflow', {
+      // Wyślij do FreeFlow Brain
+      const result = await api('https://freeflow-backend.vercel.app/api/freeflow-brain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       });
 
-      console.log('🤖 Dialogflow response:', result);
+      console.log('🧠 FreeFlow Brain response:', result);
 
-      if (result.fulfillmentText) {
-        setResponse(result.fulfillmentText);
-        setChatHistory(prev => [...prev, { speaker: 'agent', text: result.fulfillmentText }]);
+      if (result.response) {
+        setResponse(result.response);
+        setChatHistory(prev => [...prev, { speaker: 'agent', text: result.response }]);
 
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
         if (result.customPayload && result.customPayload.menu_items) {
