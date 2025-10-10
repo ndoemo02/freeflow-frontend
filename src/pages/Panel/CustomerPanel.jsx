@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../state/auth'
 import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
@@ -374,36 +375,70 @@ export default function CustomerPanel(){
       const userMessage = { id: Date.now(), role: 'user', text: voiceQuery }
       setVoiceMessages(prev => [...prev, userMessage])
 
-      // Process with DialogManager - przekaż wybraną restaurację
-      const slotsWithRestaurant = {
-        ...dialogSlots,
-        restaurantId: selectedRestaurant || dialogSlots.restaurantId
+      // Build context from current state
+      const context = {
+        selectedRestaurant: selectedRestaurant,
+        cartItems: cart.length,
+        userLocation: 'Katowice', // You can get this from user profile
+        currentTab: tab,
+        dialogSlots: dialogSlots
       }
-      console.log('🎤 Voice order processing:', { voiceQuery, slotsWithRestaurant })
-      const response = await manageTurn(voiceQuery, slotsWithRestaurant)
-      console.log('🎤 DialogManager response:', response)
+
+      console.log('🤖 Agent request:', { voiceQuery, context })
       
-      // Sprawdź czy response jest poprawny
-      if (!response || !response.speech) {
-        throw new Error('DialogManager returned invalid response')
+      // Call agent endpoint
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: voiceQuery,
+          sessionId: `session_${user?.id || 'anonymous'}_${Date.now()}`,
+          userId: user?.id || 'anonymous',
+          context: JSON.stringify(context)
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Agent request failed: ${response.status}`)
+      }
+
+      const agentData = await response.json()
+      console.log('🤖 Agent response:', agentData)
+      
+      if (!agentData.ok) {
+        throw new Error(agentData.message || 'Agent returned error')
       }
       
       // Add assistant response to chat
-      const assistantMessage = { id: Date.now() + 1, role: 'assistant', text: response.speech }
+      const assistantMessage = { 
+        id: Date.now() + 1, 
+        role: 'assistant', 
+        text: agentData.agentResponse.text 
+      }
       setVoiceMessages(prev => [...prev, assistantMessage])
 
-      // Update dialog slots
-      setDialogSlots(response.slots)
-
-      // Handle actions
-      if (response.action === 'add_to_cart' && response.slots.menuItemId) {
-        await addToCartFromVoice(response.slots)
-      } else if (response.action === 'checkout') {
-        await placeOrder()
+      // Handle actions based on agent response
+      if (agentData.agentResponse.action === 'food_order') {
+        // Could trigger food ordering flow
+        console.log('🍕 Food order action detected')
+      } else if (agentData.agentResponse.action === 'taxi_booking') {
+        // Could switch to taxi tab
+        console.log('🚖 Taxi booking action detected')
+        setTab('ride')
+      } else if (agentData.agentResponse.action === 'hotel_booking') {
+        // Could trigger hotel booking
+        console.log('🏨 Hotel booking action detected')
       }
 
-      // Speak response
-      await speakTts(response.speech)
+      // Play TTS audio if available
+      if (agentData.audioContent) {
+        await playTtsAudio(agentData.audioContent)
+      } else {
+        // Fallback to browser TTS
+        await speakTts(agentData.agentResponse.text)
+      }
       
       // Clear query
       setVoiceQuery('')
@@ -412,6 +447,31 @@ export default function CustomerPanel(){
       push('Błąd podczas przetwarzania zamówienia głosowego', 'error')
     } finally {
       setSpeaking(false)
+    }
+  }
+
+  // Play TTS audio from base64
+  const playTtsAudio = async (audioContent) => {
+    try {
+      const audioBlob = new Blob([
+        Uint8Array.from(atob(audioContent), c => c.charCodeAt(0))
+      ], { type: 'audio/mp3' })
+      
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+      
+      await new Promise((resolve, reject) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        }
+        audio.onerror = reject
+        audio.play()
+      })
+    } catch (error) {
+      console.error('TTS audio playback error:', error)
+      // Fallback to browser TTS
+      await speakTts(agentData.agentResponse.text)
     }
   }
 
@@ -462,84 +522,320 @@ export default function CustomerPanel(){
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <PanelHeader 
-          title="Panel Klienta" 
-          subtitle="Zarządzaj swoim kontem, zamówieniami i ustawieniami"
+    <motion.div 
+      className="min-h-screen bg-black px-4 py-8 relative overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black">
+        {/* Animated Neon Columns */}
+        <div className="absolute inset-0">
+          <div className="grid grid-cols-12 gap-4 h-full">
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="relative"
+                animate={{
+                  opacity: [0.1, 0.8, 0.1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.15,
+                  ease: "easeInOut"
+                }}
+              >
+                {/* Column Glow */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-b from-cyan-500/20 via-transparent to-purple-500/20"
+                  animate={{
+                    opacity: [0, 1, 0],
+                    scaleY: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                    ease: "easeInOut"
+                  }}
+                />
+                {/* Column Border */}
+                <motion.div
+                  className="absolute right-0 top-0 w-px h-full bg-gradient-to-b from-cyan-500 via-purple-500 to-pink-500"
+                  animate={{
+                    opacity: [0.2, 1, 0.2],
+                    boxShadow: [
+                      "0 0 5px rgba(0, 255, 255, 0.3)",
+                      "0 0 20px rgba(0, 255, 255, 0.8)",
+                      "0 0 5px rgba(0, 255, 255, 0.3)"
+                    ]
+                  }}
+                  transition={{
+                    duration: 2.5,
+                    repeat: Infinity,
+                    delay: i * 0.18,
+                    ease: "easeInOut"
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Floating Neon Orbs */}
+        <motion.div
+          className="absolute top-20 left-20 w-32 h-32 bg-cyan-500/10 rounded-full blur-xl"
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
+        <motion.div
+          className="absolute top-40 right-32 w-24 h-24 bg-purple-500/10 rounded-full blur-xl"
+          animate={{
+            x: [0, -80, 0],
+            y: [0, 60, 0],
+            scale: [1, 0.8, 1],
+          }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 2,
+          }}
+        />
+        <motion.div
+          className="absolute bottom-32 left-1/3 w-40 h-40 bg-pink-500/10 rounded-full blur-xl"
+          animate={{
+            x: [0, 60, 0],
+            y: [0, -40, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 4,
+          }}
+        />
+      </div>
+      <div className="mx-auto max-w-6xl relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-center mb-8"
+        >
+          {/* Animated Title */}
+          <motion.h1
+            className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          >
+            <motion.span
+              animate={{
+                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+              style={{
+                backgroundSize: "200% 200%",
+                backgroundImage: "linear-gradient(45deg, #00FFFF, #8B5CF6, #EC4899, #00FFFF)"
+              }}
+              className="bg-clip-text text-transparent"
+            >
+              Panel Klienta
+            </motion.span>
+          </motion.h1>
+          
+          {/* Animated Subtitle */}
+          <motion.p
+            className="text-lg text-gray-300 mb-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <motion.span
+              animate={{
+                opacity: [0.7, 1, 0.7],
+                textShadow: [
+                  "0 0 5px rgba(0, 255, 255, 0.3)",
+                  "0 0 20px rgba(0, 255, 255, 0.8)",
+                  "0 0 5px rgba(0, 255, 255, 0.3)"
+                ]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              Zarządzaj swoim kontem, zamówieniami i ustawieniami
+            </motion.span>
+          </motion.p>
+          
+        </motion.div>
 
-                <CustomerStats userId={user?.id} refreshTrigger={refreshTrigger} />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <CustomerStats userId={user?.id} refreshTrigger={refreshTrigger} />
+        </motion.div>
 
-        <div className="mb-6 flex gap-2 overflow-x-auto">
+        <motion.div 
+          className="mb-6 flex gap-2 overflow-x-auto"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.6 }}
+        >
           <TabButton current={tab} setTab={setTab} id="profile" icon="🙋">Profil</TabButton>
           <TabButton current={tab} setTab={setTab} id="order" icon="🍕">Zamów jedzenie</TabButton>
           <TabButton current={tab} setTab={setTab} id="ride" icon="🚗">Przejazd</TabButton>
           <TabButton current={tab} setTab={setTab} id="orders" icon="📋">Zamówienia</TabButton>
           <TabButton current={tab} setTab={setTab} id="settings" icon="⚙️">Ustawienia</TabButton>
-        </div>
+        </motion.div>
 
-        <div className="rounded-2xl border border-white/10 bg-glass backdrop-blur-xs p-6">
-          {tab === 'profile' && (
-            <ProfileTab
-              profile={profile}
-              setProfile={setProfile}
-              editing={editing}
-              setEditing={setEditing}
-              saving={saving}
-              saveProfile={saveProfile}
-              user={user}
-            />
-          )}
-          {tab === 'order' && (
-            <OrderTab
-              restaurants={restaurants}
-              selectedRestaurant={selectedRestaurant}
-              setSelectedRestaurant={setSelectedRestaurant}
-              menuItems={menuItems}
-              cart={cart}
-              addToCart={addToCart}
-              removeFromCart={removeFromCart}
-              updateQuantity={updateQuantity}
-              getCartTotal={getCartTotal}
-              placeOrder={placeOrder}
-              placingOrder={placingOrder}
-              loadingRestaurants={loadingRestaurants}
-              loadingMenu={loadingMenu}
-              lastOrder={lastOrder}
-              setLastOrder={setLastOrder}
-            />
-          )}
+        <motion.div 
+          className="rounded-2xl border border-cyan-500/20 bg-black/40 backdrop-blur-xl p-6 shadow-2xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 255, 255, 0.05))',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {tab === 'profile' && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ProfileTab
+                  profile={profile}
+                  setProfile={setProfile}
+                  editing={editing}
+                  setEditing={setEditing}
+                  saving={saving}
+                  saveProfile={saveProfile}
+                  user={user}
+                />
+              </motion.div>
+            )}
+            {tab === 'order' && (
+              <motion.div
+                key="order"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <OrderTab
+                  restaurants={restaurants}
+                  selectedRestaurant={selectedRestaurant}
+                  setSelectedRestaurant={setSelectedRestaurant}
+                  menuItems={menuItems}
+                  cart={cart}
+                  addToCart={addToCart}
+                  removeFromCart={removeFromCart}
+                  updateQuantity={updateQuantity}
+                  getCartTotal={getCartTotal}
+                  placeOrder={placeOrder}
+                  placingOrder={placingOrder}
+                  loadingRestaurants={loadingRestaurants}
+                  loadingMenu={loadingMenu}
+                  lastOrder={lastOrder}
+                  setLastOrder={setLastOrder}
+                />
+              </motion.div>
+            )}
 
-          {tab === 'ride' && (
-            <RideTab
-              rideForm={rideForm}
-              setRideForm={setRideForm}
-              bookingRide={bookingRide}
-              bookRide={bookRide}
-              calculatePrice={calculatePrice}
-              taxiCorporations={taxiCorporations}
-              loadingCorporations={loadingCorporations}
-            />
-          )}
+            {tab === 'ride' && (
+              <motion.div
+                key="ride"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <RideTab
+                  rideForm={rideForm}
+                  setRideForm={setRideForm}
+                  bookingRide={bookingRide}
+                  bookRide={bookRide}
+                  calculatePrice={calculatePrice}
+                  taxiCorporations={taxiCorporations}
+                  loadingCorporations={loadingCorporations}
+                />
+              </motion.div>
+            )}
 
-                  {tab === 'orders' && <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} />}
-          {tab === 'settings' && <SettingsTab />}
-        </div>
+            {tab === 'orders' && (
+              <motion.div
+                key="orders"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <OrdersTab userId={user?.id} refreshTrigger={refreshTrigger} cancelOrder={cancelOrder} selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} />
+              </motion.div>
+            )}
+            {tab === 'settings' && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <SettingsTab />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         {/* Voice interface for ordering */}
         {tab === 'order' && (
-          <VoiceDock
-            messages={voiceMessages}
-            value={voiceQuery}
-            onChange={setVoiceQuery}
-            onSubmit={handleVoiceOrder}
-            recording={recording}
-            onMicClick={recording ? stopRecording : startRecording}
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.0 }}
+          >
+            <VoiceDock
+              messages={voiceMessages}
+              value={voiceQuery}
+              onChange={setVoiceQuery}
+              onSubmit={handleVoiceOrder}
+              recording={recording}
+              onMicClick={recording ? stopRecording : startRecording}
+              onClearTranscript={() => {
+                setVoiceQuery("");
+                setVoiceMessages([]);
+                setDialogSlots({});
+              }}
+            />
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -580,28 +876,148 @@ function CustomerStats({ userId, refreshTrigger }){
 
 function StatCard({ title, value, icon, gradient, borderColor }){
   return (
-    <div className={`rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} backdrop-blur-xs p-6 transition-all hover:scale-105`}>
+    <motion.div 
+      className={`rounded-2xl border ${borderColor} bg-black/40 backdrop-blur-xl p-6 transition-all hover:scale-105 shadow-2xl`}
+      whileHover={{ 
+        scale: 1.05,
+        y: -5,
+        boxShadow: "0 20px 40px rgba(0, 255, 255, 0.2)",
+        transition: { type: "spring", stiffness: 300 }
+      }}
+      whileTap={{ scale: 0.95 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 200 }}
+      style={{
+        background: `linear-gradient(135deg, ${gradient.includes('brand') ? 'rgba(139, 92, 246, 0.1)' : gradient.includes('emerald') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(168, 85, 247, 0.1)'}, rgba(0, 0, 0, 0.3))`,
+        borderColor: borderColor.includes('brand') ? 'rgba(139, 92, 246, 0.3)' : borderColor.includes('emerald') ? 'rgba(16, 185, 129, 0.3)' : 'rgba(168, 85, 247, 0.3)'
+      }}
+    >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-300">{title}</p>
-          <p className="text-2xl font-bold text-white">{value}</p>
+          <motion.p 
+            className="text-sm font-medium text-slate-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <motion.span
+              animate={{
+                opacity: [0.7, 1, 0.7],
+                textShadow: [
+                  "0 0 5px rgba(0, 255, 255, 0.2)",
+                  "0 0 15px rgba(0, 255, 255, 0.5)",
+                  "0 0 5px rgba(0, 255, 255, 0.2)"
+                ]
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              {title}
+            </motion.span>
+          </motion.p>
+          <motion.p 
+            className="text-2xl font-bold text-white"
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+          >
+            <motion.span
+              animate={{
+                textShadow: [
+                  "0 0 10px rgba(0, 255, 255, 0.3)",
+                  "0 0 25px rgba(0, 255, 255, 0.8)",
+                  "0 0 10px rgba(0, 255, 255, 0.3)"
+                ],
+                color: [
+                  "#ffffff",
+                  "#00FFFF",
+                  "#ffffff"
+                ]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              {value}
+            </motion.span>
+          </motion.p>
         </div>
-        <div className="text-2xl opacity-80">{icon}</div>
+        <motion.div 
+          className="text-2xl opacity-80"
+          animate={{ 
+            rotate: [0, 10, -10, 0],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{ 
+            duration: 2,
+            repeat: Infinity,
+            repeatType: "reverse"
+          }}
+        >
+          {icon}
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 function TabButton({ current, setTab, id, icon, children }){
   const active = current === id
   return (
-    <button onClick={()=>setTab(id)} className={[
-      'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap',
-      active ? 'bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg' : 'bg-glass border border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
-    ].join(' ')}>
-      <span>{icon}</span>
-      <span>{children}</span>
-    </button>
+    <motion.button 
+      onClick={()=>setTab(id)} 
+      className={[
+        'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap backdrop-blur-xl',
+        active ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white shadow-lg border border-cyan-500/30' : 'bg-black/40 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-cyan-500/20'
+      ].join(' ')}
+      whileHover={{ 
+        scale: 1.05,
+        y: -2,
+        boxShadow: active ? "0 0 25px rgba(0, 255, 255, 0.4)" : "0 0 15px rgba(0, 255, 255, 0.2)",
+        transition: { type: "spring", stiffness: 300 }
+      }}
+      whileTap={{ scale: 0.95 }}
+      animate={{
+        boxShadow: active ? "0 0 20px rgba(0, 255, 255, 0.3)" : "0 0 0px rgba(0, 255, 255, 0)"
+      }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.span
+        animate={{ 
+          rotate: active ? [0, 10, -10, 0] : 0,
+          scale: active ? [1, 1.2, 1] : 1
+        }}
+        transition={{ 
+          duration: 0.5,
+          repeat: active ? Infinity : 0,
+          repeatType: "reverse"
+        }}
+      >
+        {icon}
+      </motion.span>
+      <motion.span
+        animate={{
+          textShadow: active ? [
+            "0 0 5px rgba(0, 255, 255, 0.3)",
+            "0 0 15px rgba(0, 255, 255, 0.8)",
+            "0 0 5px rgba(0, 255, 255, 0.3)"
+          ] : "0 0 0px rgba(0, 255, 255, 0)"
+        }}
+        transition={{
+          duration: 2,
+          repeat: active ? Infinity : 0,
+          ease: "easeInOut"
+        }}
+      >
+        {children}
+      </motion.span>
+    </motion.button>
   )
 }
 
@@ -1036,30 +1452,73 @@ function OrderTab({
           </select>
           
           {/* Voice Order Button */}
-          <button
+          <motion.button
             onClick={toggleRecording}
             disabled={!recognition}
             className={`
-              px-4 py-3 rounded-xl border transition-all duration-200
+              px-4 py-3 rounded-xl border transition-all duration-200 backdrop-blur-xl
               ${isRecording 
-                ? 'bg-red-600 border-red-500 text-white animate-pulse' 
-                : 'bg-gray-800 border-white/10 text-white hover:bg-gray-700'
+                ? 'bg-red-600/20 border-red-500/50 text-white' 
+                : 'bg-black/40 border-cyan-500/30 text-white hover:bg-cyan-500/10'
               }
               ${!recognition ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
             title={isRecording ? 'Zatrzymaj nagrywanie' : 'Zamów głosem'}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: isRecording 
+                ? "0 0 25px rgba(239, 68, 68, 0.6)" 
+                : "0 0 20px rgba(0, 255, 255, 0.4)"
+            }}
+            whileTap={{ scale: 0.95 }}
+            animate={{
+              scale: isRecording ? [1, 1.1, 1] : 1,
+              boxShadow: isRecording 
+                ? "0 0 20px rgba(239, 68, 68, 0.5)" 
+                : "0 0 0px rgba(0, 255, 255, 0)"
+            }}
+            transition={{ 
+              scale: { duration: 0.5, repeat: isRecording ? Infinity : 0 },
+              boxShadow: { duration: 0.3 }
+            }}
           >
-            {isRecording ? '🛑' : '🎤'}
-          </button>
+            <motion.span
+              animate={{
+                rotate: isRecording ? [0, 10, -10, 0] : 0
+              }}
+              transition={{
+                duration: 0.5,
+                repeat: isRecording ? Infinity : 0,
+                repeatType: "reverse"
+              }}
+            >
+              {isRecording ? '🛑' : '🎤'}
+            </motion.span>
+          </motion.button>
         </div>
         
         {/* Transcript Display */}
-        {transcript && (
-          <div className="mt-2 p-3 bg-gray-800/50 rounded-lg border border-white/10">
-            <div className="text-sm text-gray-400 mb-1">Rozpoznany tekst:</div>
-            <div className="text-green-400 font-medium">{transcript}</div>
-          </div>
-        )}
+        <AnimatePresence>
+          {transcript && (
+            <motion.div 
+              className="mt-2 p-3 bg-gray-800/50 rounded-lg border border-white/10"
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="text-sm text-gray-400 mb-1">Rozpoznany tekst:</div>
+              <motion.div 
+                className="text-green-400 font-medium"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                {transcript}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Menu Items */}
@@ -1071,85 +1530,170 @@ function OrderTab({
           ) : menuItems.length === 0 ? (
             <div className="text-center text-slate-400 py-8">Brak pozycji w menu</div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {menuItems.map(item => (
-                <div key={item.id} className="rounded-xl border border-white/20 bg-gray-950/80 p-4 backdrop-blur-sm">
+            <motion.div 
+              className="grid gap-4 md:grid-cols-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              {menuItems.map((item, index) => (
+                <motion.div 
+                  key={item.id} 
+                  className="rounded-xl border border-cyan-500/20 bg-black/40 p-4 backdrop-blur-xl shadow-lg"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ 
+                    scale: 1.02,
+                    y: -5,
+                    boxShadow: "0 20px 40px rgba(0, 255, 255, 0.2)",
+                    transition: { type: "spring", stiffness: 300 }
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 255, 255, 0.05))',
+                    borderColor: 'rgba(0, 255, 255, 0.2)'
+                  }}
+                >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-semibold text-white">{item.name}</h4>
                     <span className="text-brand-400 font-bold">{item.price.toFixed(2)} zł</span>
                   </div>
-                  <button
+                  <motion.button
                     onClick={() => addToCart(item)}
-                    className="w-full mt-3 px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
+                    className="w-full mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white border border-cyan-500/30 backdrop-blur-xl transition-colors"
+                    whileHover={{ 
+                      scale: 1.05,
+                      boxShadow: "0 0 20px rgba(0, 255, 255, 0.4)"
+                    }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     Dodaj do koszyka
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       )}
 
       {/* Cart */}
-      {cart.length > 0 && (
-        <div className="rounded-xl border border-white/20 bg-gray-950/80 p-6 backdrop-blur-sm">
-          <h3 className="text-lg font-semibold text-white mb-4">Koszyk</h3>
-          <div className="space-y-3">
-            {cart.map(item => (
-              <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-gray-900/70 border border-white/20">
-                <div className="flex-1">
-                  <div className="font-medium text-white">{item.name}</div>
-                  <div className="text-sm text-gray-300">{item.price.toFixed(2)} zł</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="w-8 h-8 rounded-full bg-gray-600 text-white hover:bg-gray-500 border border-white/20"
-                  >
-                    -
-                  </button>
-                  <span className="text-white font-medium w-8 text-center">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="w-8 h-8 rounded-full bg-gray-600 text-white hover:bg-gray-500 border border-white/20"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="ml-2 text-red-400 hover:text-red-300"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <AnimatePresence>
+        {cart.length > 0 && (
+          <motion.div 
+            className="rounded-xl border border-white/20 bg-gray-950/80 p-6 backdrop-blur-sm"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">Koszyk</h3>
+            <div className="space-y-3">
+              {cart.map((item, index) => (
+                <motion.div 
+                  key={item.id} 
+                  className="flex justify-between items-center p-3 rounded-lg bg-gray-900/70 border border-white/20"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <div className="flex-1">
+                    <div className="font-medium text-white">{item.name}</div>
+                    <div className="text-sm text-gray-300">{item.price.toFixed(2)} zł</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <motion.button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="w-8 h-8 rounded-full bg-gray-600 text-white hover:bg-gray-500 border border-white/20"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      -
+                    </motion.button>
+                    <span className="text-white font-medium w-8 text-center">{item.quantity}</span>
+                    <motion.button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="w-8 h-8 rounded-full bg-gray-600 text-white hover:bg-gray-500 border border-white/20"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      +
+                    </motion.button>
+                    <motion.button
+                      onClick={() => removeFromCart(item.id)}
+                      className="ml-2 text-red-400 hover:text-red-300"
+                      whileHover={{ scale: 1.2 }}
+                      whileTap={{ scale: 0.8 }}
+                    >
+                      🗑️
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           
           <div className="mt-6 pt-4 border-t border-white/10">
             <div className="flex justify-between items-center mb-4">
               <span className="text-lg font-semibold text-white">Suma:</span>
               <span className="text-xl font-bold text-brand-500">{getCartTotal().toFixed(2)} zł</span>
             </div>
-            <button
+            <motion.button
               onClick={placeOrder}
               disabled={placingOrder}
               className="w-full px-6 py-3 rounded-lg bg-brand-500 text-white font-semibold hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              animate={{
+                boxShadow: placingOrder 
+                  ? "0 0 20px rgba(139, 92, 246, 0.5)" 
+                  : "0 0 0px rgba(139, 92, 246, 0)"
+              }}
+              transition={{ duration: 0.3 }}
             >
-              {placingOrder ? 'Składanie zamówienia...' : 'Złóż zamówienie'}
-            </button>
+              {placingOrder ? (
+                <motion.span
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  Składanie zamówienia...
+                </motion.span>
+              ) : (
+                'Złóż zamówienie'
+              )}
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Podsumowanie ostatniego zamówienia */}
-      {lastOrder && (
-        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-6 backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-green-400 text-xl">✅</span>
-            <h3 className="text-lg font-semibold text-white">Ostatnie zamówienie</h3>
-          </div>
+      <AnimatePresence>
+        {lastOrder && (
+          <motion.div 
+            className="rounded-xl border border-green-500/20 bg-green-500/5 p-6 backdrop-blur-sm"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <motion.span 
+                className="text-green-400 text-xl"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatType: "reverse"
+                }}
+              >
+                ✅
+              </motion.span>
+              <h3 className="text-lg font-semibold text-white">Ostatnie zamówienie</h3>
+            </div>
           
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -1185,14 +1729,17 @@ function OrderTab({
             </div>
           </div>
           
-          <button
-            onClick={() => setLastOrder(null)}
-            className="mt-4 text-xs text-gray-400 hover:text-white transition-colors"
-          >
-            Zamknij podsumowanie
-          </button>
-        </div>
-      )}
+            <motion.button
+              onClick={() => setLastOrder(null)}
+              className="mt-4 text-xs text-gray-400 hover:text-white transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Zamknij podsumowanie
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

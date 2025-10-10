@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Msg = { id: string | number; role: "user" | "assistant"; text: string };
 
@@ -9,6 +10,7 @@ export default function VoiceDock({
   onSubmit,
   recording,
   onMicClick,
+  onClearTranscript,
 }: {
   messages: Msg[];
   value: string;
@@ -16,18 +18,93 @@ export default function VoiceDock({
   onSubmit: () => void;
   recording: boolean;
   onMicClick: () => void;
+  onClearTranscript?: () => void;
 }) {
+  const [isTyping, setIsTyping] = useState(false);
+  const [demoText, setDemoText] = useState("");
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const demoTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Demo typing animation
+  useEffect(() => {
+    if (!recording && !value && !isTyping) {
+      const demoMessages = [
+        "Chciałbym zamówić pizzę margherita...",
+        "Jaki jest status mojego zamówienia?",
+        "Czy macie dostępne taksówki w okolicy?",
+        "Zarezerwuj stolik na 19:00...",
+        "Ile kosztuje dostawa do centrum?"
+      ];
+      
+      const randomMessage = demoMessages[Math.floor(Math.random() * demoMessages.length)];
+      
+      setIsTyping(true);
+      setDemoText("");
+      
+      let currentIndex = 0;
+      const typeInterval = setInterval(() => {
+        if (currentIndex < randomMessage.length) {
+          setDemoText(prev => prev + randomMessage[currentIndex]);
+          currentIndex++;
+        } else {
+          clearInterval(typeInterval);
+          // Clear demo after 3 seconds
+          demoTimeoutRef.current = setTimeout(() => {
+            setDemoText("");
+            setIsTyping(false);
+          }, 3000);
+        }
+      }, 50);
+      
+      return () => {
+        clearInterval(typeInterval);
+        if (demoTimeoutRef.current) {
+          clearTimeout(demoTimeoutRef.current);
+        }
+      };
+    }
+  }, [recording, value, isTyping]);
+
+  // Clear demo when user starts typing or recording
+  useEffect(() => {
+    if (value || recording) {
+      setIsTyping(false);
+      setDemoText("");
+      if (demoTimeoutRef.current) {
+        clearTimeout(demoTimeoutRef.current);
+      }
+    }
+  }, [value, recording]);
+
+  const handleClearTranscript = () => {
+    onChange("");
+    setDemoText("");
+    setIsTyping(false);
+    if (demoTimeoutRef.current) {
+      clearTimeout(demoTimeoutRef.current);
+    }
+    if (onClearTranscript) {
+      onClearTranscript();
+    }
+  };
   return (
     <div
       className="
       fixed inset-x-0 bottom-4 z-40 flex justify-center px-3 sm:px-6
     "
     >
-      <div
+      <motion.div
         className="
-        w-full max-w-3xl rounded-2xl bg-black/55 backdrop-blur
-        ring-1 ring-white/10 shadow-xl
-      "
+        w-full max-w-3xl rounded-2xl bg-black/40 backdrop-blur-xl
+        ring-1 ring-cyan-500/20 shadow-2xl
+        "
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 255, 255, 0.05))',
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        }}
       >
         {/* historia (krótka) */}
         <div className="max-h-40 overflow-y-auto p-3 space-y-2">
@@ -63,41 +140,108 @@ export default function VoiceDock({
           }}
           className="flex items-center gap-2 p-3 border-t border-white/10"
         >
-          <input
-            className="
-              flex-1 rounded-xl bg-white/5 text-white placeholder:text-slate-400
-              px-3 py-2 ring-1 ring-white/10 focus:outline-none focus:ring-2
-              focus:ring-orange-500/60
-            "
-            placeholder="Powiedz lub wpisz…"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <button
+          <div className="flex-1 relative">
+            <input
+              className="
+                w-full rounded-xl bg-black/40 backdrop-blur-xl text-white placeholder:text-slate-400
+                px-3 py-2 ring-1 ring-cyan-500/20 focus:outline-none focus:ring-2
+                focus:ring-cyan-500/60 transition-all duration-200
+              "
+              placeholder="Powiedz lub wpisz…"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+            />
+            
+            {/* Demo typing overlay */}
+            <AnimatePresence>
+              {isTyping && demoText && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 rounded-xl bg-black/40 backdrop-blur-xl px-3 py-2 flex items-center pointer-events-none"
+                >
+                  <span className="text-cyan-400/70">
+                    {demoText}
+                    <motion.span
+                      animate={{ opacity: [0, 1, 0] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                      className="ml-1"
+                    >
+                      |
+                    </motion.span>
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          {/* Clear button */}
+          {(value || isTyping) && (
+            <motion.button
+              type="button"
+              onClick={handleClearTranscript}
+              className="rounded-xl px-3 py-2 text-sm ring-1 bg-red-500/20 text-red-400 ring-red-400/30 hover:bg-red-500/30 transition-all"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              title="Wyczyść pole"
+            >
+              🗑️
+            </motion.button>
+          )}
+          
+          <motion.button
             type="button"
             onClick={onMicClick}
             className={[
-              "rounded-xl px-3 py-2 text-sm ring-1",
+              "rounded-xl px-3 py-2 text-sm ring-1 backdrop-blur-xl transition-all",
               recording
-                ? "bg-red-600/80 text-white ring-red-400/40"
-                : "bg-white/5 text-slate-100 ring-white/10 hover:bg-white/10",
+                ? "bg-red-600/20 text-white ring-red-400/50 shadow-lg shadow-red-500/20"
+                : "bg-black/40 text-slate-100 ring-cyan-500/30 hover:bg-cyan-500/10 hover:ring-cyan-500/50",
             ].join(" ")}
             aria-pressed={recording}
-            title={recording ? "Zatrzymaj" : "Mów"}
+            title={recording ? "Zatrzymaj nagrywanie" : "Rozpocznij nagrywanie"}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            animate={{
+              boxShadow: recording 
+                ? "0 0 20px rgba(239, 68, 68, 0.4)" 
+                : "0 0 0px rgba(0, 255, 255, 0)"
+            }}
           >
-            {recording ? "🛑" : "🎙️"}
-          </button>
-          <button
+            <motion.span
+              animate={{
+                rotate: recording ? [0, 10, -10, 0] : 0
+              }}
+              transition={{
+                duration: 0.5,
+                repeat: recording ? Infinity : 0,
+                repeatType: "reverse"
+              }}
+            >
+              {recording ? "🛑" : "🎙️"}
+            </motion.span>
+          </motion.button>
+          
+          <motion.button
             type="submit"
             className="
-              rounded-xl bg-orange-500 text-slate-900 px-3 py-2 text-sm
-              font-semibold hover:bg-orange-400
+              rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white px-3 py-2 text-sm
+              font-semibold border border-cyan-500/30 backdrop-blur-xl hover:from-cyan-500/30 hover:to-purple-500/30
+              transition-all duration-200
             "
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 0 20px rgba(0, 255, 255, 0.3)"
+            }}
+            whileTap={{ scale: 0.95 }}
+            disabled={!value.trim()}
           >
             Wyślij
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
