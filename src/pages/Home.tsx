@@ -8,6 +8,7 @@ import VoiceTextBox from "../components/VoiceTextBox";
 import { useUI } from "../state/ui";
 import { Send } from 'lucide-react';
 import api from "../lib/api";
+import { getApiUrl } from "../lib/config";
 
 export default function Home() {
   const openDrawer = useUI((s) => s.openDrawer);
@@ -214,7 +215,7 @@ export default function Home() {
       formData.append('audio', audioBlob);
       
       // TODO: Endpoint do Google STT w backend
-      const response = await api('https://freeflow-backend.vercel.app/api/stt', {
+      const response = await api(getApiUrl('/api/stt'), {
         method: 'POST',
         body: formData,
       });
@@ -252,7 +253,7 @@ export default function Home() {
       console.log('🎯 Sending to FreeFlow Brain:', text);
       
       // Wyślij do FreeFlow Brain
-      const result = await api('https://freeflow-backend.vercel.app/api/freeflow-brain', {
+      const result = await api(getApiUrl('/api/brain'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -326,7 +327,7 @@ export default function Home() {
 
   const playTTS = async (text: string) => {
     try {
-      const response = await api('https://freeflow-backend.vercel.app/api/tts', {
+      const response = await api(getApiUrl('/api/tts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

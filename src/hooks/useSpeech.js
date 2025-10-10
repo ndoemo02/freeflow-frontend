@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getApiUrl } from "../lib/config";
 
 export const useSpeech = (options = {}) => {
   const {
@@ -83,7 +84,7 @@ export const useSpeech = (options = {}) => {
     console.log("🚀 Sending to backend:", { text, userId });
     
     try {
-      const res = await fetch("https://freeflow-backend.vercel.app/api/freeflow-brain", {
+      const res = await fetch(getApiUrl('/api/brain'), {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

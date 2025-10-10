@@ -10,6 +10,7 @@ import { useSpeechRecognition } from '../../hooks/useSpeechRecognition'
 import { manageTurn } from '../../lib/DialogManager'
 import { speakTts } from '../../lib/ttsClient'
 import VoiceDock from '../../components/VoiceDock'
+import { getApiUrl } from '../../lib/config'
 
 export default function CustomerPanel(){
   const { user } = useAuth()
@@ -372,7 +373,7 @@ export default function CustomerPanel(){
       const formData = new FormData()
       formData.append('audio', audioBlob, 'audio.webm')
       
-      const response = await fetch('https://freeflow-backend.vercel.app/api/stt', {
+      const response = await fetch(getApiUrl('/api/stt'), {
         method: 'POST',
         body: formData
       })
@@ -418,7 +419,7 @@ export default function CustomerPanel(){
       console.log('🤖 Agent request:', { query, context })
       
       // Call agent endpoint
-      const response = await fetch('https://freeflow-backend.vercel.app/api/agent', {
+      const response = await fetch(getApiUrl('/api/agent'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

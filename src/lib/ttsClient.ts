@@ -1,4 +1,5 @@
 // src/lib/ttsClient.ts
+import { getApiUrl } from './config';
 
 export interface TtsOptions {
   lang?: string;
@@ -26,7 +27,7 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
   console.log("🎤 Google TTS: Starting speech synthesis for text:", text);
   
   try {
-    const res = await fetch("https://freeflow-backend.vercel.app/api/tts", {
+    const res = await fetch(getApiUrl('/api/tts'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 

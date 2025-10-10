@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getApiUrl } from "../lib/config";
 
 export default function VoicePanel() {
   const [isListening, setIsListening] = useState(false);
@@ -54,7 +55,7 @@ export default function VoicePanel() {
   const sendToBackend = async (text) => {
     setLoading(true);
     try {
-      const res = await fetch("https://freeflow-backend.vercel.app/api/freeflow-brain", {
+      const res = await fetch(getApiUrl('/api/brain'), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
