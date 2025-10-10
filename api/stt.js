@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     // Forward request to backend
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://freeflow-backend-4yzg4q2ra-lukis-projects-01382554.vercel.app/stt'
+      ? 'https://freeflow-backend-i7utvfwp3-lukis-projects-01382554.vercel.app/stt'
       : 'http://localhost:3000/stt';
     
     console.log('🔄 STT Proxy: Forwarding to backend:', backendUrl);

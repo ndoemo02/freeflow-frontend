@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
 import RideTab from '../../components/RideTab'
-import { useSpeechRecognition } from '../useSpeechRecognition'
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition'
 import { manageTurn } from '../../lib/DialogManager'
 import { speakTts } from '../../lib/ttsClient'
 import VoiceDock from '../../components/VoiceDock'
@@ -365,14 +365,45 @@ export default function CustomerPanel(){
   }
 
   // Voice ordering functions
-  const handleVoiceOrder = async () => {
-    if (!voiceQuery.trim()) return
+  const handleSTT = async (audioBlob) => {
+    try {
+      console.log('🎤 STT: Sending audio to backend...')
+      
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'audio.webm')
+      
+      const response = await fetch('/api/stt', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (!response.ok) {
+        throw new Error(`STT API error: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.ok && data.text) {
+        console.log('🎤 STT: Transcription received:', data.text)
+        setVoiceQuery(data.text)
+      } else {
+        console.error('🎤 STT: No transcription received:', data)
+        push('Nie udało się rozpoznać mowy', 'error')
+      }
+    } catch (error) {
+      console.error('🎤 STT Error:', error)
+      push('Błąd rozpoznawania mowy', 'error')
+    }
+  }
+
+  const handleVoiceOrder = async (query = voiceQuery) => {
+    if (!query.trim()) return
 
     try {
       setSpeaking(true)
       
       // Add user message to chat
-      const userMessage = { id: Date.now(), role: 'user', text: voiceQuery }
+      const userMessage = { id: Date.now(), role: 'user', text: query }
       setVoiceMessages(prev => [...prev, userMessage])
 
       // Build context from current state
@@ -384,7 +415,7 @@ export default function CustomerPanel(){
         dialogSlots: dialogSlots
       }
 
-      console.log('🤖 Agent request:', { voiceQuery, context })
+      console.log('🤖 Agent request:', { query, context })
       
       // Call agent endpoint
       const response = await fetch('/api/agent', {
@@ -826,6 +857,7 @@ export default function CustomerPanel(){
               onSubmit={handleVoiceOrder}
               recording={recording}
               onMicClick={recording ? stopRecording : startRecording}
+              onSTT={handleSTT}
               onClearTranscript={() => {
                 setVoiceQuery("");
                 setVoiceMessages([]);

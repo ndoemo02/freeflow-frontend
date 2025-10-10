@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   try {
     // Forward request to backend
     const backendUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://freeflow-backend-4yzg4q2ra-lukis-projects-01382554.vercel.app/api/tts'
+      ? 'https://freeflow-backend-i7utvfwp3-lukis-projects-01382554.vercel.app/api/tts'
       : 'http://localhost:3000/api/tts';
     
     console.log('🔄 TTS Proxy: Forwarding to backend:', backendUrl);

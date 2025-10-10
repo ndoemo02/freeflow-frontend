@@ -18,6 +18,7 @@ export default function VoiceDock({
   onSubmit: () => void;
   recording: boolean;
   onMicClick: () => void;
+  onSTT?: (audioBlob: Blob) => Promise<void>;
   onClearTranscript?: () => void;
 }) {
   const [isTyping, setIsTyping] = useState(false);
@@ -85,6 +86,38 @@ export default function VoiceDock({
     }
     if (onClearTranscript) {
       onClearTranscript();
+    }
+  };
+
+  const handleSTT = async () => {
+    if (!onSTT) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const audioChunks: Blob[] = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        await onSTT(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      
+      // Stop recording after 5 seconds or when user clicks again
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
     }
   };
   return (
@@ -193,7 +226,7 @@ export default function VoiceDock({
           
           <motion.button
             type="button"
-            onClick={onMicClick}
+            onClick={onSTT ? handleSTT : onMicClick}
             className={[
               "rounded-xl px-3 py-2 text-sm ring-1 backdrop-blur-xl transition-all",
               recording
