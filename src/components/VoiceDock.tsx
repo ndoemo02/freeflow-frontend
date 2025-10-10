@@ -21,69 +21,10 @@ export default function VoiceDock({
   onSTT?: (audioBlob: Blob) => Promise<void>;
   onClearTranscript?: () => void;
 }) {
-  const [isTyping, setIsTyping] = useState(false);
-  const [demoText, setDemoText] = useState("");
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const demoTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Demo typing animation
-  useEffect(() => {
-    if (!recording && !value && !isTyping) {
-      const demoMessages = [
-        "Chciałbym zamówić pizzę margherita...",
-        "Jaki jest status mojego zamówienia?",
-        "Czy macie dostępne taksówki w okolicy?",
-        "Zarezerwuj stolik na 19:00...",
-        "Ile kosztuje dostawa do centrum?"
-      ];
-      
-      const randomMessage = demoMessages[Math.floor(Math.random() * demoMessages.length)];
-      
-      setIsTyping(true);
-      setDemoText("");
-      
-      let currentIndex = 0;
-      const typeInterval = setInterval(() => {
-        if (currentIndex < randomMessage.length) {
-          setDemoText(prev => prev + randomMessage[currentIndex]);
-          currentIndex++;
-        } else {
-          clearInterval(typeInterval);
-          // Clear demo after 3 seconds
-          demoTimeoutRef.current = setTimeout(() => {
-            setDemoText("");
-            setIsTyping(false);
-          }, 3000);
-        }
-      }, 50);
-      
-      return () => {
-        clearInterval(typeInterval);
-        if (demoTimeoutRef.current) {
-          clearTimeout(demoTimeoutRef.current);
-        }
-      };
-    }
-  }, [recording, value, isTyping]);
-
-  // Clear demo when user starts typing or recording
-  useEffect(() => {
-    if (value || recording) {
-      setIsTyping(false);
-      setDemoText("");
-      if (demoTimeoutRef.current) {
-        clearTimeout(demoTimeoutRef.current);
-      }
-    }
-  }, [value, recording]);
+  // Demo typing animation disabled
 
   const handleClearTranscript = () => {
     onChange("");
-    setDemoText("");
-    setIsTyping(false);
-    if (demoTimeoutRef.current) {
-      clearTimeout(demoTimeoutRef.current);
-    }
     if (onClearTranscript) {
       onClearTranscript();
     }
@@ -185,32 +126,10 @@ export default function VoiceDock({
               onChange={(e) => onChange(e.target.value)}
             />
             
-            {/* Demo typing overlay */}
-            <AnimatePresence>
-              {isTyping && demoText && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 rounded-xl bg-black/40 backdrop-blur-xl px-3 py-2 flex items-center pointer-events-none"
-                >
-                  <span className="text-cyan-400/70">
-                    {demoText}
-                    <motion.span
-                      animate={{ opacity: [0, 1, 0] }}
-                      transition={{ duration: 0.8, repeat: Infinity }}
-                      className="ml-1"
-                    >
-                      |
-                    </motion.span>
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
           
           {/* Clear button */}
-          {(value || isTyping) && (
+          {value && (
             <motion.button
               type="button"
               onClick={handleClearTranscript}

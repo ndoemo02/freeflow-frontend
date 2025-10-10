@@ -26,18 +26,13 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
   console.log("🎤 Google TTS: Starting speech synthesis for text:", text);
   
   try {
-    const res = await fetch("/api/tts", {
+    const res = await fetch("https://freeflow-backend.vercel.app/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         text,
-        lang: opts.lang || 'pl-PL',
-        voiceName: opts.voiceName,
-        gender: opts.gender,
-        audioEncoding: opts.audioEncoding || 'MP3',
-        speakingRate: opts.speakingRate || 1.0,
-        pitch: opts.pitch || 0.0,
-        volumeGainDb: opts.volumeGainDb || 0.0
+        languageCode: opts.lang || 'pl-PL',
+        voice: opts.voiceName || 'pl-PL-Standard-A'
       }),
     });
 
@@ -53,12 +48,12 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
       audio.onloadeddata = () => {
         console.log("🎤 Google TTS: Audio loaded, starting playback");
         audio.play();
+        resolve(audio);
       };
       
       audio.onended = () => {
         console.log("🎤 Google TTS: Speech completed");
         URL.revokeObjectURL(url); // Clean up
-        resolve(audio);
       };
       
       audio.onerror = (event) => {

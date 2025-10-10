@@ -214,7 +214,7 @@ export default function Home() {
       formData.append('audio', audioBlob);
       
       // TODO: Endpoint do Google STT w backend
-      const response = await api('/api/stt', {
+      const response = await api('https://freeflow-backend.vercel.app/api/stt', {
         method: 'POST',
         body: formData,
       });
@@ -252,7 +252,7 @@ export default function Home() {
       console.log('🎯 Sending to Dialogflow:', text);
       
       // Wyślij do Dialogflow
-      const result = await api('/api/dialogflow', {
+      const result = await api('https://freeflow-backend.vercel.app/api/dialogflow-freeflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -326,7 +326,7 @@ export default function Home() {
 
   const playTTS = async (text: string) => {
     try {
-      const response = await api('/api/tts', {
+      const response = await api('https://freeflow-backend.vercel.app/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

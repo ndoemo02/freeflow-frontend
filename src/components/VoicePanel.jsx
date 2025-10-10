@@ -54,7 +54,7 @@ export default function VoicePanel() {
   const sendToBackend = async (text) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/dialogflow-freeflow", {
+      const res = await fetch("https://freeflow-backend.vercel.app/api/dialogflow-freeflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

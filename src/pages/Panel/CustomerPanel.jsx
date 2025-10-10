@@ -372,7 +372,7 @@ export default function CustomerPanel(){
       const formData = new FormData()
       formData.append('audio', audioBlob, 'audio.webm')
       
-      const response = await fetch('/api/stt', {
+      const response = await fetch('https://freeflow-backend.vercel.app/api/stt', {
         method: 'POST',
         body: formData
       })
@@ -418,13 +418,13 @@ export default function CustomerPanel(){
       console.log('🤖 Agent request:', { query, context })
       
       // Call agent endpoint
-      const response = await fetch('/api/agent', {
+      const response = await fetch('https://freeflow-backend.vercel.app/api/agent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: voiceQuery,
+          message: query,
           sessionId: `session_${user?.id || 'anonymous'}_${Date.now()}`,
           userId: user?.id || 'anonymous',
           context: JSON.stringify(context)
@@ -794,6 +794,11 @@ export default function CustomerPanel(){
                   loadingMenu={loadingMenu}
                   lastOrder={lastOrder}
                   setLastOrder={setLastOrder}
+                  // Pass STT props from main component
+                  recording={recording}
+                  voiceQuery={voiceQuery}
+                  setVoiceQuery={setVoiceQuery}
+                  handleSTT={handleSTT}
                 />
               </motion.div>
             )}
@@ -1370,96 +1375,16 @@ function OrderTab({
   loadingRestaurants,
   loadingMenu,
   lastOrder,
-  setLastOrder
+  setLastOrder,
+  // STT props from main component
+  recording,
+  voiceQuery,
+  setVoiceQuery,
+  handleSTT
 }) {
-  // STT states for OrderTab
-  const [isRecording, setIsRecording] = useState(false)
-  const [transcript, setTranscript] = useState('')
-  const [recognition, setRecognition] = useState(null)
 
   // Initialize STT
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      const rec = new SpeechRecognition()
-      rec.lang = 'pl-PL'
-      rec.continuous = true
-      rec.interimResults = true
-      rec.maxAlternatives = 1
-
-      rec.onresult = async (event) => {
-        let finalText = ''
-        let interimText = ''
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i]
-          if (result.isFinal) {
-            finalText += result[0].transcript
-          } else {
-            interimText += result[0].transcript
-          }
-        }
-
-        setTranscript(finalText + (interimText ? ' ' + interimText : ''))
-
-        // Process final text
-        if (finalText.trim()) {
-          await processVoiceCommand(finalText.trim())
-        }
-      }
-
-      rec.onerror = (e) => {
-        console.error('STT Error:', e.error)
-        setIsRecording(false)
-      }
-
-      rec.onend = () => {
-        setIsRecording(false)
-      }
-
-      setRecognition(rec)
-    }
-  }, [])
-
-  // Process voice command
-  const processVoiceCommand = async (message) => {
-    try {
-      console.log('🎤 Processing voice command:', message)
-      
-      // Send to existing order system
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          voice_command: message,
-          restaurant_id: selectedRestaurant,
-          user_email: 'voice@test.com' // You can get this from auth context
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('✅ Voice command processed:', data)
-        setTranscript('') // Clear transcript
-      } else {
-        console.error('❌ Voice command failed:', response.statusText)
-      }
-    } catch (error) {
-      console.error('❌ Voice command error:', error)
-    }
-  }
-
-  // Toggle recording
-  const toggleRecording = () => {
-    if (!recognition) return
-
-    if (isRecording) {
-      recognition.stop()
-    } else {
-      recognition.start()
-      setIsRecording(true)
-    }
-  }
+  // Use STT from main component - no local STT needed
 
   return (
     <div className="space-y-6">
@@ -1485,53 +1410,53 @@ function OrderTab({
           
           {/* Voice Order Button */}
           <motion.button
-            onClick={toggleRecording}
-            disabled={!recognition}
+            onClick={handleSTT}
+            disabled={recording}
             className={`
               px-4 py-3 rounded-xl border transition-all duration-200 backdrop-blur-xl
-              ${isRecording 
+              ${recording 
                 ? 'bg-red-600/20 border-red-500/50 text-white' 
                 : 'bg-black/40 border-cyan-500/30 text-white hover:bg-cyan-500/10'
               }
-              ${!recognition ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+              ${recording ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
-            title={isRecording ? 'Zatrzymaj nagrywanie' : 'Zamów głosem'}
+            title={recording ? 'Zatrzymaj nagrywanie' : 'Zamów głosem'}
             whileHover={{ 
               scale: 1.05,
-              boxShadow: isRecording 
+              boxShadow: recording 
                 ? "0 0 25px rgba(239, 68, 68, 0.6)" 
                 : "0 0 20px rgba(0, 255, 255, 0.4)"
             }}
             whileTap={{ scale: 0.95 }}
             animate={{
-              scale: isRecording ? [1, 1.1, 1] : 1,
-              boxShadow: isRecording 
+              scale: recording ? [1, 1.1, 1] : 1,
+              boxShadow: recording 
                 ? "0 0 20px rgba(239, 68, 68, 0.5)" 
                 : "0 0 0px rgba(0, 255, 255, 0)"
             }}
             transition={{ 
-              scale: { duration: 0.5, repeat: isRecording ? Infinity : 0 },
+              scale: { duration: 0.5, repeat: recording ? Infinity : 0 },
               boxShadow: { duration: 0.3 }
             }}
           >
             <motion.span
               animate={{
-                rotate: isRecording ? [0, 10, -10, 0] : 0
+                rotate: recording ? [0, 10, -10, 0] : 0
               }}
               transition={{
                 duration: 0.5,
-                repeat: isRecording ? Infinity : 0,
+                repeat: recording ? Infinity : 0,
                 repeatType: "reverse"
               }}
             >
-              {isRecording ? '🛑' : '🎤'}
+              {recording ? '🛑' : '🎤'}
             </motion.span>
           </motion.button>
         </div>
         
         {/* Transcript Display */}
         <AnimatePresence>
-          {transcript && (
+          {voiceQuery && (
             <motion.div 
               className="mt-2 p-3 bg-gray-800/50 rounded-lg border border-white/10"
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -1546,7 +1471,7 @@ function OrderTab({
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 }}
               >
-                {transcript}
+                {voiceQuery}
               </motion.div>
             </motion.div>
           )}
