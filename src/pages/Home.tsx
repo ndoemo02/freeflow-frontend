@@ -328,7 +328,7 @@ export default function Home() {
   const playTTS = async (text: string) => {
     try {
       console.log('🔊 Playing TTS for:', text);
-      const response = await api(getApiUrl('/api/tts'), {
+      const response = await fetch(getApiUrl('/api/tts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -338,14 +338,18 @@ export default function Home() {
         }),
       });
       
-      console.log('🔊 TTS response:', response);
+      if (!response.ok) {
+        throw new Error(`TTS API error: ${response.statusText}`);
+      }
       
-      if (response.audioContent) {
-        // Konwertuj base64 na audio i odtwórz
-        const audioBlob = new Blob([
-          Uint8Array.from(atob(response.audioContent), c => c.charCodeAt(0))
-        ], { type: 'audio/mp3' });
-        
+      console.log('🔊 TTS response status:', response.status);
+      console.log('🔊 TTS response type:', response.headers.get('content-type'));
+      
+      // Backend zwraca surowe audio, nie JSON
+      const audioBlob = await response.blob();
+      console.log('🔊 Audio blob size:', audioBlob.size);
+      
+      if (audioBlob.size > 0) {
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
         
@@ -353,7 +357,7 @@ export default function Home() {
         await audio.play();
         console.log('🔊 Audio playing...');
       } else {
-        console.error('❌ No audio content in TTS response');
+        console.error('❌ Empty audio blob received');
       }
     } catch (err) {
       console.error('❌ TTS error:', err);
