@@ -278,8 +278,8 @@ export default function Home() {
         }
 
         // Jeśli nie ma payloadu, ale jest tekst odpowiedzi, odtwórz go
-        if (result.fulfillmentText) {
-          await playTTS(result.fulfillmentText);
+        if (result.response) {
+          await playTTS(result.response);
         }
       } else {
         setError('Brak odpowiedzi od Dialogflow');
@@ -327,6 +327,7 @@ export default function Home() {
 
   const playTTS = async (text: string) => {
     try {
+      console.log('🔊 Playing TTS for:', text);
       const response = await api(getApiUrl('/api/tts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -336,6 +337,8 @@ export default function Home() {
           languageCode: 'pl-PL'
         }),
       });
+      
+      console.log('🔊 TTS response:', response);
       
       if (response.audioContent) {
         // Konwertuj base64 na audio i odtwórz
@@ -348,9 +351,12 @@ export default function Home() {
         
         audio.onended = () => URL.revokeObjectURL(audioUrl);
         await audio.play();
+        console.log('🔊 Audio playing...');
+      } else {
+        console.error('❌ No audio content in TTS response');
       }
     } catch (err) {
-      console.error('TTS error:', err);
+      console.error('❌ TTS error:', err);
       setError('Błąd odtwarzania głosu');
     }
   };
