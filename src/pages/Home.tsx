@@ -274,17 +274,18 @@ export default function Home() {
 
       console.log('🧠 FreeFlow Brain response:', result);
 
-      if (result.response) {
-        setResponse(result.response);
-        setChatHistory(prev => [...prev, { speaker: 'agent', text: result.response }]);
+      if (result.reply || result.response) {
+        const responseText = result.reply || result.response;
+        setResponse(responseText);
+        setChatHistory(prev => [...prev, { speaker: 'agent', text: responseText }]);
 
         // Sprawdź czy Amber dodała coś do koszyka
-        const responseText = result.response.toLowerCase();
-        if (responseText.includes('dodaję') || responseText.includes('zamawiam') || responseText.includes('dodano') || 
-            responseText.includes('koszyk') || responseText.includes('zamówienie') || responseText.includes('gotowe')) {
-          showCartPopup('🛒 ' + result.response, 'success');
-        } else if (responseText.includes('nie mogę') || responseText.includes('błąd') || responseText.includes('przepraszam')) {
-          showCartPopup('❌ ' + result.response, 'error');
+        const responseTextLower = responseText.toLowerCase();
+        if (responseTextLower.includes('dodaję') || responseTextLower.includes('zamawiam') || responseTextLower.includes('dodano') || 
+            responseTextLower.includes('koszyk') || responseTextLower.includes('zamówienie') || responseTextLower.includes('gotowe')) {
+          showCartPopup('🛒 ' + responseText, 'success');
+        } else if (responseTextLower.includes('nie mogę') || responseTextLower.includes('błąd') || responseTextLower.includes('przepraszam')) {
+          showCartPopup('❌ ' + responseText, 'error');
         }
 
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
@@ -300,9 +301,9 @@ export default function Home() {
         //   // await loadRestaurants(); // Załaduj dane restauracji
         // }
 
-        // Jeśli nie ma payloadu, ale jest tekst odpowiedzi, odtwórz go
-        if (result.response) {
-          await playTTS(result.response);
+        // === TTS playback ===
+        if (result.reply || result.response) {
+          await playTTS(result.reply || result.response);
         }
       } else {
         setError('Brak odpowiedzi od Dialogflow');
