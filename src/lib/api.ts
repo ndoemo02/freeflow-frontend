@@ -1,8 +1,8 @@
 // src/lib/api.ts - using Vercel proxy for CORS
 
 export default async function api(path: string, init?: RequestInit): Promise<any> {
-  // Use relative URLs - Vercel proxy will handle the routing
-  const fullUrl = path;
+  // Use full URLs if they start with http, otherwise relative URLs
+  const fullUrl = path.startsWith('http') ? path : path;
   
   const res = await fetch(fullUrl, init);
 

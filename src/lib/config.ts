@@ -1,30 +1,21 @@
-// FreeFlow Configuration
 export const CONFIG = {
-  // Backend URL - single source of truth
-  BACKEND_URL: process.env.NODE_ENV === 'production' 
-    ? 'https://freeflow-backend.vercel.app'
-    : 'http://localhost:3000',
-  
-  // API Endpoints
-  ENDPOINTS: {
-    STT: '/api/stt',
-    TTS: '/api/tts', 
-    BRAIN: '/api/freeflow-brain',
-    AGENT: '/api/agent',
-    AMBER_SPEAK: '/api/amber-speak'
-  }
-} as const;
+  BACKEND_URL:
+    import.meta.env.VITE_BACKEND_URL ||
+    "https://freeflow-backend.vercel.app",
 
-// Helper function to get full API URL
-export const getApiUrl = (endpoint: string): string => {
-  return `${CONFIG.BACKEND_URL}${endpoint}`;
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+
+  APP_MODE: import.meta.env.MODE || "development",
+  DEBUG: true,
+
+  AMBER_LOGS: true,
+  AMBER_BRAIN: true,
 };
 
-// Export individual URLs for convenience
-export const API_URLS = {
-  STT: getApiUrl(CONFIG.ENDPOINTS.STT),
-  TTS: getApiUrl(CONFIG.ENDPOINTS.TTS),
-  BRAIN: getApiUrl(CONFIG.ENDPOINTS.BRAIN),
-  AGENT: getApiUrl(CONFIG.ENDPOINTS.AGENT),
-  AMBER_SPEAK: getApiUrl(CONFIG.ENDPOINTS.AMBER_SPEAK)
-};
+// Funkcja do budowania URL API
+export function getApiUrl(path: string): string {
+  const baseUrl = CONFIG.BACKEND_URL;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${cleanPath}`;
+}

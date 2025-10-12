@@ -1,33 +1,16 @@
-/// <reference types="vitest" />
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '192.168.100.13',
     port: 5173,
-    strictPort: true,
-    cors: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
+      "/api": {
+        target: "http://localhost:3000", // backend Express
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, '/api'),
+        secure: false,
       },
     },
-  },
-  preview: {
-    host: true,
-    port: 5173,
-  },
-  resolve: {
-    alias: { '@': '/src' },
-  },
-  test: {
-    globals: true,
-    environment: "jsdom",
-    setupFiles: "./src/setupTests.ts",
   },
 });

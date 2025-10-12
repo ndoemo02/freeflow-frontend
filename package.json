@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postpatch": "node dev-tools/postpatch.cjs",
+    "log": "node -e \"import('./dev-tools/patchLogger.js').then(m => m.logCursorPatch('Manual log', process.argv[1]))\""
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

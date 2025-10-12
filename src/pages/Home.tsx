@@ -22,6 +22,8 @@ export default function Home() {
   const [menuItems, setMenuItems] = useState([]);
   const [currentAction, setCurrentAction] = useState("");
   const [chatHistory, setChatHistory] = useState<{ speaker: 'user' | 'agent', text: string }[]>([]);
+  const [cartPopup, setCartPopup] = useState<{ show: boolean, message: string, type: 'success' | 'info' | 'error' }>({ show: false, message: '', type: 'info' });
+  const [showCart, setShowCart] = useState(false);
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -71,7 +73,7 @@ export default function Home() {
   const loadMenu = async (restaurantId: string) => {
     try {
       console.log('🍽️ Loading menu for restaurant:', restaurantId);
-      const data = await api(`/api/menu?restaurant_id=${restaurantId}`, { method: 'GET' });
+      const data = await api(getApiUrl(`/api/menu?restaurant_id=${restaurantId}`), { method: 'GET' });
       console.log('📋 Menu data:', data);
       
       if (data.menu && Array.isArray(data.menu)) {
@@ -99,6 +101,17 @@ export default function Home() {
       ];
       setMenuItems(mockMenu);
     }
+  };
+
+  const showCartPopup = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
+    setCartPopup({ show: true, message, type });
+    setTimeout(() => {
+      setCartPopup({ show: false, message: '', type: 'info' });
+    }, 3000);
+  };
+
+  const toggleCart = () => {
+    setShowCart(!showCart);
   };
 
   const handleAddToCart = (item: any) => {
@@ -265,17 +278,27 @@ export default function Home() {
         setResponse(result.response);
         setChatHistory(prev => [...prev, { speaker: 'agent', text: result.response }]);
 
+        // Sprawdź czy Amber dodała coś do koszyka
+        const responseText = result.response.toLowerCase();
+        if (responseText.includes('dodaję') || responseText.includes('zamawiam') || responseText.includes('dodano') || 
+            responseText.includes('koszyk') || responseText.includes('zamówienie') || responseText.includes('gotowe')) {
+          showCartPopup('🛒 ' + result.response, 'success');
+        } else if (responseText.includes('nie mogę') || responseText.includes('błąd') || responseText.includes('przepraszam')) {
+          showCartPopup('❌ ' + result.response, 'error');
+        }
+
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
         if (result.customPayload && result.customPayload.menu_items) {
           console.log('📄 Received custom_payload with menu items:', result.customPayload.menu_items);
           // 2. Ustaw menu_items w stanie i akcję na 'menu'
           setMenuItems(result.customPayload.menu_items);
           setCurrentAction('menu');
-        } else if (result.action === 'show_restaurants' || text.toLowerCase().includes('restauracje')) {
-          // Jeśli nie ma menu, ale akcja to pokazanie restauracji
-          setCurrentAction('restaurants'); // Pokaż listę restauracji
-          await loadRestaurants(); // Załaduj dane restauracji
         }
+        // } else if (result.action === 'show_restaurants' || text.toLowerCase().includes('restauracje')) {
+        //   // Jeśli nie ma menu, ale akcja to pokazanie restauracji
+        //   // setCurrentAction('restaurants'); // Pokaż listę restauracji
+        //   // await loadRestaurants(); // Załaduj dane restauracji
+        // }
 
         // Jeśli nie ma payloadu, ale jest tekst odpowiedzi, odtwórz go
         if (result.response) {
@@ -295,33 +318,19 @@ export default function Home() {
   const loadRestaurants = async () => {
     try {
       console.log('🍽️ Loading restaurants...');
-      const data = await api('/api/restaurants', { method: 'GET' });
+      const data = await api(getApiUrl('/api/restaurants'), { method: 'GET' });
       console.log('🏪 Restaurants data:', data);
       
       if (data.restaurants && Array.isArray(data.restaurants)) {
         setRestaurants(data.restaurants);
       } else {
-        // Fallback - przykładowe restauracje
-        const mockRestaurants = [
-          { id: '1', name: 'Pizza Hut', address: 'ul. Główna 1, Piekary Śląskie', rating: 4.5 },
-          { id: '2', name: 'KFC', address: 'ul. Centralna 15, Piekary Śląskie', rating: 4.2 },
-          { id: '3', name: 'McDonald\'s', address: 'ul. Handlowa 8, Piekary Śląskie', rating: 4.0 },
-          { id: '4', name: 'Burger King', address: 'ul. Rynkowa 22, Piekary Śląskie', rating: 4.3 },
-          { id: '5', name: 'Subway', address: 'ul. Szkolna 5, Piekary Śląskie', rating: 4.1 }
-        ];
-        setRestaurants(mockRestaurants);
+        // Don't show mock restaurants - keep empty
+        setRestaurants([]);
       }
     } catch (err) {
       console.error('❌ Error loading restaurants:', err);
-      // Fallback - przykładowe restauracje
-      const mockRestaurants = [
-        { id: '1', name: 'Pizza Hut', address: 'ul. Główna 1, Piekary Śląskie', rating: 4.5 },
-        { id: '2', name: 'KFC', address: 'ul. Centralna 15, Piekary Śląskie', rating: 4.2 },
-        { id: '3', name: 'McDonald\'s', address: 'ul. Handlowa 8, Piekary Śląskie', rating: 4.0 },
-        { id: '4', name: 'Burger King', address: 'ul. Rynkowa 22, Piekary Śląskie', rating: 4.3 },
-        { id: '5', name: 'Subway', address: 'ul. Szkolna 5, Piekary Śląskie', rating: 4.1 }
-      ];
-      setRestaurants(mockRestaurants);
+      // Don't show mock restaurants - keep empty
+      setRestaurants([]);
     }
   };
 
@@ -400,8 +409,34 @@ export default function Home() {
       <div className="absolute top-4 left-4 z-10">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            <span className="text-orange-400">Free</span>
-            <span className="text-white">Flow</span>
+            <span 
+              className="text-orange-400 relative"
+              style={{
+                textShadow: `
+                  0 0 10px rgba(255, 255, 255, 0.8),
+                  0 0 20px rgba(255, 255, 255, 0.6),
+                  0 0 30px rgba(255, 255, 255, 0.4),
+                  0 0 40px rgba(255, 255, 255, 0.2)
+                `,
+                filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))'
+              }}
+            >
+              Free
+            </span>
+            <span 
+              className="text-white relative"
+              style={{
+                textShadow: `
+                  0 0 10px rgba(251, 146, 60, 0.8),
+                  0 0 20px rgba(251, 146, 60, 0.6),
+                  0 0 30px rgba(251, 146, 60, 0.4),
+                  0 0 40px rgba(251, 146, 60, 0.2)
+                `,
+                filter: 'drop-shadow(0 0 20px rgba(251, 146, 60, 0.5))'
+              }}
+            >
+              Flow
+            </span>
           </h1>
           <p className="text-white/90 text-base mt-1">
             Voice to order — <span className="font-medium">Złóż zamówienie</span>
@@ -414,18 +449,108 @@ export default function Home() {
 
       {/* Ikonki po prawej */}
       <div className="absolute top-4 right-4 flex gap-1.5 z-10">
-        {/* Koszyk */}
-        <button className="
-          w-8 h-8 rounded-lg bg-black/20 backdrop-blur-sm
-          border border-orange-400/20 text-orange-200
-          flex items-center justify-center
-          hover:bg-black/30 hover:border-orange-400/40 transition-all
-          focus:outline-none
-        ">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6H19" />
-          </svg>
-        </button>
+        {/* Koszyk z popup */}
+        <div className="relative">
+          <button 
+            onClick={toggleCart}
+            className={`
+              w-8 h-8 rounded-lg backdrop-blur-sm
+              border flex items-center justify-center
+              transition-all focus:outline-none
+              ${showCart 
+                ? 'bg-orange-500/30 border-orange-400/60 text-orange-100' 
+                : 'bg-black/20 border-orange-400/20 text-orange-200 hover:bg-black/30 hover:border-orange-400/40'
+              }
+            `}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6H19" />
+            </svg>
+          </button>
+          
+          {/* Popup koszyka */}
+          {cartPopup.show && (
+            <div className={`
+              absolute top-10 right-0 min-w-64 max-w-80 p-3 rounded-lg shadow-xl backdrop-blur-md
+              border transition-all duration-300 transform
+              ${cartPopup.type === 'success' 
+                ? 'bg-green-500/20 border-green-400/40 text-green-100' 
+                : cartPopup.type === 'error'
+                ? 'bg-red-500/20 border-red-400/40 text-red-100'
+                : 'bg-blue-500/20 border-blue-400/40 text-blue-100'
+              }
+              animate-in slide-in-from-top-2 fade-in-0
+            `}>
+              <div className="flex items-start gap-2">
+                <div className={`
+                  w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
+                  ${cartPopup.type === 'success' 
+                    ? 'bg-green-500/30 text-green-200' 
+                    : cartPopup.type === 'error'
+                    ? 'bg-red-500/30 text-red-200'
+                    : 'bg-blue-500/30 text-blue-200'
+                  }
+                `}>
+                  {cartPopup.type === 'success' ? '✓' : cartPopup.type === 'error' ? '✕' : 'i'}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium leading-relaxed">
+                    {cartPopup.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Panel koszyka */}
+          {showCart && (
+            <div className="fixed top-4 right-4 w-80 bg-black/50 backdrop-blur-lg border border-orange-400/40 rounded-lg shadow-2xl p-4 z-[9999]">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-orange-100 drop-shadow-lg">🛒 Koszyk</h3>
+                <button 
+                  onClick={toggleCart}
+                  className="text-orange-200 hover:text-white transition-colors drop-shadow-lg"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="text-sm text-white/90 drop-shadow-md">
+                  {chatHistory.filter(msg => 
+                    msg.speaker === 'agent' && 
+                    (msg.text.toLowerCase().includes('zamawiam') || 
+                     msg.text.toLowerCase().includes('dodaję') ||
+                     msg.text.toLowerCase().includes('koszyk'))
+                  ).length > 0 ? (
+                    chatHistory
+                      .filter(msg => 
+                        msg.speaker === 'agent' && 
+                        (msg.text.toLowerCase().includes('zamawiam') || 
+                         msg.text.toLowerCase().includes('dodaję') ||
+                         msg.text.toLowerCase().includes('koszyk'))
+                      )
+                      .map((msg, index) => (
+                        <div key={index} className="p-3 bg-green-500/20 border border-green-400/30 rounded-lg text-green-100 drop-shadow-md backdrop-blur-sm">
+                          {msg.text}
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center text-white/60 py-4 drop-shadow-md">
+                      Koszyk jest pusty
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-orange-400/20">
+                <button className="w-full bg-orange-500/80 hover:bg-orange-500 text-white py-2 px-4 rounded-lg transition-all backdrop-blur-sm drop-shadow-lg font-medium">
+                  Złóż zamówienie
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Kompaktowy Hamburger Menu */}
         <button
@@ -455,7 +580,7 @@ export default function Home() {
         <div className="w-full flex flex-col items-center space-y-1 pt-4">
           
           {(() => {
-            const hasResults = restaurants.length > 0 || menuItems.length > 0;
+            const hasResults = /* restaurants.length > 0 || */ menuItems.length > 0;
             const viewState = isProcessing
               ? 'LOADING'
               : hasResults
@@ -488,7 +613,7 @@ export default function Home() {
               case 'SHOWING_RESULTS':
                 return (
                   <div className="w-full max-w-2xl">
-                    {currentAction === 'restaurants' && restaurants.length > 0 && (
+                    {/* {currentAction === 'restaurants' && restaurants.length > 0 && (
                       <div className="w-full p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
                         <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
                           🍽️ Restauracje w okolicy
@@ -515,7 +640,7 @@ export default function Home() {
                           ))}
                         </div>
                       </div>
-                    )}
+                    )} */}
                     {currentAction === 'menu' && (
                       <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
                     )}

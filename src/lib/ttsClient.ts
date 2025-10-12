@@ -38,7 +38,13 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
     });
 
     if (!res.ok) {
-      throw new Error(`TTS API error: ${res.statusText}`);
+      // Try to get error details from JSON response
+      try {
+        const errorData = await res.json();
+        throw new Error(`TTS API error: ${errorData.message || res.statusText}`);
+      } catch {
+        throw new Error(`TTS API error: ${res.statusText}`);
+      }
     }
 
     const blob = await res.blob();
