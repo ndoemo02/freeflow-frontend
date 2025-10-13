@@ -370,6 +370,12 @@ export default function Home() {
       console.log(`🎙️ TTS mode: ${ttsMode} → ${endpoint}`);
       console.log('🌐 Using endpoint:', endpoint);
       
+      // Użyj streaming dla Live mode
+      if (ttsMode === "live") {
+        await playStreamingTTS(text, endpoint);
+        return;
+      }
+      
       const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -406,6 +412,50 @@ export default function Home() {
       console.error('❌ TTS error:', err);
       setError('Błąd odtwarzania głosu');
     }
+  };
+
+  const playStreamingTTS = async (text: string, endpoint: string) => {
+    console.log('🔴 Starting streaming TTS...');
+    
+    const response = await fetch(getApiUrl(endpoint), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        text,
+        languageCode: 'pl-PL'
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Streaming TTS API error: ${response.statusText}`);
+    }
+    
+    console.log('🔴 Streaming response status:', response.status);
+    console.log('🔴 Streaming response type:', response.headers.get('content-type'));
+    
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body reader available');
+    }
+    
+    const chunks: Uint8Array[] = [];
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    
+    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+    };
+    
+    console.log('🔴 Playing streamed audio...');
+    await audio.play();
   };
 
   const stopRecording = () => {
