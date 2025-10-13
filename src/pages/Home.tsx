@@ -367,6 +367,7 @@ export default function Home() {
       
       // Wybierz endpoint w zależności od trybu
       const endpoint = ttsMode === "classic" ? "/api/tts-chirp-hd" : "/api/tts-chirp-stream";
+      console.log(`🎙️ TTS mode: ${ttsMode} → ${endpoint}`);
       console.log('🌐 Using endpoint:', endpoint);
       
       const response = await fetch(getApiUrl(endpoint), {
