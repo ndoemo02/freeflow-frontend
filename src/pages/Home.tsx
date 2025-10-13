@@ -5,6 +5,7 @@ import MenuDrawer from "../ui/MenuDrawer";
 import MenuView from "./MenuView";
 import ChatHistory from "./ChatHistory";
 import VoiceTextBox from "../components/VoiceTextBox";
+import TtsModeToggle from "../components/TtsModeToggle";
 import { useUI } from "../state/ui";
 import { Send } from 'lucide-react';
 import api from "../lib/api";
@@ -18,6 +19,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("pl-PL-Standard-A");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [ttsMode, setTtsMode] = useState("classic");
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [currentAction, setCurrentAction] = useState("");
@@ -291,6 +293,7 @@ export default function Home() {
           text,
           lat: 50.386,
           lng: 18.946, // Piekary Śląskie
+          ttsMode, // Dodaj tryb TTS
         }),
       });
 
@@ -747,6 +750,9 @@ export default function Home() {
         </div>
         
       </div>
+      
+      {/* TTS Mode Toggle */}
+      <TtsModeToggle onChange={setTtsMode} />
     </section>
   );
 }
