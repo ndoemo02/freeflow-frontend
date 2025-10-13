@@ -384,12 +384,22 @@ export default function Home() {
       });
       
       if (!response.ok) {
-        throw new Error(`TTS API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ TTS API error response:', errorText);
+        throw new Error(`TTS API error: ${response.statusText} - ${errorText}`);
       }
       
       console.log('🔊 TTS response status:', response.status);
       console.log('🔊 TTS response type:', response.headers.get('content-type'));
       console.log('🔊 TTS response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Sprawdź content-type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('audio/')) {
+        const errorText = await response.text();
+        console.error('❌ Unexpected content type:', contentType, 'Response:', errorText);
+        throw new Error(`Unexpected content type: ${contentType}`);
+      }
       
       // Backend zwraca surowe audio, nie JSON
       const audioBlob = await response.blob();
