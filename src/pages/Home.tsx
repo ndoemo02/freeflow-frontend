@@ -367,6 +367,7 @@ export default function Home() {
       
       // Wybierz endpoint w zależności od trybu
       const endpoint = ttsMode === "classic" ? "/api/tts-chirp-hd" : "/api/tts-chirp-stream";
+      console.log('🌐 Using endpoint:', endpoint);
       
       const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
@@ -384,6 +385,7 @@ export default function Home() {
       
       console.log('🔊 TTS response status:', response.status);
       console.log('🔊 TTS response type:', response.headers.get('content-type'));
+      console.log('🔊 TTS response headers:', Object.fromEntries(response.headers.entries()));
       
       // Backend zwraca surowe audio, nie JSON
       const audioBlob = await response.blob();
