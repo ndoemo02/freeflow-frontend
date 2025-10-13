@@ -11,6 +11,7 @@ export default async function api(path: string, init?: RequestInit): Promise<any
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    console.error("API error:", text);
     const msg = text || res.statusText || 'Unknown error';
     throw new Error(`API ${res.status}: ${msg}`);
   }
