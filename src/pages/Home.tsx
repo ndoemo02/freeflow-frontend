@@ -370,11 +370,8 @@ export default function Home() {
       console.log(`🎙️ TTS mode: ${ttsMode} → ${endpoint}`);
       console.log('🌐 Using endpoint:', endpoint);
       
-      // Użyj streaming dla Live mode
-      if (ttsMode === "live") {
-        await playStreamingTTS(text, endpoint);
-        return;
-      }
+      // Na razie używamy standardowego TTS dla obu trybów
+      // (WebSocket streaming będzie dodany później)
       
       const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
