@@ -269,7 +269,11 @@ export default function Home() {
       const result = await api(getApiUrl('/api/brain'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          lat: 50.386,
+          lng: 18.946, // Piekary Śląskie
+        }),
       });
 
       console.log('🧠 FreeFlow Brain response:', result);
