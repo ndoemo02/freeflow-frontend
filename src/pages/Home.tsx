@@ -24,6 +24,7 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<{ speaker: 'user' | 'agent', text: string }[]>([]);
   const [cartPopup, setCartPopup] = useState<{ show: boolean, message: string, type: 'success' | 'info' | 'error' }>({ show: false, message: '', type: 'info' });
   const [showCart, setShowCart] = useState(false);
+  const [botStatus, setBotStatus] = useState<'idle' | 'thinking' | 'speaking' | 'confused'>('idle');
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -48,6 +49,23 @@ export default function Home() {
 
     window.addEventListener('freeflow-settings-changed', handleSettingsChange);
     return () => window.removeEventListener('freeflow-settings-changed', handleSettingsChange);
+  }, []);
+
+  // 🎛️ Status tracking dla Amber
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(getApiUrl('/api/brain/context'));
+        const data = await res.json();
+        if (data.ok && data.status) {
+          setBotStatus(data.status);
+        }
+      } catch (err) {
+        console.log('Status check failed:', err);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleOptionClick = (option: string) => {
@@ -688,6 +706,26 @@ export default function Home() {
                 );
             }
           })()}
+
+          {/* 🎛️ Amber Status Indicator */}
+          <div className="w-full max-w-2xl flex justify-center -mt-6 mb-2">
+            <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800/30 backdrop-blur-sm border border-slate-600/30">
+              <div className={`w-2 h-2 rounded-full ${
+                botStatus === 'thinking' ? 'bg-yellow-400 animate-pulse' :
+                botStatus === 'speaking' ? 'bg-green-400 animate-pulse' :
+                botStatus === 'confused' ? 'bg-red-400 animate-pulse' :
+                'bg-gray-400'
+              }`} />
+              <span className="text-xs text-slate-300">
+                Amber: {
+                  botStatus === 'thinking' ? 'Myśli...' :
+                  botStatus === 'speaking' ? 'Mówi...' :
+                  botStatus === 'confused' ? 'Zagubiona' :
+                  'Gotowa'
+                }
+              </span>
+            </div>
+          </div>
 
           {/* Pole transkrypcji z animacją demo */}
           <div className="w-full max-w-2xl relative -mt-8 mb-1">
