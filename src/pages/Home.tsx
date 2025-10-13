@@ -154,12 +154,19 @@ export default function Home() {
     setTranscript("Nasłuchuję...");
     
     try {
-      // Spróbuj Web Speech API najpierw
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        startWebSpeechRecognition();
+      // Sprawdź tryb TTS
+      if (ttsMode === 'live') {
+        console.log('🔴 Starting live mic stream...');
+        await startLiveMicStream();
       } else {
-        // Fallback na Google STT
-        await startGoogleSTT();
+        // Standardowy tryb
+        console.log('🎧 Starting standard recording...');
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          startWebSpeechRecognition();
+        } else {
+          // Fallback na Google STT
+          await startGoogleSTT();
+        }
       }
     } catch (err) {
       console.error('Recording error:', err);
@@ -465,7 +472,108 @@ export default function Home() {
     await audio.play();
   };
 
+  const startLiveMicStream = async () => {
+    try {
+      console.log('🔴 Initializing live mic stream...');
+      
+      // Utwórz WebSocket połączenie
+      const socket = new WebSocket("ws://localhost:3000/api/stt-stream");
+      
+      // Pobierz dostęp do mikrofonu
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 44100,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      
+      // Utwórz AudioContext
+      const audioCtx = new AudioContext({ sampleRate: 44100 });
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+      // Połącz węzły audio
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
+      // Obsługa danych audio
+      processor.onaudioprocess = (e) => {
+        if (socket.readyState === WebSocket.OPEN) {
+          const chunk = e.inputBuffer.getChannelData(0);
+          const int16 = new Int16Array(chunk.length);
+          
+          // Konwersja float32 na int16
+          for (let i = 0; i < chunk.length; i++) {
+            int16[i] = Math.max(-32768, Math.min(32767, chunk[i] * 32768));
+          }
+          
+          // Wyślij chunk audio
+          socket.send(int16.buffer);
+        }
+      };
+
+      // Obsługa wiadomości z WebSocket
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("🧠 Live transcription:", data);
+          
+          if (data.transcript) {
+            setTranscript(data.transcript);
+            
+            // Jeśli to finalna transkrypcja, przetwórz ją
+            if (data.isFinal) {
+              handleVoiceProcess(data.transcript);
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing STT response:', err);
+        }
+      };
+
+      socket.onopen = () => {
+        console.log('🔴 Live STT WebSocket connected');
+        setTranscript("🔴 Live streaming active...");
+      };
+
+      socket.onclose = () => {
+        console.log('🔴 Live STT WebSocket closed');
+        setIsRecording(false);
+      };
+
+      socket.onerror = (error) => {
+        console.error('🔴 Live STT WebSocket error:', error);
+        setError('Błąd połączenia live streaming');
+        setIsRecording(false);
+      };
+
+      // Zapisz referencje do cleanup
+      (window as any).liveStreamCleanup = () => {
+        processor.disconnect();
+        source.disconnect();
+        stream.getTracks().forEach(track => track.stop());
+        audioCtx.close();
+        socket.close();
+      };
+
+    } catch (err) {
+      console.error('🔴 Live mic stream error:', err);
+      setError('Błąd inicjalizacji live streaming');
+      setIsRecording(false);
+    }
+  };
+
   const stopRecording = () => {
+    // Cleanup live streaming
+    if ((window as any).liveStreamCleanup) {
+      console.log('🔴 Cleaning up live stream...');
+      (window as any).liveStreamCleanup();
+      (window as any).liveStreamCleanup = null;
+    }
+    
+    // Standard cleanup
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
