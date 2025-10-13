@@ -363,7 +363,12 @@ export default function Home() {
   const playTTS = async (text: string) => {
     try {
       console.log('🔊 Playing TTS for:', text);
-      const response = await fetch(getApiUrl('/api/tts'), {
+      console.log('🎧 TTS Mode:', ttsMode);
+      
+      // Wybierz endpoint w zależności od trybu
+      const endpoint = ttsMode === "classic" ? "/api/tts-chirp-hd" : "/api/tts-chirp-stream";
+      
+      const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
