@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useUI } from "../state/ui"
 import { useAuth } from "../state/auth"
+import { getMenu } from "../lib/menuBuilder"
 
 export default function MenuDrawer() {
   const isOpen = useUI((s) => s.drawerOpen)
@@ -10,6 +11,12 @@ export default function MenuDrawer() {
   const openAuth = useUI((s) => s.openAuth)
   const { user, signOut } = useAuth()
   const [expandedSections, setExpandedSections] = useState({})
+
+  // Generuj menu dynamicznie na podstawie użytkownika i środowiska
+  const menuSections = useMemo(() => {
+    const env = import.meta.env.MODE || 'production'
+    return getMenu(user, env)
+  }, [user])
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && isOpen && close()
@@ -23,57 +30,6 @@ export default function MenuDrawer() {
       [sectionId]: !prev[sectionId]
     }))
   }
-
-  // Przeorganizowane kategorie menu
-  const menuSections = [
-    {
-      id: "main",
-      title: "Główne",
-      icon: "🏠",
-      items: [
-        { to: "/", label: "Strona główna", icon: "🏠" },
-        { to: "/cart", label: "Koszyk", icon: "🛒" }
-      ]
-    },
-    {
-      id: "user",
-      title: "Użytkownik",
-      icon: "👤",
-      items: [
-        { to: "/register", label: "Zarejestruj się", icon: "📝", desc: "Nowe konto", highlight: true },
-        { to: "/panel/customer", label: "Panel Klienta", icon: "👤", desc: "Zamówienia i historia" }
-      ]
-    },
-    {
-      id: "business",
-      title: "Biznes",
-      icon: "🏪",
-      items: [
-        { to: "/business/register", label: "Rejestracja firmy", icon: "📝", desc: "Nowa firma", highlight: true },
-        { to: "/panel/business", label: "Panel Biznesu", icon: "🏪", desc: "Zarządzanie firmą" },
-        { to: "/panel/restaurant", label: "Panel Restauracji", icon: "🍽️", desc: "Menu i zamówienia" },
-        { to: "/panel/taxi", label: "Panel Taxi", icon: "🚕", desc: "Przejazdy i kursy" },
-        { to: "/panel/hotel", label: "Panel Hotelu", icon: "🏨", desc: "Rezerwacje i pokoje" }
-      ]
-    },
-    {
-      id: "admin",
-      title: "Administracja",
-      icon: "⚙️",
-      items: [
-        { to: "/admin", label: "Panel Admin", icon: "📊", desc: "Statystyki i analityka" },
-        { to: "/settings", label: "Ustawienia", icon: "⚙️", desc: "Konfiguracja systemu" }
-      ]
-    },
-    {
-      id: "help",
-      title: "Pomoc",
-      icon: "ℹ️",
-      items: [
-        { to: "/faq", label: "FAQ / Pomoc", icon: "❓", desc: "Często zadawane pytania" }
-      ]
-    }
-  ]
 
   return (
     <AnimatePresence>
@@ -164,35 +120,76 @@ export default function MenuDrawer() {
                         className="overflow-hidden"
                       >
                         <div className="ml-6 space-y-2 border-l-2 border-white/20 pl-4">
-                          {section.items.map((item, itemIndex) => (
-                            <Link
-                              key={item.to}
-                              to={item.to}
-                              onClick={close}
-                              className={`
-                                group flex items-center gap-3 p-3 rounded-xl transition-all duration-300
-                                bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20
-                                ${item.highlight 
-                                  ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/20 border-orange-400/30 shadow-lg' 
-                                  : 'hover:shadow-white/10'
-                                }
-                              `}
-                            >
-                              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                                <span className="text-sm">{item.icon}</span>
-                              </div>
-                              <div className="flex-1">
-                                <span className={`text-sm font-medium ${
-                                  item.highlight ? 'text-orange-200' : 'text-white/90 group-hover:text-white'
-                                }`}>
-                                  {item.label}
-                                </span>
-                                {item.desc && (
-                                  <p className="text-xs text-white/60 mt-1">{item.desc}</p>
+                          {section.items.map((item, itemIndex) => {
+                            // Sprawdź czy to specjalna akcja (np. voice toggle)
+                            const isSpecialAction = item.to.startsWith('#')
+
+                            const itemContent = (
+                              <>
+                                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                                  <span className="text-sm">{item.icon}</span>
+                                </div>
+                                <div className="flex-1">
+                                  <span className={`text-sm font-medium ${
+                                    item.highlight ? 'text-orange-200' : 'text-white/90 group-hover:text-white'
+                                  }`}>
+                                    {item.label}
+                                  </span>
+                                  {item.desc && (
+                                    <p className="text-xs text-white/60 mt-1">{item.desc}</p>
+                                  )}
+                                </div>
+                                {item.badge && (
+                                  <span className="px-2 py-1 text-xs font-bold bg-orange-500 text-white rounded-full">
+                                    {item.badge}
+                                  </span>
                                 )}
-                              </div>
-                            </Link>
-                          ))}
+                                {item.devOnly && (
+                                  <span className="px-2 py-1 text-xs font-bold bg-purple-500/50 text-purple-200 rounded-full">
+                                    DEV
+                                  </span>
+                                )}
+                              </>
+                            )
+
+                            const className = `
+                              group flex items-center gap-3 p-3 rounded-xl transition-all duration-300
+                              bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20
+                              ${item.highlight
+                                ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/20 border-orange-400/30 shadow-lg'
+                                : 'hover:shadow-white/10'
+                              }
+                            `
+
+                            // Jeśli to specjalna akcja, renderuj jako button
+                            if (isSpecialAction) {
+                              return (
+                                <button
+                                  key={item.id || item.to}
+                                  onClick={() => {
+                                    // Tutaj można dodać obsługę specjalnych akcji
+                                    console.log('Special action:', item.to)
+                                    close()
+                                  }}
+                                  className={className}
+                                >
+                                  {itemContent}
+                                </button>
+                              )
+                            }
+
+                            // Normalny link
+                            return (
+                              <Link
+                                key={item.id || item.to}
+                                to={item.to}
+                                onClick={close}
+                                className={className}
+                              >
+                                {itemContent}
+                              </Link>
+                            )
+                          })}
                         </div>
                       </motion.div>
                     )}
@@ -208,15 +205,29 @@ export default function MenuDrawer() {
                 className="border-t border-white/20 pt-4 mt-4"
               >
                 {!user ? (
-                  <button
-                    onClick={() => { close(); openAuth(); }}
-                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-sm shadow-2xl hover:shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-orange-400/20"
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <span className="text-sm">🔐</span>
-                    </div>
-                    Zaloguj się
-                  </button>
+                  <div className="space-y-3">
+                    {/* Przycisk logowania */}
+                    <button
+                      onClick={() => { close(); openAuth(); }}
+                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-sm shadow-2xl hover:shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-orange-400/20"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-sm">🔐</span>
+                      </div>
+                      Zaloguj się
+                    </button>
+                    
+                    {/* Przycisk rejestracji */}
+                    <button
+                      onClick={() => { close(); openAuth(); }}
+                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-sm shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-blue-400/20"
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-sm">📝</span>
+                      </div>
+                      Zarejestruj się
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20">

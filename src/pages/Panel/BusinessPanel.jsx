@@ -310,7 +310,7 @@ export default function BusinessPanel(){
 						{orders.map(o => (
 							<li key={o.id} className="rounded-lg border border-white/10 p-3">
 								<div className="flex items-center justify-between mb-2">
-									<div 
+									<div
 										className="flex-1 cursor-pointer hover:bg-white/5 transition-colors rounded p-1"
 										onClick={() => {
 											setSelectedOrder(o)
@@ -318,12 +318,22 @@ export default function BusinessPanel(){
 										}}
 									>
 										<div className="text-white font-medium">
-											Klient #{o.user_id?.substring(0, 8) || 'Nieznany'}
+											{o.customer_name || `Klient #${o.user_id?.substring(0, 8)}` || 'Nieznany'}
 										</div>
 										<div className="text-gray-300 text-sm">
 											<span className="text-blue-400 font-medium">📍 Zamówienie #{o.id.substring(0, 8)}</span>
 											<span className="ml-2">{o.status} • {(o.total_price ?? 0).toFixed(2)} zł</span>
 										</div>
+										{o.items && Array.isArray(o.items) && o.items.length > 0 && (
+											<div className="text-xs text-slate-400 mt-1">
+												{o.items.map((item, idx) => (
+													<span key={idx}>
+														{item.quantity}x {item.name}
+														{idx < o.items.length - 1 ? ', ' : ''}
+													</span>
+												))}
+											</div>
+										)}
 									</div>
 									<div className="text-gray-300 text-xs">{new Date(o.created_at).toLocaleString()}</div>
 								</div>
@@ -513,24 +523,19 @@ export default function BusinessPanel(){
 	                      <div>
 	                        <label className="text-sm text-gray-300">Klient:</label>
 	                        <p className="text-white font-semibold">
-							{selectedOrder.user_profiles ? 
-								`${selectedOrder.user_profiles.first_name || ''} ${selectedOrder.user_profiles.last_name || ''}`.trim() || 'Klient' :
-								selectedOrder.customer_name || 'Klient'
-							}
+							{selectedOrder.customer_name || 'Klient'}
 						</p>
-						{selectedOrder.user_profiles && (
-							<div className="mt-2 space-y-1 text-sm">
-								{selectedOrder.user_profiles.phone && (
-									<p className="text-gray-300">📞 {selectedOrder.user_profiles.phone}</p>
-								)}
-								{selectedOrder.user_profiles.address && (
-									<p className="text-gray-300">📍 {selectedOrder.user_profiles.address}</p>
-								)}
-								{selectedOrder.user_profiles.city && (
-									<p className="text-gray-300">🏙️ {selectedOrder.user_profiles.city}</p>
-								)}
-							</div>
-						)}
+						<div className="mt-2 space-y-1 text-sm">
+							{selectedOrder.customer_phone && (
+								<p className="text-gray-300">📞 {selectedOrder.customer_phone}</p>
+							)}
+							{selectedOrder.delivery_address && (
+								<p className="text-gray-300">📍 {selectedOrder.delivery_address}</p>
+							)}
+							{selectedOrder.notes && (
+								<p className="text-gray-300">💬 {selectedOrder.notes}</p>
+							)}
+						</div>
 	                      </div>
 	                      {selectedOrder.restaurants?.name && (
 	                        <div>
@@ -555,7 +560,7 @@ export default function BusinessPanel(){
 	                      </div>
 	                      <div>
 	                        <label className="text-sm text-gray-300">Kwota:</label>
-	                        <p className="text-white">{(selectedOrder.total ?? 0).toFixed(2)} zł</p>
+	                        <p className="text-white">{(selectedOrder.total_price ?? 0).toFixed(2)} zł</p>
 	                      </div>
 	                      {selectedOrder.items && (
 	                        <div>

@@ -7,6 +7,7 @@ type AuthContextType = {
   user: User
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -39,11 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }
 
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
+      }
+    })
+    if (error) throw error
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
 
-  const value: AuthContextType = { user, signIn, signUp, signOut }
+  const value: AuthContextType = { user, signIn, signUp, signInWithGoogle, signOut }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

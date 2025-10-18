@@ -5,6 +5,12 @@ import { useUI } from "./state/ui";
 // @ts-ignore
 import { ToastProvider } from "./components/Toast";
 // @ts-ignore
+import { CartProvider } from "./state/CartContext";
+// @ts-ignore
+import Cart from "./components/Cart";
+// @ts-ignore
+import CartButton from "./components/CartButton";
+// @ts-ignore
 import CustomerPanel from "./pages/Panel/CustomerPanel";
 // @ts-ignore
 import BusinessPanel from "./pages/Panel/BusinessPanel";
@@ -21,13 +27,26 @@ import Settings from "./pages/Settings";
 // @ts-ignore
 import AdminPanel from "./pages/AdminPanel";
 // @ts-ignore
+import LogoDemo from "./pages/LogoDemo";
+// @ts-ignore
+import HomeWithNewLogo from "./pages/HomeWithNewLogo";
+// @ts-ignore
 import AuthModal from "./components/AuthModal";
 // @ts-ignore
 import MenuDrawer from "./ui/MenuDrawer";
+import OrgSwitcher from "./components/OrgSwitcher";
+import TableReservations from "./components/TableReservations";
+import { useAuth } from "./state/auth";
+import { getUserRole } from "./lib/menuBuilder";
 
 function AppContent() {
   const authOpen = useUI((s) => s.authOpen);
   const closeAuth = useUI((s) => s.closeAuth);
+  const { user } = useAuth();
+
+  // Sprawdź czy użytkownik jest vendor lub admin
+  const userRole = getUserRole(user);
+  const showOrgSwitcher = userRole === 'vendor' || userRole === 'admin';
 
   return (
     <div className="min-h-screen text-slate-100">
@@ -44,11 +63,17 @@ function AppContent() {
             <Route path="/business/register" element={<RegisterBusiness />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/reservations" element={<TableReservations />} />
+            <Route path="/logo-demo" element={<LogoDemo />} />
+            <Route path="/home-new-logo" element={<HomeWithNewLogo />} />
         </Routes>
       </main>
-      
+
       {/* Global Components */}
       <MenuDrawer />
+      {showOrgSwitcher && <OrgSwitcher />}
+      {/* CartButton przeniesiony do TopBar */}
+      <Cart />
       {authOpen && <AuthModal onClose={closeAuth} />}
     </div>
   );
@@ -58,7 +83,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AppContent />
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
       </ToastProvider>
     </AuthProvider>
   );

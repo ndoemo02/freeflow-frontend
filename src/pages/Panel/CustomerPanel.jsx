@@ -1,26 +1,33 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../state/auth'
 import { supabase, AmberLogger } from '../../lib/supabaseClient'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
+import { useCart } from '../../state/CartContext'
 
 export default function CustomerPanel() {
   const { user } = useAuth()
   const { push } = useToast()
   const navigate = useNavigate()
+  const { addToCart } = useCart()
 
   const [tab, setTab] = useState('profile')
   const [profile, setProfile] = useState(null)
   const [editingProfile, setEditingProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [orders, setOrders] = useState([])
+  const [orderFilter, setOrderFilter] = useState('all') // 'all', 'active', 'completed'
   const [restaurants, setRestaurants] = useState([])
   const [selectedRestaurant, setSelectedRestaurant] = useState(null)
   const [menuItems, setMenuItems] = useState([])
   const [loadingMenu, setLoadingMenu] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [favorites, setFavorites] = useState([])
+  const [recentOrders, setRecentOrders] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -36,7 +43,7 @@ export default function CustomerPanel() {
 
     const loadData = async () => {
       setLoading(true);
-      
+
       // Load profile from auth metadata
       const profileData = {
         first_name: user.user_metadata?.first_name || '',
@@ -61,15 +68,23 @@ export default function CustomerPanel() {
       else AmberLogger.log("Orders loaded:", ordersData);
       setOrders(ordersData || []);
 
-  // Load restaurants
+      // Load restaurants
       const { data: restaurantsData, error: restaurantsError } = await supabase
           .from('restaurants')
-          .select('id,name,city')
+          .select('id,name,city,description')
         .order('name');
 
       if (restaurantsError) AmberLogger.error(restaurantsError);
       else AmberLogger.log("Restaurants loaded:", restaurantsData);
       setRestaurants(restaurantsData || []);
+
+      // Calculate loyalty points (example: 1 point per 10 zł spent)
+      const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered') || [];
+      const totalSpent = completedOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0), 0);
+      setLoyaltyPoints(Math.floor(totalSpent / 10));
+
+      // Set recent orders (last 3)
+      setRecentOrders(ordersData?.slice(0, 3) || []);
 
       setLoading(false);
     };
@@ -317,8 +332,8 @@ export default function CustomerPanel() {
           <StatsCards orders={orders} />
         </motion.div>
 
-        <motion.div 
-          className="mb-6 flex gap-2 overflow-x-auto"
+        <motion.div
+          className="mb-6 flex gap-2 overflow-x-auto pb-2"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.6 }}
@@ -326,6 +341,7 @@ export default function CustomerPanel() {
           <TabButton current={tab} setTab={setTab} id="profile" icon="🙋">Profil</TabButton>
           <TabButton current={tab} setTab={setTab} id="orders" icon="📋">Zamówienia</TabButton>
           <TabButton current={tab} setTab={setTab} id="restaurants" icon="🍕">Restauracje</TabButton>
+          <TabButton current={tab} setTab={setTab} id="reservations" icon="🪑">Rezerwacje</TabButton>
           <TabButton current={tab} setTab={setTab} id="settings" icon="⚙️">Ustawienia</TabButton>
         </motion.div>
 
@@ -367,7 +383,13 @@ export default function CustomerPanel() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <OrdersTab orders={orders} loading={loading} cancelOrder={cancelOrder} />
+                <OrdersTab
+                  orders={orders}
+                  loading={loading}
+                  cancelOrder={cancelOrder}
+                  filter={orderFilter}
+                  setFilter={setOrderFilter}
+                />
               </motion.div>
             )}
             {tab === 'restaurants' && (
@@ -378,14 +400,26 @@ export default function CustomerPanel() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <RestaurantsTab 
-                  restaurants={restaurants} 
+                <RestaurantsTab
+                  restaurants={restaurants}
                   selectedRestaurant={selectedRestaurant}
                   menuItems={menuItems}
                   loadingMenu={loadingMenu}
                   onSelectRestaurant={selectRestaurant}
                   onBack={() => setSelectedRestaurant(null)}
+                  addToCart={addToCart}
                 />
+              </motion.div>
+            )}
+            {tab === 'reservations' && (
+              <motion.div
+                key="reservations"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ReservationsTab userId={user?.id} />
               </motion.div>
             )}
             {tab === 'settings' && (
@@ -396,7 +430,12 @@ export default function CustomerPanel() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <SettingsTab />
+                <SettingsTab
+                  profile={profile}
+                  loyaltyPoints={loyaltyPoints}
+                  notifications={notifications}
+                  setNotifications={setNotifications}
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -431,86 +470,118 @@ function TabButton({ current, setTab, id, icon, children }) {
 
 function ProfileTab({ profile, user, editing, setEditing, saving, saveProfile, setProfile }) {
   if (!profile) return <div className="text-slate-300">Ładowanie profilu…</div>;
-  
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Profil użytkownika</h2>
+      {/* Header with Avatar */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <motion.div
+            className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            {profile.first_name?.[0]?.toUpperCase() || profile.email?.[0]?.toUpperCase() || '?'}
+          </motion.div>
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              {profile.first_name && profile.last_name
+                ? `${profile.first_name} ${profile.last_name}`
+                : 'Profil użytkownika'}
+            </h2>
+            <p className="text-sm text-slate-400">{profile.email}</p>
+          </div>
+        </div>
         <div className="flex gap-2">
           {editing ? (
             <>
-              <button 
-                onClick={() => setEditing(false)} 
-                className="rounded-xl border border-white/20 bg-glass px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-white/10" 
+              <motion.button
+                onClick={() => setEditing(false)}
+                className="rounded-xl border border-white/20 bg-glass px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-white/10"
                 disabled={saving}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 Anuluj
-              </button>
-              <button 
-                onClick={saveProfile} 
-                disabled={saving} 
+              </motion.button>
+              <motion.button
+                onClick={saveProfile}
+                disabled={saving}
                 className="rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50"
+                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(6, 182, 212, 0.5)" }}
+                whileTap={{ scale: 0.95 }}
               >
-                {saving ? 'Zapisywanie...' : 'Zapisz'}
-              </button>
+                {saving ? 'Zapisywanie...' : '💾 Zapisz'}
+              </motion.button>
             </>
           ) : (
-            <button 
-              onClick={() => setEditing(true)} 
+            <motion.button
+              onClick={() => setEditing(true)}
               className="rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+              whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(6, 182, 212, 0.5)" }}
+              whileTap={{ scale: 0.95 }}
             >
-              Edytuj profil
-            </button>
+              ✏️ Edytuj profil
+            </motion.button>
           )}
         </div>
       </div>
 
+      {/* Profile Fields */}
       <div className="grid gap-4 md:grid-cols-2">
-        <EditableField 
-          label="Imię" 
-          value={profile.first_name || ""} 
+        <EditableField
+          label="Imię"
+          value={profile.first_name || ""}
           editing={editing}
           onChange={(value) => setProfile(prev => ({ ...prev, first_name: value }))}
+          icon="👤"
         />
-        <EditableField 
-          label="Nazwisko" 
-          value={profile.last_name || ""} 
+        <EditableField
+          label="Nazwisko"
+          value={profile.last_name || ""}
           editing={editing}
           onChange={(value) => setProfile(prev => ({ ...prev, last_name: value }))}
+          icon="👤"
         />
-        <Field label="Email" value={profile.email || "Nie podano"} full readOnly />
-        <EditableField 
-          label="Telefon" 
-          value={profile.phone || ""} 
+        <Field label="Email" value={profile.email || "Nie podano"} icon="📧" full readOnly />
+        <EditableField
+          label="Telefon"
+          value={profile.phone || ""}
           editing={editing}
           onChange={(value) => setProfile(prev => ({ ...prev, phone: value }))}
           placeholder="+48 123 456 789"
+          icon="📱"
         />
-        <EditableField 
-          label="Adres" 
-          value={profile.address || ""} 
+        <EditableField
+          label="Adres"
+          value={profile.address || ""}
           editing={editing}
           onChange={(value) => setProfile(prev => ({ ...prev, address: value }))}
           placeholder="ul. Przykładowa 123/45"
+          icon="🏠"
           full
         />
-        <EditableField 
-          label="Miasto" 
-          value={profile.city || ""} 
+        <EditableField
+          label="Miasto"
+          value={profile.city || ""}
           editing={editing}
           onChange={(value) => setProfile(prev => ({ ...prev, city: value }))}
           placeholder="Warszawa"
+          icon="🌆"
         />
-        <Field label="Rola" value={profile.role || "customer"} />
-        </div>
-              </div>
+        <Field label="Rola" value={profile.role || "customer"} icon="🎭" />
+      </div>
+    </div>
   )
 }
 
-function Field({ label, value, full, readOnly }) {
+function Field({ label, value, full, readOnly, icon }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
-      <label className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {label}
+      </label>
       <div className={`rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 ${readOnly ? 'opacity-60' : ''}`}>
         {value}
       </div>
@@ -518,17 +589,23 @@ function Field({ label, value, full, readOnly }) {
   )
 }
 
-function EditableField({ label, value, editing, onChange, placeholder, full }) {
+function EditableField({ label, value, editing, onChange, placeholder, full, icon }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
-      <label className="block text-sm font-medium text-slate-300 mb-2">{label}</label>
+      <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {label}
+      </label>
       {editing ? (
-        <input 
-          type="text" 
-          value={value} 
-          onChange={(e) => onChange(e.target.value)} 
+        <motion.input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           className="w-full rounded-xl border border-cyan-500/30 bg-black/40 px-4 py-3 text-slate-100 placeholder-slate-400 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 backdrop-blur-xl"
+          initial={{ scale: 0.98 }}
+          animate={{ scale: 1 }}
+          whileFocus={{ scale: 1.01 }}
         />
       ) : (
         <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100">
@@ -539,106 +616,230 @@ function EditableField({ label, value, editing, onChange, placeholder, full }) {
   )
 }
 
-function OrdersTab({ orders, loading, cancelOrder }) {
+function OrdersTab({ orders, loading, cancelOrder, filter, setFilter }) {
+  // Filtruj zamówienia na podstawie wybranego filtra
+  const filteredOrders = orders.filter(order => {
+    if (filter === 'all') return true;
+    if (filter === 'active') {
+      return ['pending', 'confirmed', 'preparing'].includes(order.status);
+    }
+    if (filter === 'completed') {
+      return ['completed', 'delivered', 'cancelled'].includes(order.status);
+    }
+    return true;
+  });
+
   if (loading) return <div className="text-center text-slate-400 py-8">Ładowanie zamówień...</div>;
-  if (orders.length === 0) return <div className="text-center text-slate-400 py-12"><div className="text-4xl mb-4">📦</div><p>Nie masz jeszcze żadnych zamówień</p></div>;
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Historia zamówień</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Historia zamówień</h2>
+
+        {/* Filtry */}
+        <div className="flex gap-2">
+          <FilterButton
+            active={filter === 'all'}
+            onClick={() => setFilter('all')}
+            icon="📦"
+          >
+            Wszystkie ({orders.length})
+          </FilterButton>
+          <FilterButton
+            active={filter === 'active'}
+            onClick={() => setFilter('active')}
+            icon="⏳"
+          >
+            W trakcie ({orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length})
+          </FilterButton>
+          <FilterButton
+            active={filter === 'completed'}
+            onClick={() => setFilter('completed')}
+            icon="✅"
+          >
+            Zakończone ({orders.filter(o => ['completed', 'delivered', 'cancelled'].includes(o.status)).length})
+          </FilterButton>
+        </div>
+      </div>
+
+      {filteredOrders.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">📦</div>
+          <p>
+            {filter === 'all' && 'Nie masz jeszcze żadnych zamówień'}
+            {filter === 'active' && 'Brak aktywnych zamówień'}
+            {filter === 'completed' && 'Brak zakończonych zamówień'}
+          </p>
+        </div>
+      ) : (
         <div className="space-y-4">
-          {orders.map(order => (
-          <motion.div 
-              key={order.id} 
-            className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.02 }}
+          {filteredOrders.map(order => (
+            <motion.div
+              key={order.id}
+              className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.02 }}
+              layout
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-1">
-                  Zamówienie #{order.id.slice(-8)}
+                    Zamówienie #{order.id.slice(-8)}
                   </h3>
                   <p className="text-sm text-slate-400">
-                  {new Date(order.created_at).toLocaleDateString('pl-PL', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                    {new Date(order.created_at).toLocaleDateString('pl-PL', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
-                </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusClass(order.status)}`}>
-                {getStatusText(order.status)}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-slate-300">
-                Kwota: {Number(order.total_price || 0).toFixed(2)} zł
-                  </div>
-                  {(order.status === 'pending' || order.status === 'confirmed') && (
-                    <button
-                  onClick={() => {
-                        if (confirm('Czy na pewno chcesz anulować to zamówienie?')) {
-                          cancelOrder(order.id)
-                        }
-                      }}
-                      className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
-                    >
-                      Anuluj
-                    </button>
+                  {order.restaurant_name && (
+                    <p className="text-sm text-cyan-400 mt-1">
+                      🏪 {order.restaurant_name}
+                    </p>
+                  )}
+                  {order.dish_name && (
+                    <p className="text-sm text-slate-300 mt-1">
+                      🍽️ {order.dish_name}
+                    </p>
                   )}
                 </div>
-          </motion.div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusClass(order.status)}`}>
+                  {getStatusText(order.status)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-slate-300">
+                  Kwota: {Number(order.total_price || 0).toFixed(2)} zł
+                </div>
+                {(order.status === 'pending' || order.status === 'confirmed') && (
+                  <button
+                    onClick={() => {
+                      if (confirm('Czy na pewno chcesz anulować to zamówienie?')) {
+                        cancelOrder(order.id)
+                      }
+                    }}
+                    className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                  >
+                    Anuluj
+                  </button>
+                )}
+              </div>
+            </motion.div>
           ))}
         </div>
-            </div>
+      )}
+    </div>
   )
 }
 
-function RestaurantsTab({ restaurants, selectedRestaurant, menuItems, loadingMenu, onSelectRestaurant, onBack }) {
+function FilterButton({ active, onClick, icon, children }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      className={`
+        px-4 py-2 rounded-xl text-sm font-medium transition-all
+        ${active
+          ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 text-white border-2 border-cyan-500/50 shadow-lg'
+          : 'bg-black/30 text-slate-300 border border-white/10 hover:bg-black/50 hover:border-white/20'
+        }
+      `}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <span className="mr-1">{icon}</span>
+      {children}
+    </motion.button>
+  )
+}
+
+function RestaurantsTab({ restaurants, selectedRestaurant, menuItems, loadingMenu, onSelectRestaurant, onBack, addToCart }) {
   if (selectedRestaurant) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack}
-            className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-slate-300 hover:bg-white/10 transition-colors"
-          >
-            ← Wróć
-          </button>
-          <h2 className="text-xl font-bold text-white">{selectedRestaurant.name}</h2>
+        {/* Restaurant Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <motion.button
+              onClick={onBack}
+              className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-slate-300 hover:bg-white/10 transition-colors"
+              whileHover={{ scale: 1.05, x: -5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              ← Wróć
+            </motion.button>
+            <div>
+              <h2 className="text-2xl font-bold text-white">{selectedRestaurant.name}</h2>
+              <p className="text-sm text-slate-400">📍 {selectedRestaurant.city}</p>
+            </div>
+          </div>
         </div>
-        
+
         {loadingMenu ? (
-          <div className="text-center text-slate-400 py-8">Ładowanie menu...</div>
+          <div className="text-center text-slate-400 py-12">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="inline-block text-4xl mb-4"
+            >
+              ⏳
+            </motion.div>
+            <p>Ładowanie menu...</p>
+          </div>
         ) : menuItems.length === 0 ? (
-          <div className="text-center text-slate-400 py-8">Brak pozycji w menu</div>
+          <div className="text-center text-slate-400 py-12">
+            <div className="text-4xl mb-4">🍽️</div>
+            <p>Brak pozycji w menu</p>
+          </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {menuItems.map((item, index) => (
-              <motion.div 
-                key={item.id} 
-                className="rounded-xl border border-cyan-500/20 bg-black/40 p-4 backdrop-blur-xl"
+              <motion.div
+                key={item.id}
+                className="rounded-xl border border-cyan-500/20 bg-black/40 p-5 backdrop-blur-xl group relative overflow-hidden"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ 
-                  scale: 1.02,
+                transition={{ delay: index * 0.05 }}
+                whileHover={{
+                  scale: 1.03,
                   y: -5,
-                  boxShadow: "0 20px 40px rgba(0, 255, 255, 0.2)"
+                  boxShadow: "0 20px 40px rgba(0, 255, 255, 0.3)",
+                  borderColor: "rgba(0, 255, 255, 0.5)"
                 }}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-white">{item.name}</h4>
-                  <span className="text-cyan-400 font-bold">{Number(item.price).toFixed(2)} zł</span>
+                {/* Glow effect on hover */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-3">
+                    <h4 className="font-semibold text-white text-lg group-hover:text-cyan-300 transition-colors">
+                      {item.name}
+                    </h4>
+                    <span className="text-cyan-400 font-bold text-lg whitespace-nowrap ml-2">
+                      {Number(item.price).toFixed(2)} zł
+                    </span>
+                  </div>
+                  {item.description && (
+                    <p className="text-sm text-slate-400 mb-3 line-clamp-2">{item.description}</p>
+                  )}
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(item, selectedRestaurant);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gradient-to-r hover:from-cyan-500/30 hover:to-purple-500/30"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    🛒 Dodaj do koszyka
+                  </motion.button>
                 </div>
-                {item.description && (
-                  <p className="text-sm text-slate-400">{item.description}</p>
-                )}
               </motion.div>
             ))}
           </div>
@@ -649,41 +850,360 @@ function RestaurantsTab({ restaurants, selectedRestaurant, menuItems, loadingMen
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Dostępne restauracje</h2>
-      <p className="text-slate-400">Kliknij na restaurację, aby zobaczyć menu</p>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {restaurants.map((restaurant, index) => (
-          <motion.div 
-            key={restaurant.id}
-            className="rounded-xl border border-cyan-500/20 bg-black/40 p-4 backdrop-blur-xl cursor-pointer"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ 
-              scale: 1.02,
-              y: -5,
-              boxShadow: "0 20px 40px rgba(0, 255, 255, 0.2)"
-            }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onSelectRestaurant(restaurant)}
-          >
-            <h3 className="font-semibold text-white mb-2">{restaurant.name}</h3>
-            <p className="text-sm text-slate-400 mb-3">{restaurant.city}</p>
-            <div className="text-xs text-cyan-400">Kliknij, aby zobaczyć menu →</div>
-          </motion.div>
-        ))}
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Dostępne restauracje</h2>
+        <p className="text-slate-400">Wybierz restaurację, aby zobaczyć menu i złożyć zamówienie</p>
+      </div>
+
+      {restaurants.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">🏪</div>
+          <p>Brak dostępnych restauracji</p>
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {restaurants.map((restaurant, index) => (
+            <motion.div
+              key={restaurant.id}
+              className="rounded-xl border border-cyan-500/20 bg-black/40 p-6 backdrop-blur-xl cursor-pointer group relative overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              whileHover={{
+                scale: 1.05,
+                y: -8,
+                boxShadow: "0 25px 50px rgba(0, 255, 255, 0.3)",
+                borderColor: "rgba(0, 255, 255, 0.5)"
+              }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSelectRestaurant(restaurant)}
+            >
+              {/* Animated background gradient */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-3xl">🏪</div>
+                  <motion.div
+                    className="text-cyan-400 opacity-0 group-hover:opacity-100"
+                    initial={{ x: -10 }}
+                    whileHover={{ x: 0 }}
+                  >
+                    →
+                  </motion.div>
+                </div>
+                <h3 className="font-bold text-white text-xl mb-2 group-hover:text-cyan-300 transition-colors">
+                  {restaurant.name}
+                </h3>
+                <p className="text-sm text-slate-400 mb-3">📍 {restaurant.city}</p>
+                {restaurant.description && (
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{restaurant.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-xs text-cyan-400 font-medium">
+                  <span>Zobacz menu</span>
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    →
+                  </motion.span>
+                </div>
+              </div>
+
+              {/* Bottom accent line */}
+              <motion.div
+                className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReservationsTab({ userId }) {
+  const [reservations, setReservations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { push } = useToast()
+
+  useEffect(() => {
+    if (!userId) return
+
+    const loadReservations = async () => {
+      try {
+        setLoading(true)
+        // Assuming we have a reservations table
+        const { data, error } = await supabase
+          .from('table_reservations')
+          .select('*, restaurants(name)')
+          .eq('user_id', userId)
+          .order('reservation_date', { ascending: false })
+
+        if (error) throw error
+        setReservations(data || [])
+      } catch (e) {
+        AmberLogger.error('Error loading reservations:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadReservations()
+  }, [userId])
+
+  const cancelReservation = async (reservationId) => {
+    try {
+      const { error } = await supabase
+        .from('table_reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', reservationId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      push('Rezerwacja została anulowana', 'success')
+
+      // Refresh
+      const { data } = await supabase
+        .from('table_reservations')
+        .select('*, restaurants(name)')
+        .eq('user_id', userId)
+        .order('reservation_date', { ascending: false })
+
+      setReservations(data || [])
+    } catch (e) {
+      push('Błąd podczas anulowania rezerwacji', 'error')
+      AmberLogger.error(e)
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center text-slate-400 py-8">Ładowanie rezerwacji...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Moje Rezerwacje</h2>
+        <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium hover:shadow-lg transition-all">
+          + Nowa rezerwacja
+        </button>
+      </div>
+
+      {reservations.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">🪑</div>
+          <p>Nie masz jeszcze żadnych rezerwacji</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reservations.map((reservation, index) => (
+            <motion.div
+              key={reservation.id}
+              className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    {reservation.restaurants?.name || 'Restauracja'}
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    {new Date(reservation.reservation_date).toLocaleDateString('pl-PL', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                  <p className="text-sm text-cyan-400 mt-1">
+                    👥 {reservation.party_size} osób • 🪑 Stolik #{reservation.table_number || 'TBD'}
+                  </p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getReservationStatusClass(reservation.status)}`}>
+                  {getReservationStatusText(reservation.status)}
+                </span>
+              </div>
+
+              {reservation.status === 'confirmed' && (
+                <button
+                  onClick={() => {
+                    if (confirm('Czy na pewno chcesz anulować tę rezerwację?')) {
+                      cancelReservation(reservation.id)
+                    }
+                  }}
+                  className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                >
+                  Anuluj rezerwację
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsTab({ profile, loyaltyPoints, notifications, setNotifications }) {
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [pushNotifications, setPushNotifications] = useState(true)
+  const [smsNotifications, setSmsNotifications] = useState(false)
+  const [orderUpdates, setOrderUpdates] = useState(true)
+  const [promotions, setPromotions] = useState(true)
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-4">Ustawienia</h2>
+        <p className="text-slate-400">Zarządzaj swoimi preferencjami i powiadomieniami</p>
+      </div>
+
+      {/* Loyalty Program */}
+      <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Program Lojalnościowy</h3>
+            <p className="text-sm text-slate-300">Zbieraj punkty za każde zamówienie</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-purple-400">{loyaltyPoints}</div>
+            <div className="text-xs text-slate-400">punktów</div>
+          </div>
+        </div>
+        <div className="w-full bg-black/30 rounded-full h-2 mb-2">
+          <div
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${Math.min((loyaltyPoints % 100), 100)}%` }}
+          />
+        </div>
+        <p className="text-xs text-slate-400">
+          {100 - (loyaltyPoints % 100)} punktów do następnej nagrody
+        </p>
+      </div>
+
+      {/* Notifications Settings */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-white">Powiadomienia</h3>
+
+        <SettingToggle
+          label="Powiadomienia Email"
+          description="Otrzymuj aktualizacje na email"
+          checked={emailNotifications}
+          onChange={setEmailNotifications}
+          icon="📧"
+        />
+
+        <SettingToggle
+          label="Powiadomienia Push"
+          description="Powiadomienia w przeglądarce"
+          checked={pushNotifications}
+          onChange={setPushNotifications}
+          icon="🔔"
+        />
+
+        <SettingToggle
+          label="Powiadomienia SMS"
+          description="Otrzymuj SMS o statusie zamówienia"
+          checked={smsNotifications}
+          onChange={setSmsNotifications}
+          icon="📱"
+        />
+
+        <SettingToggle
+          label="Aktualizacje zamówień"
+          description="Powiadomienia o statusie zamówień"
+          checked={orderUpdates}
+          onChange={setOrderUpdates}
+          icon="📦"
+        />
+
+        <SettingToggle
+          label="Promocje i oferty"
+          description="Otrzymuj informacje o promocjach"
+          checked={promotions}
+          onChange={setPromotions}
+          icon="🎁"
+        />
+      </div>
+
+      {/* Account Actions */}
+      <div className="space-y-3 pt-4 border-t border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4">Konto</h3>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Zmień hasło</div>
+              <div className="text-xs text-slate-400">Zaktualizuj swoje hasło</div>
+            </div>
+            <span>🔒</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Historia płatności</div>
+              <div className="text-xs text-slate-400">Zobacz wszystkie transakcje</div>
+            </div>
+            <span>💳</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Pobierz dane</div>
+              <div className="text-xs text-slate-400">Eksportuj swoje dane</div>
+            </div>
+            <span>📥</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Usuń konto</div>
+              <div className="text-xs text-red-400/70">Trwale usuń swoje konto</div>
+            </div>
+            <span>⚠️</span>
+          </div>
+        </button>
       </div>
     </div>
   )
 }
 
-function SettingsTab() {
+function SettingToggle({ label, description, checked, onChange, icon }) {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white">Ustawienia</h2>
-      <div className="text-slate-300">
-        Powiadomienia push i preferencje — wkrótce.
-          </div>
+    <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{icon}</span>
+        <div>
+          <div className="font-medium text-white">{label}</div>
+          <div className="text-xs text-slate-400">{description}</div>
+        </div>
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`relative w-12 h-6 rounded-full transition-colors ${
+          checked ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-600'
+        }`}
+      >
+        <div
+          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+            checked ? 'transform translate-x-6' : ''
+          }`}
+        />
+      </button>
     </div>
   )
 }
@@ -710,13 +1230,33 @@ function getStatusText(status) {
   }
 }
 
+function getReservationStatusClass(status) {
+  switch(status) {
+    case 'confirmed': return 'bg-green-600/20 text-green-500 border-green-600/30'
+    case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/30'
+    case 'completed': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  }
+}
+
+function getReservationStatusText(status) {
+  switch(status) {
+    case 'confirmed': return 'Potwierdzona'
+    case 'pending': return 'Oczekuje'
+    case 'cancelled': return 'Anulowana'
+    case 'completed': return 'Zakończona'
+    default: return 'Nieznany'
+  }
+}
+
 function StatsCards({ orders }) {
   const totalOrders = orders.filter(o => o.status !== 'cancelled').length
   const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
   const totalSpent = orders
     .filter(o => o.status !== 'cancelled')
     .reduce((sum, o) => sum + (Number(o.total_price) || 0), 0)
-  const pendingOrders = orders.filter(o => o.status === 'pending').length
+  const pendingOrders = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length
 
   const stats = [
     {
@@ -724,41 +1264,46 @@ function StatsCards({ orders }) {
       value: totalOrders,
       icon: "📦",
       gradient: "from-orange-500/25 to-orange-500/10",
-      borderColor: "border-orange-500/30"
+      borderColor: "border-orange-500/30",
+      glowColor: "rgba(249, 115, 22, 0.3)"
     },
     {
       title: "Ukończonych",
       value: completedOrders,
       icon: "✅",
       gradient: "from-emerald-500/25 to-emerald-500/10",
-      borderColor: "border-emerald-500/30"
+      borderColor: "border-emerald-500/30",
+      glowColor: "rgba(16, 185, 129, 0.3)"
     },
     {
       title: "Łączna kwota",
       value: `${totalSpent.toFixed(2)} zł`,
       icon: "💰",
       gradient: "from-purple-500/25 to-purple-500/10",
-      borderColor: "border-purple-500/30"
+      borderColor: "border-purple-500/30",
+      glowColor: "rgba(168, 85, 247, 0.3)"
     },
     {
       title: "W trakcie",
       value: pendingOrders,
       icon: "⏳",
       gradient: "from-cyan-500/25 to-cyan-500/10",
-      borderColor: "border-cyan-500/30"
+      borderColor: "border-cyan-500/30",
+      glowColor: "rgba(6, 182, 212, 0.3)"
     }
   ]
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat, index) => (
-        <StatCard 
+        <StatCard
           key={stat.title}
           title={stat.title}
           value={stat.value}
           icon={stat.icon}
           gradient={stat.gradient}
           borderColor={stat.borderColor}
+          glowColor={stat.glowColor}
           index={index}
         />
       ))}
@@ -766,21 +1311,21 @@ function StatsCards({ orders }) {
   )
 }
 
-function StatCard({ title, value, icon, gradient, borderColor, index }) {
+function StatCard({ title, value, icon, gradient, borderColor, glowColor, index }) {
   return (
-    <motion.div 
-      className={`rounded-2xl border ${borderColor} bg-black/40 backdrop-blur-xl p-6 transition-all hover:scale-105 shadow-2xl`}
-            whileHover={{ 
-              scale: 1.05,
+    <motion.div
+      className={`rounded-2xl border ${borderColor} bg-black/40 backdrop-blur-xl p-6 transition-all shadow-2xl relative overflow-hidden group cursor-pointer`}
+      whileHover={{
+        scale: 1.05,
         y: -5,
-        boxShadow: "0 20px 40px rgba(0, 255, 255, 0.2)",
+        boxShadow: `0 20px 40px ${glowColor}`,
         transition: { type: "spring", stiffness: 300 }
-            }}
-            whileTap={{ scale: 0.95 }}
+      }}
+      whileTap={{ scale: 0.95 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-            transition={{ 
-        type: "spring", 
+      transition={{
+        type: "spring",
         stiffness: 200,
         delay: index * 0.1
       }}
@@ -789,45 +1334,61 @@ function StatCard({ title, value, icon, gradient, borderColor, index }) {
         borderColor: borderColor.includes('orange') ? 'rgba(249, 115, 22, 0.3)' : borderColor.includes('emerald') ? 'rgba(16, 185, 129, 0.3)' : borderColor.includes('purple') ? 'rgba(168, 85, 247, 0.3)' : 'rgba(6, 182, 212, 0.3)'
       }}
     >
-      <div className="flex items-center justify-between">
-                  <div>
-          <motion.p 
-            className="text-sm font-medium text-slate-300"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+      {/* Animated gradient overlay */}
+      <motion.div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle at 50% 50%, ${glowColor}, transparent 70%)`
+        }}
+      />
+
+      <div className="flex items-center justify-between relative z-10">
+        <div>
+          <motion.p
+            className="text-sm font-medium text-slate-300 mb-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.2 + index * 0.1 }}
           >
             {title}
           </motion.p>
-          <motion.p 
-            className="text-2xl font-bold text-white"
+          <motion.p
+            className="text-3xl font-bold text-white"
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
-            transition={{ 
-              delay: 0.3 + index * 0.1, 
-              type: "spring", 
-              stiffness: 200 
+            transition={{
+              delay: 0.3 + index * 0.1,
+              type: "spring",
+              stiffness: 200
             }}
           >
             {value}
           </motion.p>
-                  </div>
-          <motion.div 
-          className="text-2xl opacity-80"
-              animate={{
+        </div>
+        <motion.div
+          className="text-3xl opacity-80"
+          animate={{
             rotate: [0, 10, -10, 0],
-            scale: [1, 1.1, 1]
-                }}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
+            scale: [1, 1.15, 1]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
             repeatType: "reverse",
             delay: index * 0.2
           }}
         >
           {icon}
-          </motion.div>
-    </div>
+        </motion.div>
+      </div>
+
+      {/* Bottom accent line */}
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 h-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${glowColor}, transparent)`
+        }}
+      />
     </motion.div>
   )
 }

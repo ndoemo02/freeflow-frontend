@@ -158,3 +158,15 @@ BEGIN
     (sushi_id, 'Sushi Mix', 35.00)
     ON CONFLICT DO NOTHING;
 END $$;
+
+-- 8. Create system_logs table for watchdog monitoring
+CREATE TABLE IF NOT EXISTS system_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  level VARCHAR NOT NULL CHECK (level IN ('info', 'warning', 'error', 'critical')),
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index for faster queries
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);

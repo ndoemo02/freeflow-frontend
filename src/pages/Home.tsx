@@ -1,32 +1,59 @@
 /* eslint-disable jsx-a11y/alt-text */
+// --- SAFE JSON (1x parse) ---
+function safeParseJson(text: string) {
+  try { return JSON.parse(text); } catch { return null; }
+}
+
+// --- AUTO SPEAK toggle ---
+const AMBER_AUTO_SPEAK = true; // ustaw na false, jeśli chcesz szybko wyłączyć
+
+// --- AUDIO UNLOCK ---
+function unlockAudio() {
+  const a = new Audio();
+  a.play().catch(() => {});
+}
+
 import { useState, useRef, useEffect } from "react";
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
 import MenuView from "./MenuView";
 import ChatHistory from "./ChatHistory";
 import VoiceTextBox from "../components/VoiceTextBox";
-import TtsModeToggle from "../components/TtsModeToggle";
+import AmberStatus from "../components/AmberStatus";
+import TTSSwitcher from "../components/TTSSwitcher";
+import LoadingScreen from "../components/LoadingScreen";
+// @ts-ignore
+import AmberAvatar from "../components/AmberAvatar";
 import { useUI } from "../state/ui";
+import { useCart } from "../state/CartContext";
 import { Send } from 'lucide-react';
 import api from "../lib/api";
 import { getApiUrl } from "../lib/config";
 
 export default function Home() {
   const openDrawer = useUI((s) => s.openDrawer);
+  const { addToCart } = useCart();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
   const [selectedVoice, setSelectedVoice] = useState("pl-PL-Standard-A");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ttsMode, setTtsMode] = useState("classic");
+  const [ttsMode, setTtsMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ttsMode") || "classic";
+    }
+    return "classic";
+  });
   const [restaurants, setRestaurants] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
+  const [menuItems, setMenuItems] = useState<{ id: string; name: string; price: number; category: string; }[]>([]);
   const [currentAction, setCurrentAction] = useState("");
   const [chatHistory, setChatHistory] = useState<{ speaker: 'user' | 'agent', text: string }[]>([]);
   const [cartPopup, setCartPopup] = useState<{ show: boolean, message: string, type: 'success' | 'info' | 'error' }>({ show: false, message: '', type: 'info' });
   const [showCart, setShowCart] = useState(false);
   const [botStatus, setBotStatus] = useState<'idle' | 'thinking' | 'speaking' | 'confused'>('idle');
+  const [amberState, setAmberState] = useState<'ready' | 'thinking' | 'error' | 'idle'>('ready');
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -53,22 +80,10 @@ export default function Home() {
     return () => window.removeEventListener('freeflow-settings-changed', handleSettingsChange);
   }, []);
 
-  // 🎛️ Status tracking dla Amber
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(getApiUrl('/api/brain/context'));
-        const data = await res.json();
-        if (data.ok && data.status) {
-          setBotStatus(data.status);
-        }
-      } catch (err) {
-        console.log('Status check failed:', err);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const handleTTSModeChange = (mode: string) => {
+    setTtsMode(mode);
+    console.log(`🎧 TTS mode changed to: ${mode}`);
+  };
 
   const handleOptionClick = (option: string) => {
     console.log(`Wybrano: ${option}`);
@@ -93,10 +108,12 @@ export default function Home() {
   const loadMenu = async (restaurantId: string) => {
     try {
       console.log('🍽️ Loading menu for restaurant:', restaurantId);
-      const data = await api(getApiUrl(`/api/menu?restaurant_id=${restaurantId}`), { method: 'GET' });
+      const res = await fetch(getApiUrl(`/api/menu?restaurant_id=${restaurantId}`), { method: 'GET' });
+      const bodyStr = await res.text();
+      const data = safeParseJson(bodyStr);
       console.log('📋 Menu data:', data);
       
-      if (data.menu && Array.isArray(data.menu)) {
+      if (data && data.menu && Array.isArray(data.menu)) {
         setMenuItems(data.menu);
       } else {
         // Fallback - przykładowe menu
@@ -149,6 +166,9 @@ export default function Home() {
     setChatHistory([]);
   };
   const startRecording = async () => {
+    // Odblokuj audio na pierwszym kliknięciu
+    unlockAudio();
+    
     setIsRecording(true);
     setError("");
     setTranscript("Nasłuchuję...");
@@ -255,12 +275,15 @@ export default function Home() {
       formData.append('audio', audioBlob);
       
       // TODO: Endpoint do Google STT w backend
-      const response = await api(getApiUrl('/api/stt'), {
+      const res = await fetch(getApiUrl('/api/stt'), {
         method: 'POST',
         body: formData,
       });
       
-      if (response.transcript) {
+      const bodyStr = await res.text();
+      const response = safeParseJson(bodyStr);
+      
+      if (response && response.transcript) {
         setTranscript(response.transcript);
         handleVoiceProcess(response.transcript);
       } else {
@@ -281,6 +304,7 @@ export default function Home() {
 
   const handleVoiceProcess = async (text: string) => {
     setIsProcessing(true);
+    setAmberState('thinking');
     try {
       setTranscript(text);
       setChatHistory(prev => [...prev, { speaker: 'user', text }]);
@@ -293,7 +317,7 @@ export default function Home() {
       console.log('🎯 Sending to FreeFlow Brain:', text);
       
       // Wyślij do FreeFlow Brain
-      const result = await api(getApiUrl('/api/brain'), {
+      const res = await fetch(getApiUrl('/api/brain'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -304,14 +328,49 @@ export default function Home() {
         }),
       });
 
-      console.log('🧠 FreeFlow Brain response:', result);
+      // ✅ parsujemy body TYLKO RAZ
+      const bodyStr = await res.text();
+      const data = safeParseJson(bodyStr);
 
-      if (result.reply || result.response) {
-        const responseText = result.reply || result.response;
+      if (!data) {
+        console.warn('⚠️ Brain returned non-JSON:', bodyStr);
+        // możesz opcjonalnie wypowiedzieć błąd:
+        // if (AMBER_AUTO_SPEAK) await playTTS('Mam błąd odpowiedzi z serwera.');
+        return;
+      }
+
+      console.log('🧠 FreeFlow Brain response:', data);
+
+      // 🎯 OBSŁUGA PARSED_ORDER - dodaj do koszyka
+      if (data.parsed_order && data.parsed_order.items && data.parsed_order.restaurant) {
+        console.log('🛒 Voice order detected, adding to cart:', data.parsed_order);
+        
+        try {
+          // Dodaj każdą pozycję do koszyka
+          for (const item of data.parsed_order.items) {
+            addToCart({
+              id: item.menuItemId || item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity || 1
+            }, data.parsed_order.restaurant);
+          }
+          
+          showCartPopup('🛒 Dodano do koszyka z voice ordering!', 'success');
+          console.log('✅ Voice order items added to cart successfully');
+        } catch (error) {
+          console.error('❌ Error adding voice order to cart:', error);
+          showCartPopup('❌ Błąd dodawania do koszyka', 'error');
+        }
+      }
+
+      if (data.reply || data.response) {
+        const responseText = data.reply || data.response;
         setResponse(responseText);
         setChatHistory(prev => [...prev, { speaker: 'agent', text: responseText }]);
+        setAmberState('ready');
 
-        // Sprawdź czy Amber dodała coś do koszyka
+        // Sprawdź czy Amber dodała coś do koszyka (stara logika)
         const responseTextLower = responseText.toLowerCase();
         if (responseTextLower.includes('dodaję') || responseTextLower.includes('zamawiam') || responseTextLower.includes('dodano') || 
             responseTextLower.includes('koszyk') || responseTextLower.includes('zamówienie') || responseTextLower.includes('gotowe')) {
@@ -321,28 +380,35 @@ export default function Home() {
         }
 
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
-        if (result.customPayload && result.customPayload.menu_items) {
-          console.log('📄 Received custom_payload with menu items:', result.customPayload.menu_items);
+        if (data.customPayload && data.customPayload.menu_items) {
+          console.log('📄 Received custom_payload with menu items:', data.customPayload.menu_items);
           // 2. Ustaw menu_items w stanie i akcję na 'menu'
-          setMenuItems(result.customPayload.menu_items);
+          setMenuItems(data.customPayload.menu_items);
           setCurrentAction('menu');
         }
-        // } else if (result.action === 'show_restaurants' || text.toLowerCase().includes('restauracje')) {
+        // } else if (data.action === 'show_restaurants' || text.toLowerCase().includes('restauracje')) {
         //   // Jeśli nie ma menu, ale akcja to pokazanie restauracji
         //   // setCurrentAction('restaurants'); // Pokaż listę restauracji
         //   // await loadRestaurants(); // Załaduj dane restauracji
         // }
 
-        // === TTS playback ===
-        if (result.reply || result.response) {
-          await playTTS(result.reply || result.response);
+        // 🔊 auto-mowa (1 linia)
+        if (AMBER_AUTO_SPEAK && responseText) {
+          console.log('🔊 Auto-speaking:', responseText);
+          try {
+            await playTTS(responseText);
+            console.log('✅ TTS played successfully');
+          } catch (error) {
+            console.error('❌ Auto-TTS failed:', error);
+          }
         }
       } else {
         setError('Brak odpowiedzi od Dialogflow');
       }
     } catch (err) {
       console.error('❌ Voice process error:', err);
-      setError(`Błąd przetwarzania głosu: ${err.message}`);
+      setError(`Błąd przetwarzania głosu: ${err instanceof Error ? err.message : 'Nieznany błąd'}`);
+      setAmberState('error');
     } finally {
       setIsProcessing(false);
     }
@@ -351,10 +417,12 @@ export default function Home() {
   const loadRestaurants = async () => {
     try {
       console.log('🍽️ Loading restaurants...');
-      const data = await api(getApiUrl('/api/restaurants'), { method: 'GET' });
+      const res = await fetch(getApiUrl('/api/restaurants'), { method: 'GET' });
+      const bodyStr = await res.text();
+      const data = safeParseJson(bodyStr);
       console.log('🏪 Restaurants data:', data);
       
-      if (data.restaurants && Array.isArray(data.restaurants)) {
+      if (data && data.restaurants && Array.isArray(data.restaurants)) {
         setRestaurants(data.restaurants);
       } else {
         // Don't show mock restaurants - keep empty
@@ -371,19 +439,20 @@ export default function Home() {
     try {
       console.log('🔊 Playing TTS for:', text);
       console.log('🎧 TTS Mode:', ttsMode);
-      
+      console.log('🎧 AMBER_AUTO_SPEAK:', AMBER_AUTO_SPEAK);
+
       // Wybierz endpoint w zależności od trybu
-      const endpoint = ttsMode === "classic" ? "/api/tts-chirp-hd" : "/api/tts-chirp-stream";
+      const endpoint = ttsMode === "classic" ? "/api/tts" : "/api/tts-chirp-hd";
       console.log(`🎙️ TTS mode: ${ttsMode} → ${endpoint}`);
       console.log('🌐 Using endpoint:', endpoint);
-      
+
       // Na razie używamy standardowego TTS dla obu trybów
       // (WebSocket streaming będzie dodany później)
-      
+
       const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           text,
           voice: selectedVoice,
           languageCode: 'pl-PL'
@@ -424,6 +493,12 @@ export default function Home() {
       }
     } catch (err) {
       console.error('❌ TTS error:', err);
+      console.error('❌ TTS error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        text: text.substring(0, 50),
+        ttsMode,
+        AMBER_AUTO_SPEAK
+      });
       setError('Błąd odtwarzania głosu');
     }
   };
@@ -460,7 +535,7 @@ export default function Home() {
       chunks.push(value);
     }
     
-    const blob = new Blob(chunks, { type: 'audio/mpeg' });
+    const blob = new Blob(chunks as BlobPart[], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     
@@ -595,180 +670,70 @@ export default function Home() {
   };
 
   return (
-    <section
-      className="
-        relative min-h-screen text-slate-100
-        bg-cover bg-center bg-no-repeat
-      "
-      style={{
-        backgroundImage: "url('/images/hero-bg-blur.png')"
-      }}
-    >
-      {/* Logo FreeFlow na górze - hasło jak na screenshocie */}
-      <div className="absolute top-4 left-4 z-10">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight leading-tight">
-            <span 
-              className="text-orange-400 relative"
-              style={{
-                textShadow: `
-                  0 0 10px rgba(255, 255, 255, 0.8),
-                  0 0 20px rgba(255, 255, 255, 0.6),
-                  0 0 30px rgba(255, 255, 255, 0.4),
-                  0 0 40px rgba(255, 255, 255, 0.2)
-                `,
-                filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))'
-              }}
-            >
-              Free
-            </span>
-            <span 
-              className="text-white relative"
-              style={{
-                textShadow: `
-                  0 0 10px rgba(251, 146, 60, 0.8),
-                  0 0 20px rgba(251, 146, 60, 0.6),
-                  0 0 30px rgba(251, 146, 60, 0.4),
-                  0 0 40px rgba(251, 146, 60, 0.2)
-                `,
-                filter: 'drop-shadow(0 0 20px rgba(251, 146, 60, 0.5))'
-              }}
-            >
-              Flow
-            </span>
-          </h1>
-          <p className="text-white/90 text-base mt-1">
-            Voice to order — <span className="font-medium">Złóż zamówienie</span>
-          </p>
-          <p className="text-white/70 text-sm">
-            Restauracja, taxi albo hotel?
-          </p>
-        </div>
-      </div>
+    <>
+      {/* Loading Screen */}
+      {showLoadingScreen && (
+        <LoadingScreen onComplete={() => setShowLoadingScreen(false)} />
+      )}
 
-      {/* Ikonki po prawej */}
-      <div className="absolute top-4 right-4 flex gap-1.5 z-10">
-        {/* Koszyk z popup */}
-        <div className="relative">
-          <button 
-            onClick={toggleCart}
-            className={`
-              w-8 h-8 rounded-lg backdrop-blur-sm
-              border flex items-center justify-center
-              transition-all focus:outline-none
-              ${showCart 
-                ? 'bg-orange-500/30 border-orange-400/60 text-orange-100' 
-                : 'bg-black/20 border-orange-400/20 text-orange-200 hover:bg-black/30 hover:border-orange-400/40'
-              }
-            `}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6H19" />
-            </svg>
-          </button>
-          
-          {/* Popup koszyka */}
-          {cartPopup.show && (
-            <div className={`
-              absolute top-10 right-0 min-w-64 max-w-80 p-3 rounded-lg shadow-xl backdrop-blur-md
-              border transition-all duration-300 transform
-              ${cartPopup.type === 'success' 
-                ? 'bg-green-500/20 border-green-400/40 text-green-100' 
-                : cartPopup.type === 'error'
-                ? 'bg-red-500/20 border-red-400/40 text-red-100'
-                : 'bg-blue-500/20 border-blue-400/40 text-blue-100'
-              }
-              animate-in slide-in-from-top-2 fade-in-0
-            `}>
-              <div className="flex items-start gap-2">
-                <div className={`
-                  w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
-                  ${cartPopup.type === 'success' 
-                    ? 'bg-green-500/30 text-green-200' 
-                    : cartPopup.type === 'error'
-                    ? 'bg-red-500/30 text-red-200'
-                    : 'bg-blue-500/30 text-blue-200'
-                  }
-                `}>
-                  {cartPopup.type === 'success' ? '✓' : cartPopup.type === 'error' ? '✕' : 'i'}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium leading-relaxed">
-                    {cartPopup.message}
-                  </p>
-                </div>
+      {/* Amber Avatar - prawy dolny róg */}
+      {!showLoadingScreen && <AmberAvatar />}
+
+      {/* Main UI */}
+      <section
+        className={`
+          relative min-h-screen text-slate-100
+          bg-cover bg-center bg-no-repeat
+          transition-opacity duration-1000
+          ${showLoadingScreen ? 'opacity-0' : 'opacity-100'}
+        `}
+        style={{
+          backgroundImage: "url('/images/hero-bg-blur.png')"
+        }}
+      >
+      {/* Header z menu po prawej stronie */}
+      {!showLoadingScreen && (
+        <header className="fixed top-0 left-0 right-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              {/* Left: Empty space */}
+              <div className="flex items-center">
+                {/* Pusty div dla równowagi */}
               </div>
-            </div>
-          )}
-          
-          {/* Panel koszyka */}
-          {showCart && (
-            <div className="fixed top-4 right-4 w-80 bg-black/50 backdrop-blur-lg border border-orange-400/40 rounded-lg shadow-2xl p-4 z-[9999]">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-orange-100 drop-shadow-lg">🛒 Koszyk</h3>
-                <button 
-                  onClick={toggleCart}
-                  className="text-orange-200 hover:text-white transition-colors drop-shadow-lg"
+
+              {/* Right: Action Buttons + Menu */}
+              <div className="flex items-center gap-2">
+                {/* Cart Button */}
+                <button
+                  onClick={() => setShowCart(true)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-500/30 transition-all relative"
+                  title="Koszyk"
                 >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm text-white/90 drop-shadow-md">
-                  {chatHistory.filter(msg => 
-                    msg.speaker === 'agent' && 
-                    (msg.text.toLowerCase().includes('zamawiam') || 
-                     msg.text.toLowerCase().includes('dodaję') ||
-                     msg.text.toLowerCase().includes('koszyk'))
-                  ).length > 0 ? (
-                    chatHistory
-                      .filter(msg => 
-                        msg.speaker === 'agent' && 
-                        (msg.text.toLowerCase().includes('zamawiam') || 
-                         msg.text.toLowerCase().includes('dodaję') ||
-                         msg.text.toLowerCase().includes('koszyk'))
-                      )
-                      .map((msg, index) => (
-                        <div key={index} className="p-3 bg-green-500/20 border border-green-400/30 rounded-lg text-green-100 drop-shadow-md backdrop-blur-sm">
-                          {msg.text}
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-center text-white/60 py-4 drop-shadow-md">
-                      Koszyk jest pusty
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+                  </svg>
+                  {/* Cart Badge */}
+                  {cartPopup.show && (
+                    <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">!</span>
                     </div>
                   )}
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-3 border-t border-orange-400/20">
-                <button className="w-full bg-orange-500/80 hover:bg-orange-500 text-white py-2 px-4 rounded-lg transition-all backdrop-blur-sm drop-shadow-lg font-medium">
-                  Złóż zamówienie
+                </button>
+
+                {/* Menu Button - przeniesiony na prawą stronę */}
+                <button
+                  onClick={openDrawer}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-500/30 transition-all"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
                 </button>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Kompaktowy Hamburger Menu */}
-        <button
-          onClick={openDrawer}
-          className="
-            w-8 h-8 rounded-lg bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-md
-            border border-white/10 text-white/90
-            flex items-center justify-center
-            hover:from-slate-700/90 hover:to-slate-800/90 hover:border-white/20 hover:text-white
-            hover:scale-105 hover:shadow-lg transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-orange-400/50
-          "
-          aria-label="Otwórz menu"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
+          </div>
+        </header>
+      )}
 
       {/* MenuDrawer */}
       <MenuDrawer />
@@ -886,20 +851,7 @@ export default function Home() {
           {/* 🎛️ Amber Status Indicator */}
           <div className="w-full max-w-2xl flex justify-center -mt-6 mb-2">
             <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800/30 backdrop-blur-sm border border-slate-600/30">
-              <div className={`w-2 h-2 rounded-full ${
-                botStatus === 'thinking' ? 'bg-yellow-400 animate-pulse' :
-                botStatus === 'speaking' ? 'bg-green-400 animate-pulse' :
-                botStatus === 'confused' ? 'bg-red-400 animate-pulse' :
-                'bg-gray-400'
-              }`} />
-              <span className="text-xs text-slate-300">
-                Amber: {
-                  botStatus === 'thinking' ? 'Myśli...' :
-                  botStatus === 'speaking' ? 'Mówi...' :
-                  botStatus === 'confused' ? 'Zagubiona' :
-                  'Gotowa'
-                }
-              </span>
+              <AmberStatus state={amberState} />
             </div>
           </div>
 
@@ -911,6 +863,7 @@ export default function Home() {
               onSubmit={handleTextInputSubmit}
               chatHistory={chatHistory}
               placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
+              onTTSModeChange={handleTTSModeChange}
             />
           </div>
 
@@ -924,9 +877,8 @@ export default function Home() {
         
       </div>
       
-      {/* TTS Mode Toggle */}
-      <TtsModeToggle onChange={setTtsMode} />
     </section>
+    </>
   );
 }
 
