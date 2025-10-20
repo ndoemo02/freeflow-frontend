@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import amberVideo from "../assets/amber_avatar.mp4";
 
 export default function AmberAvatar() {
   const [isHovered, setIsHovered] = useState(false);
@@ -77,12 +76,9 @@ export default function AmberAvatar() {
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowDebug(!showDebug)}
       >
-        <video
-          src={amberVideo}
-          autoPlay
-          loop
-          muted
-          playsInline
+        <img
+          src="/images/amber zdjecie.jpg"
+          alt="Amber"
           className="w-full h-full object-cover"
         />
         
