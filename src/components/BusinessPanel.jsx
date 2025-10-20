@@ -278,3 +278,5 @@ export function BusinessPanel({ isOpen, onClose }) {
     </motion.div>
   );
 }
+
+
