@@ -82,6 +82,7 @@ export default function BusinessPanel(){
   useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
+        sessionStorage.setItem('skipIntro', 'true');
         navigate('/')
       }
     }
@@ -109,27 +110,38 @@ export default function BusinessPanel(){
     return () => { alive = false }
   }, [restaurantId])
 
-  // Load orders + realtime
+  // Load orders via backend API
   useEffect(() => {
     let alive = true
     const load = async () => {
       if (!restaurantId) { setOrders([]); return }
       setLoadingOrders(true)
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('created_at', { ascending: false })
-      if (!alive) return
-      setOrders(error ? [] : (data || []))
-      setLoadingOrders(false)
+      
+      try {
+        const response = await fetch(`/api/orders?restaurant_id=${restaurantId}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!alive) return
+        setOrders(data.orders || [])
+      } catch (error) {
+        console.error('Error loading orders:', error);
+        if (!alive) return
+        setOrders([])
+      } finally {
+        setLoadingOrders(false)
+      }
     }
     load()
-    const channel = supabase
-      .channel(`orders-${restaurantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, load)
-      .subscribe()
-    return () => { alive = false; channel.unsubscribe() }
+    
+    // Polling every 5 seconds for real-time updates
+    const interval = setInterval(load, 5000)
+    
+    return () => {
+      alive = false
+      clearInterval(interval)
+    }
   }, [restaurantId])
 
   const addItem = async () => {
@@ -189,24 +201,25 @@ export default function BusinessPanel(){
   // Update order status
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId)
-      
-      if (error) throw error
-      
-      // Refresh orders
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          restaurants!restaurant_id(name, city),
-          profiles!customer_id(first_name, last_name, phone, address, city)
-        `)
-        .eq('restaurant_id', restaurantId)
-        .order('created_at', { ascending: false })
-      setOrders(ordersData || [])
+      // Use backend API to update order status
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Refresh orders via backend API
+      const ordersResponse = await fetch(`/api/orders?restaurant_id=${restaurantId}`);
+      if (ordersResponse.ok) {
+        const data = await ordersResponse.json();
+        setOrders(data.orders || []);
+      }
       
     } catch(e) {
       console.error('Error updating order status:', e)
@@ -322,7 +335,7 @@ export default function BusinessPanel(){
 										</div>
 										<div className="text-gray-300 text-sm">
 											<span className="text-blue-400 font-medium">📍 Zamówienie #{o.id.substring(0, 8)}</span>
-											<span className="ml-2">{o.status} • {(o.total_price ?? 0).toFixed(2)} zł</span>
+											<span className="ml-2">{o.status} • {((o.total_price ?? 0) / 100).toFixed(2)} zł</span>
 										</div>
 										{o.items && Array.isArray(o.items) && o.items.length > 0 && (
 											<div className="text-xs text-slate-400 mt-1">
@@ -560,7 +573,7 @@ export default function BusinessPanel(){
 	                      </div>
 	                      <div>
 	                        <label className="text-sm text-gray-300">Kwota:</label>
-	                        <p className="text-white">{(selectedOrder.total_price ?? 0).toFixed(2)} zł</p>
+	                        <p className="text-white">{((selectedOrder.total_price ?? 0) / 100).toFixed(2)} zł</p>
 	                      </div>
 	                      {selectedOrder.items && (
 	                        <div>
@@ -570,13 +583,13 @@ export default function BusinessPanel(){
 								? JSON.parse(selectedOrder.items).map((item, index) => (
 									<div key={index} className="flex justify-between text-sm">
 										<span className="text-white">{item.name} (x{item.quantity})</span>
-										<span className="text-gray-300">{(item.price * item.quantity).toFixed(2)} zł</span>
+										<span className="text-gray-300">{((item.price * item.quantity) / 100).toFixed(2)} zł</span>
 									</div>
 								))
 								: selectedOrder.items.map((item, index) => (
 									<div key={index} className="flex justify-between text-sm">
 										<span className="text-white">{item.name} (x{item.quantity})</span>
-										<span className="text-gray-300">{(item.price * item.quantity).toFixed(2)} zł</span>
+										<span className="text-gray-300">{((item.price * item.quantity) / 100).toFixed(2)} zł</span>
 									</div>
 								))
 							}

@@ -22,7 +22,10 @@ export default function PanelHeader({ title, subtitle, showBackButton = true, sh
       {/* Back Button - Left */}
       {showBackButton && (
         <button
-          onClick={() => navigate('/')}
+          onClick={() => {
+            sessionStorage.setItem('skipIntro', 'true');
+            navigate('/');
+          }}
           className="absolute top-0 left-0 w-10 h-10 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 flex items-center justify-center transition-colors"
           title="Zamknij panel (ESC)"
         >

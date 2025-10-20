@@ -8,7 +8,7 @@ import PanelHeader from '../../components/PanelHeader'
 import { useCart } from '../../state/CartContext'
 
 export default function CustomerPanel() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const { push } = useToast()
   const navigate = useNavigate()
   const { addToCart } = useCart()
@@ -57,21 +57,26 @@ export default function CustomerPanel() {
       setProfile(profileData);
       AmberLogger.log("Profile loaded:", profileData);
 
-      // Load orders
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-          .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (ordersError) AmberLogger.error(ordersError);
-      else AmberLogger.log("Orders loaded:", ordersData);
-      setOrders(ordersData || []);
+      // Load orders via backend API (bypasses RLS)
+      let ordersData = [];
+      try {
+        const response = await fetch(`/api/orders?user_id=${user.id}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        ordersData = data.orders || [];
+        AmberLogger.log("Orders loaded via API:", ordersData);
+        setOrders(ordersData);
+      } catch (error) {
+        AmberLogger.error('Failed to load orders:', error);
+        setOrders([]);
+      }
 
       // Load restaurants
       const { data: restaurantsData, error: restaurantsError } = await supabase
           .from('restaurants')
-          .select('id,name,city,description')
+          .select('id,name,city,address,cuisine_type')
         .order('name');
 
       if (restaurantsError) AmberLogger.error(restaurantsError);
@@ -80,7 +85,7 @@ export default function CustomerPanel() {
 
       // Calculate loyalty points (example: 1 point per 10 zł spent)
       const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered') || [];
-      const totalSpent = completedOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0), 0);
+      const totalSpent = completedOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0) / 100, 0);
       setLoyaltyPoints(Math.floor(totalSpent / 10));
 
       // Set recent orders (last 3)
@@ -153,7 +158,7 @@ export default function CustomerPanel() {
       setSavingProfile(true);
       
       // Update user metadata in Supabase Auth
-      const { error } = await supabase.auth.updateUser({
+      const { data, error } = await supabase.auth.updateUser({
         data: {
           first_name: profile.first_name,
           last_name: profile.last_name,
@@ -164,6 +169,11 @@ export default function CustomerPanel() {
       });
 
       if (error) throw error;
+      
+      // Update local user state with new metadata
+      if (data?.user) {
+        setUser(data.user);
+      }
       
       push('Profil został zaktualizowany', 'success');
       setEditingProfile(false);
@@ -178,24 +188,28 @@ export default function CustomerPanel() {
 
   const cancelOrder = async (orderId) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'cancelled' })
-        .eq('id', orderId)
-        .eq('user_id', user.id);
+      // Use backend API to cancel order
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'cancelled' })
+      });
 
-      if (error) throw error;
-      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       push('Zamówienie zostało anulowane', 'success')
       AmberLogger.log("Order cancelled:", { id: orderId });
       
-      // Refresh orders
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      setOrders(data || []);
+      // Refresh orders via backend API
+      const ordersResponse = await fetch(`/api/orders?user_id=${user.id}`);
+      if (ordersResponse.ok) {
+        const data = await ordersResponse.json();
+        setOrders(data.orders || []);
+      }
     } catch (e) {
       push('Błąd podczas anulowania zamówienia', 'error')
       AmberLogger.error(e);
@@ -267,7 +281,11 @@ export default function CustomerPanel() {
         {/* Navigation Buttons */}
         <div className="absolute top-0 left-0 right-0 z-20 flex justify-between">
           <motion.button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              console.log('👤 CustomerPanel - ustawiam skipIntro flag');
+              sessionStorage.setItem('skipIntro', 'true');
+              navigate('/');
+            }}
             className="rounded-xl border border-white/20 bg-black/40 px-4 py-2 text-slate-300 hover:bg-white/10 transition-all backdrop-blur-xl"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -282,7 +300,11 @@ export default function CustomerPanel() {
           </motion.button>
           
           <motion.button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              console.log('👤 CustomerPanel - ustawiam skipIntro flag');
+              sessionStorage.setItem('skipIntro', 'true');
+              navigate('/');
+            }}
             className="rounded-xl border border-white/20 bg-black/40 px-4 py-2 text-slate-300 hover:bg-white/10 transition-all backdrop-blur-xl"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -714,7 +736,7 @@ function OrdersTab({ orders, loading, cancelOrder, filter, setFilter }) {
 
               <div className="flex justify-between items-center">
                 <div className="text-sm text-slate-300">
-                  Kwota: {Number(order.total_price || 0).toFixed(2)} zł
+                  Kwota: {(Number(order.total_price || 0) / 100).toFixed(2)} zł
                 </div>
                 {(order.status === 'pending' || order.status === 'confirmed') && (
                   <button
@@ -898,8 +920,8 @@ function RestaurantsTab({ restaurants, selectedRestaurant, menuItems, loadingMen
                   {restaurant.name}
                 </h3>
                 <p className="text-sm text-slate-400 mb-3">📍 {restaurant.city}</p>
-                {restaurant.description && (
-                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{restaurant.description}</p>
+                {restaurant.cuisine_type && (
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{restaurant.cuisine_type}</p>
                 )}
                 <div className="flex items-center gap-2 text-xs text-cyan-400 font-medium">
                   <span>Zobacz menu</span>
@@ -1255,7 +1277,7 @@ function StatsCards({ orders }) {
   const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
   const totalSpent = orders
     .filter(o => o.status !== 'cancelled')
-    .reduce((sum, o) => sum + (Number(o.total_price) || 0), 0)
+    .reduce((sum, o) => sum + (Number(o.total_price) || 0) / 100, 0)
   const pendingOrders = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length
 
   const stats = [

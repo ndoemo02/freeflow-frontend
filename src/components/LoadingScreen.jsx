@@ -26,14 +26,37 @@ export default function LoadingScreen({ onComplete }) {
     document.addEventListener('keydown', handleUserInteraction);
     document.addEventListener('touchstart', handleUserInteraction);
 
-    // Prosty timer na 10 sekund
-    const timer = setTimeout(() => {
+    // Sprawdź długość video Amber i dopasuj timing do wypowiedzi
+    const setupVideoTiming = () => {
+      if (videoRef.current) {
+        const duration = videoRef.current.duration;
+        if (duration && duration > 0) {
+          // Amber mówi przez całą długość video + 1 sekunda buforu
+          const amberSpeakDuration = duration * 1000 + 1000;
+          
+          const timer = setTimeout(() => {
+            setIsComplete(true);
+            setTimeout(() => onComplete?.(), 800);
+          }, amberSpeakDuration);
+
+          return () => clearTimeout(timer);
+        }
+      }
+      return null;
+    };
+
+    // Fallback na 8 sekund (długość video Amber)
+    const fallbackTimer = setTimeout(() => {
       setIsComplete(true);
       setTimeout(() => onComplete?.(), 800);
-    }, 10000);
+    }, 8000);
+
+    // Spróbuj ustawić timing na podstawie video
+    const videoTimer = setupVideoTiming();
 
     return () => {
-      clearTimeout(timer);
+      if (videoTimer) videoTimer();
+      clearTimeout(fallbackTimer);
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
@@ -91,11 +114,11 @@ export default function LoadingScreen({ onComplete }) {
       {/* Main content container */}
       <div className="relative z-10 flex flex-col items-center justify-center gap-12">
 
-        {/* Amber Avatar - Full Character */}
+        {/* Amber Avatar - Full Character - pojawia się od razu gdy zaczyna mówić */}
         <div
           className="relative opacity-0"
           style={{
-            animation: 'fadeInScale 1.2s ease-out 0.5s forwards'
+            animation: 'fadeInScale 1.2s ease-out 0.2s forwards' // Pojawia się szybko, gdy Amber zaczyna mówić
           }}
         >
           {/* Glow effect behind Amber */}
@@ -113,13 +136,33 @@ export default function LoadingScreen({ onComplete }) {
             <video
               ref={videoRef}
               src={amberVideo}
-              autoPlay
+              autoPlay={false}
               loop
               muted={false}
               playsInline
               preload="auto"
               className="w-full h-full object-cover"
               onError={(e) => console.error('Video error:', e)}
+              onLoadedMetadata={() => {
+                // Gdy video się załaduje, opóźnij rozpoczęcie o 1 sekundę
+                if (videoRef.current) {
+                  const duration = videoRef.current.duration;
+                  console.log('Amber video duration:', duration, 'seconds');
+                  
+                  // Opóźnij rozpoczęcie video o 1 sekundę
+                  setTimeout(() => {
+                    if (videoRef.current) {
+                      videoRef.current.play().catch(err => console.log('Delayed play failed:', err));
+                    }
+                  }, 1000);
+                }
+              }}
+              onEnded={() => {
+                // Gdy Amber skończy mówić, zakończ loading screen
+                console.log('Amber finished speaking, ending loading screen');
+                setIsComplete(true);
+                setTimeout(() => onComplete?.(), 800);
+              }}
             />
             
             {/* Sound indicator */}
@@ -152,10 +195,10 @@ export default function LoadingScreen({ onComplete }) {
               fontWeight: 700,
               transformStyle: 'preserve-3d',
               textShadow: '0 0 10px rgba(255, 165, 0, 0.8), 0 0 20px rgba(255, 165, 0, 0.6), 0 0 40px rgba(255, 165, 0, 0.4)',
-              animation: 'intensifyGlow 3s ease-out 1.5s forwards'
+              animation: 'intensifyGlow 3s ease-out 3s forwards' // Intensyfikacja glow gdy Amber mówi (1s opóźnienie + 2s)
             }}
           >
-            {/* FREE - letters sliding from left */}
+            {/* FREE - letters sliding from left - synchronized with Amber speech */}
             <span className="inline-block">
               {['F', 'R', 'E', 'E'].map((char, index) => (
                 <span
@@ -164,7 +207,7 @@ export default function LoadingScreen({ onComplete }) {
                   style={{
                     letterSpacing: '-0.05em',
                     animation: `slideInLeft 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`,
-                    animationDelay: `${0.8 + index * 0.1}s`
+                    animationDelay: `${2.5 + index * 0.2}s` // Opóźnienie po rozpoczęciu mowy Amber (1s opóźnienie + 1.5s)
                   }}
                 >
                   {char}
@@ -175,22 +218,22 @@ export default function LoadingScreen({ onComplete }) {
             {/* Space */}
             <span className="w-4"></span>
 
-            {/* FLOW - slides from right */}
+            {/* FLOW - slides from right - gdy Amber kończy mówić */}
             <span
               className="inline-block text-white opacity-0 transform translate-x-20"
               style={{
-                animation: 'slideInRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1.2s forwards'
+                animation: 'slideInRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 5.5s forwards' // Po 5.5s - gdy Amber kończy mówić (1s opóźnienie + 4.5s)
               }}
             >
               Flow
             </span>
           </div>
 
-          {/* Subtitle */}
+          {/* Subtitle - pojawia się gdy Amber kończy mówić */}
           <div
             className="text-center mt-4 text-orange-300/80 text-lg md:text-xl font-light tracking-widest opacity-0"
             style={{
-              animation: 'fadeIn 1s ease-out 2.5s forwards'
+              animation: 'fadeIn 1s ease-out 7s forwards' // Po 7s - gdy Amber skończy mówić (1s opóźnienie + 6s)
             }}
           >
             Voice-Powered Ordering

@@ -5,6 +5,7 @@ type User = { id: string; email?: string | null } | null
 
 type AuthContextType = {
   user: User
+  setUser: (user: User) => void
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  const value: AuthContextType = { user, signIn, signUp, signInWithGoogle, signOut }
+  const value: AuthContextType = { user, setUser, signIn, signUp, signInWithGoogle, signOut }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

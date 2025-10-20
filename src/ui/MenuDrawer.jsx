@@ -1,22 +1,19 @@
-import React, { useEffect, useState, useMemo } from "react"
-import { Link } from "react-router-dom"
+import React, { useEffect, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { useUI } from "../state/ui"
 import { useAuth } from "../state/auth"
-import { getMenu } from "../lib/menuBuilder"
 
 export default function MenuDrawer() {
   const isOpen = useUI((s) => s.drawerOpen)
   const close = useUI((s) => s.closeDrawer)
   const openAuth = useUI((s) => s.openAuth)
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const [expandedSections, setExpandedSections] = useState({})
 
-  // Generuj menu dynamicznie na podstawie użytkownika i środowiska
-  const menuSections = useMemo(() => {
-    const env = import.meta.env.MODE || 'production'
-    return getMenu(user, env)
-  }, [user])
+  // Określ rolę użytkownika
+  const userRole = user?.role || 'user'
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && isOpen && close()
@@ -31,11 +28,74 @@ export default function MenuDrawer() {
     }))
   }
 
+  const MenuItem = ({ icon, text, onClick, isSubItem = false, isDanger = false, route = null }) => {
+    const handleClick = () => {
+      if (route) {
+        navigate(route);
+        close();
+      } else if (onClick) {
+        onClick();
+      }
+    };
+
+    return (
+      <motion.li 
+        whileHover={{ x: 4 }}
+        whileTap={{ scale: 0.98 }}
+        className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer ${
+          isSubItem ? 'ml-6 text-sm' : 'text-base'
+        } ${
+          isDanger ? 'text-red-400 hover:bg-red-500/20' : 'text-white hover:bg-white/10'
+        }`}
+        onClick={handleClick}
+      >
+        <span className="text-lg">{icon}</span>
+        <span className="flex-1">{text}</span>
+      </motion.li>
+    );
+  };
+
+  const ExpandableSection = ({ title, icon, children, isExpanded }) => (
+    <>
+      <motion.button
+        whileHover={{ x: 4 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => toggleSection(title)}
+        className="w-full flex items-center justify-between p-4 rounded-xl bg-black/30 backdrop-blur-xl border border-white/20 hover:bg-black/50 transition-all duration-200 group"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-lg">{icon}</span>
+          <span className="text-white font-semibold">{title}</span>
+        </div>
+        <motion.span
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="text-white/60"
+        >
+          ▼
+        </motion.span>
+      </motion.button>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop z intensywniejszym blur */}
+          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
             initial={{ opacity: 0 }}
@@ -45,7 +105,7 @@ export default function MenuDrawer() {
             onClick={close}
           />
           
-          {/* Kompaktowe Menu z Glassmorphism */}
+          {/* Menu Panel */}
           <motion.aside
             role="dialog"
             aria-label="Menu"
@@ -56,7 +116,7 @@ export default function MenuDrawer() {
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Glassmorphism Header */}
+            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/20 bg-gradient-to-r from-white/5 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-400/20 to-pink-500/20 backdrop-blur-sm border border-orange-400/30 flex items-center justify-center shadow-lg">
@@ -75,179 +135,110 @@ export default function MenuDrawer() {
               </button>
             </div>
 
-            {/* Kompaktowe Menu Content z Glassmorphism i przewijaniem */}
+            {/* Menu Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
-              {menuSections.map((section, sectionIndex) => (
-                <motion.div
-                  key={section.id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: sectionIndex * 0.02, duration: 0.15 }}
-                  className="space-y-2"
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {/* Główne sekcje */}
+                <MenuItem icon="🏠" text="Główne" onClick={close} />
+                <MenuItem icon="🍽️" text="Odkrywaj Jedzenie" route="/restaurants" />
+                <MenuItem icon="📅" text="Rezerwacje Stolików" route="/reservations" />
+                
+                {/* Separator */}
+                <div className="my-4 h-px bg-white/20"></div>
+
+                {/* Panele */}
+                <ExpandableSection 
+                  title="Panele" 
+                  icon="📂" 
+                  isExpanded={expandedSections['Panele']}
                 >
-                  {/* Glassmorphism Section Header */}
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20 hover:bg-black/50 hover:border-white/30 transition-all duration-150 group shadow-lg hover:shadow-white/10"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                        <span className="text-lg">{section.icon}</span>
-                      </div>
-                      <span className="text-white font-semibold text-sm group-hover:text-orange-300 transition-colors duration-150">
-                        {section.title}
+                  <MenuItem icon="🙍" text="Panel Klienta" route="/panel/customer" isSubItem />
+                  <MenuItem icon="🏢" text="Panel Biznesowy" route="/panel/business" isSubItem />
+                  <MenuItem icon="📈" text="Analytics" route="/admin" isSubItem />
+                </ExpandableSection>
+
+                {/* Moja Aktywność */}
+                <ExpandableSection 
+                  title="Moja Aktywność" 
+                  icon="📊" 
+                  isExpanded={expandedSections['Moja Aktywność']}
+                >
+                  <MenuItem icon="🛒" text="Koszyk" onClick={() => {/* TODO: otwórz koszyk */}} isSubItem />
+                  <MenuItem icon="📜" text="Historia" route="/order-history" isSubItem />
+                  <MenuItem icon="❤️" text="Ulubione" route="/favorites" isSubItem />
+                  <MenuItem icon="🚕" text="Moje Taksówki" route="/my-taxis" isSubItem />
+                  <MenuItem icon="🏨" text="Moje Hotele" route="/my-hotels" isSubItem />
+                </ExpandableSection>
+                
+                {/* Ustawienia i Pomoc */}
+                <ExpandableSection 
+                  title="Ustawienia i Pomoc" 
+                  icon="⚙️" 
+                  isExpanded={expandedSections['Ustawienia i Pomoc']}
+                >
+                  <MenuItem icon="👤" text="Profil" route="/profile" isSubItem />
+                  <MenuItem icon="🎤" text="Ustawienia Głosu" route="/voice-settings" isSubItem />
+                  <MenuItem icon="🔔" text="Powiadomienia" route="/notifications" isSubItem />
+                  <MenuItem icon="❓" text="FAQ" route="/faq" isSubItem />
+                  <MenuItem icon="📞" text="Kontakt" route="/contact" isSubItem />
+                </ExpandableSection>
+                
+                {/* Separator */}
+                <div className="my-4 h-px bg-white/20"></div>
+                
+                {/* User Info */}
+                <div className="p-4 rounded-xl bg-black/30 backdrop-blur-xl border border-white/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-400/20 to-purple-500/20 backdrop-blur-sm border border-blue-400/30 flex items-center justify-center shadow-lg">
+                      <span className="text-blue-300 font-bold text-sm">
+                        {user?.email?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
-                    <motion.div
-                      animate={{ rotate: expandedSections[section.id] ? 180 : 0 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="text-white/60 group-hover:text-white transition-colors duration-200"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </motion.div>
-                  </button>
-                  
-                  {/* Rozwijane Podkategorie z Glassmorphism */}
-                  <AnimatePresence>
-                    {expandedSections[section.id] && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="overflow-hidden"
-                      >
-                        <div className="ml-6 space-y-2 border-l-2 border-white/20 pl-4">
-                          {section.items.map((item, itemIndex) => {
-                            // Sprawdź czy to specjalna akcja (np. voice toggle)
-                            const isSpecialAction = item.to.startsWith('#')
-
-                            const itemContent = (
-                              <>
-                                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                                  <span className="text-sm">{item.icon}</span>
-                                </div>
-                                <div className="flex-1">
-                                  <span className={`text-sm font-medium ${
-                                    item.highlight ? 'text-orange-200' : 'text-white/90 group-hover:text-white'
-                                  }`}>
-                                    {item.label}
-                                  </span>
-                                  {item.desc && (
-                                    <p className="text-xs text-white/60 mt-1">{item.desc}</p>
-                                  )}
-                                </div>
-                                {item.badge && (
-                                  <span className="px-2 py-1 text-xs font-bold bg-orange-500 text-white rounded-full">
-                                    {item.badge}
-                                  </span>
-                                )}
-                                {item.devOnly && (
-                                  <span className="px-2 py-1 text-xs font-bold bg-purple-500/50 text-purple-200 rounded-full">
-                                    DEV
-                                  </span>
-                                )}
-                              </>
-                            )
-
-                            const className = `
-                              group flex items-center gap-3 p-3 rounded-xl transition-all duration-300
-                              bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20
-                              ${item.highlight
-                                ? 'bg-gradient-to-r from-orange-500/20 to-pink-500/20 border-orange-400/30 shadow-lg'
-                                : 'hover:shadow-white/10'
-                              }
-                            `
-
-                            // Jeśli to specjalna akcja, renderuj jako button
-                            if (isSpecialAction) {
-                              return (
-                                <button
-                                  key={item.id || item.to}
-                                  onClick={() => {
-                                    // Tutaj można dodać obsługę specjalnych akcji
-                                    console.log('Special action:', item.to)
-                                    close()
-                                  }}
-                                  className={className}
-                                >
-                                  {itemContent}
-                                </button>
-                              )
-                            }
-
-                            // Normalny link
-                            return (
-                              <Link
-                                key={item.id || item.to}
-                                to={item.to}
-                                onClick={close}
-                                className={className}
-                              >
-                                {itemContent}
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              ))}
-
-              {/* Glassmorphism Auth Section */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="border-t border-white/20 pt-4 mt-4"
-              >
-                {!user ? (
-                  <div className="space-y-3">
-                    {/* Przycisk logowania */}
-                    <button
-                      onClick={() => { close(); openAuth(); }}
-                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold text-sm shadow-2xl hover:shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-orange-400/20"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <span className="text-sm">🔐</span>
-                      </div>
-                      Zaloguj się
-                    </button>
-                    
-                    {/* Przycisk rejestracji */}
-                    <button
-                      onClick={() => { close(); openAuth(); }}
-                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-sm shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-[1.02] backdrop-blur-sm border border-blue-400/20"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <span className="text-sm">📝</span>
-                      </div>
-                      Zarejestruj się
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-black/30 backdrop-blur-xl border border-white/20">
-                      <div className="text-sm text-white/80 font-medium">
-                        {user.email?.split('@')[0]}
-                      </div>
-                      <div className="text-xs text-white/60 mt-1">Zalogowany</div>
+                    <div className="flex-1">
+                      <p className="text-white font-semibold text-sm">
+                        {user?.email || 'ndoemo02'}
+                      </p>
+                      <p className="text-white/60 text-xs">
+                        {userRole === 'admin' ? 'Administrator' : 
+                         userRole === 'business' ? 'Właściciel' : 'Użytkownik'}
+                      </p>
                     </div>
-                    <button
-                      onClick={() => { signOut(); close(); }}
-                      className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/20 text-white/90 font-medium text-sm hover:bg-black/60 hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-white/10"
-                    >
-                      <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                        <span className="text-sm">👋</span>
-                      </div>
-                      Wyloguj się
-                    </button>
                   </div>
+                </div>
+                
+                {/* Separator */}
+                <div className="my-4 h-px bg-white/20"></div>
+                
+                {/* Zarządzanie - tylko dla admin/business */}
+                {(userRole === 'admin' || userRole === 'business') && (
+                  <ExpandableSection 
+                    title="Zarządzanie" 
+                    icon="🔧" 
+                    isExpanded={expandedSections['Zarządzanie']}
+                  >
+                    <MenuItem icon="📈" text="Panel Biznesowy" route="/business-panel" isSubItem />
+                    <MenuItem icon="🔑" text="Panel Admina" route="/admin-panel" isSubItem />
+                  </ExpandableSection>
                 )}
-              </motion.div>
+                
+                {/* Labs - tylko dla admin */}
+                {userRole === 'admin' && (
+                  <ExpandableSection 
+                    title="Labs (DEV)" 
+                    icon="🚀" 
+                    isExpanded={expandedSections['Labs (DEV)']}
+                  >
+                    <MenuItem icon="🧪" text="Testy API" route="/dev/api-tests" isSubItem />
+                    <MenuItem icon="📊" text="Analytics" route="/dev/analytics" isSubItem />
+                    <MenuItem icon="🔧" text="Debug Tools" route="/dev/debug" isSubItem />
+                    <MenuItem icon="🗄️" text="Database" route="/dev/database" isSubItem />
+                    <MenuItem icon="📝" text="Logs" route="/dev/logs" isSubItem />
+                  </ExpandableSection>
+                )}
+                
+                {/* Wyloguj */}
+                <MenuItem icon="🚪" text="Wyloguj się" onClick={() => { signOut(); close(); }} isDanger />
+              </ul>
             </div>
           </motion.aside>
         </>

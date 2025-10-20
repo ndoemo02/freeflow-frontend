@@ -14,26 +14,65 @@ function unlockAudio() {
 }
 
 import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer";
 import MenuView from "./MenuView";
-import ChatHistory from "./ChatHistory";
 import VoiceTextBox from "../components/VoiceTextBox";
 import AmberStatus from "../components/AmberStatus";
 import TTSSwitcher from "../components/TTSSwitcher";
 import LoadingScreen from "../components/LoadingScreen";
 // @ts-ignore
 import AmberAvatar from "../components/AmberAvatar";
+// Removed alternative DrawerMenu; we keep only glassmorphism MenuDrawer
+import { VoiceBar } from "../components/VoiceBar";
+import { DynamicPopups } from "../components/DynamicPopups";
 import { useUI } from "../state/ui";
 import { useCart } from "../state/CartContext";
-import { Send } from 'lucide-react';
-import api from "../lib/api";
+import Cart from "../components/Cart";
 import { getApiUrl } from "../lib/config";
+import "./Home.css";
 
 export default function Home() {
   const openDrawer = useUI((s) => s.openDrawer);
-  const { addToCart } = useCart();
+  const { addToCart, setIsOpen } = useCart();
   const [isRecording, setIsRecording] = useState(false);
+  
+  // 📍 Geolokalizacja użytkownika
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          console.log('📍 User location obtained:', { lat: latitude, lng: longitude });
+        },
+        (error) => {
+          console.warn('⚠️ Geolocation error:', error.message);
+          // Użyj domyślnej lokalizacji (Piekary Śląskie)
+          setUserLocation({ lat: 50.386, lng: 18.946 });
+        }
+      );
+    } else {
+      console.warn('⚠️ Geolocation not supported, using default location');
+      setUserLocation({ lat: 50.386, lng: 18.946 });
+    }
+  }, []);
+
+  // Debug: loguj zmiany isRecording
+  useEffect(() => {
+    console.log('🎙️ isRecording changed:', isRecording);
+    
+    // Auto-reset isRecording po 30 sekundach (safety net)
+    if (isRecording) {
+      const timeout = setTimeout(() => {
+        console.log('⚠️ Auto-resetting isRecording after 30s timeout');
+        setIsRecording(false);
+      }, 30000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isRecording]);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
@@ -48,12 +87,59 @@ export default function Home() {
   const [restaurants, setRestaurants] = useState([]);
   const [menuItems, setMenuItems] = useState<{ id: string; name: string; price: number; category: string; }[]>([]);
   const [currentAction, setCurrentAction] = useState("");
-  const [chatHistory, setChatHistory] = useState<{ speaker: 'user' | 'agent', text: string }[]>([]);
-  const [cartPopup, setCartPopup] = useState<{ show: boolean, message: string, type: 'success' | 'info' | 'error' }>({ show: false, message: '', type: 'info' });
-  const [showCart, setShowCart] = useState(false);
-  const [botStatus, setBotStatus] = useState<'idle' | 'thinking' | 'speaking' | 'confused'>('idle');
   const [amberState, setAmberState] = useState<'ready' | 'thinking' | 'error' | 'idle'>('ready');
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+
+  // Sprawdź czy użytkownik wraca z panelu - pomiń animację
+  useEffect(() => {
+    const skipIntro = sessionStorage.getItem('skipIntro') === 'true';
+    console.log('🏠 Home useEffect - skipIntro:', skipIntro);
+    if (skipIntro) {
+      // Wyczyść flagę od razu jeśli użytkownik wraca z panelu
+      sessionStorage.removeItem('skipIntro');
+      console.log('🏠 Home - pomijam animację, flaga wyczyszczona');
+      setShowLoadingScreen(false);
+    } else {
+      console.log('🏠 Home - pokazuję animację');
+    }
+  }, []);
+  const [dynamicMessages, setDynamicMessages] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+  // Funkcja testowa
+  const testAmberResponse = () => {
+    addDynamicMessage({
+      text: 'Chciałbym zamówić w pizzerii Monte Carlo',
+      sender: 'Ty',
+      icon: '👤',
+      type: 'user'
+    });
+    
+    setTimeout(() => {
+      addDynamicMessage({
+        text: 'Chcesz zobaczyć miejsca, gdzie zamówisz pizzę? Powiedz "pokaż restauracje" lub podaj konkretną nazwę.',
+        sender: 'Amber',
+        icon: '🤖',
+        type: 'info'
+      });
+    }, 2000);
+  };
+
+  // Funkcja do dodawania dynamicznych wiadomości
+  const addDynamicMessage = (message: any) => {
+    const newMessage = {
+      id: Date.now(),
+      ...message,
+      timestamp: new Date()
+    };
+    setDynamicMessages(prev => [...prev, newMessage]);
+    
+    // Auto-usuwanie po 5 sekundach
+    setTimeout(() => {
+      setDynamicMessages(prev => prev.filter(msg => msg.id !== newMessage.id));
+    }, 5000);
+  };
   
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -78,6 +164,17 @@ export default function Home() {
 
     window.addEventListener('freeflow-settings-changed', handleSettingsChange);
     return () => window.removeEventListener('freeflow-settings-changed', handleSettingsChange);
+  }, []);
+
+  // Wykrywanie rozmiaru ekranu
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   const handleTTSModeChange = (mode: string) => {
@@ -140,16 +237,6 @@ export default function Home() {
     }
   };
 
-  const showCartPopup = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
-    setCartPopup({ show: true, message, type });
-    setTimeout(() => {
-      setCartPopup({ show: false, message: '', type: 'info' });
-    }, 3000);
-  };
-
-  const toggleCart = () => {
-    setShowCart(!showCart);
-  };
 
   const handleAddToCart = (item: any) => {
     console.log('🛒 Adding to cart:', item);
@@ -163,7 +250,6 @@ export default function Home() {
     setRestaurants([]);
     setMenuItems([]);
     setCurrentAction("");
-    setChatHistory([]);
   };
   const startRecording = async () => {
     // Odblokuj audio na pierwszym kliknięciu
@@ -307,11 +393,18 @@ export default function Home() {
     setAmberState('thinking');
     try {
       setTranscript(text);
-      setChatHistory(prev => [...prev, { speaker: 'user', text }]);
       setError("");
       setResponse("");
       setRestaurants([]);
       setMenuItems([]);
+      
+      // Dodaj dynamiczną wiadomość użytkownika
+      addDynamicMessage({
+        text: text,
+        sender: 'Ty',
+        icon: '👤',
+        type: 'user'
+      });
       
       setCurrentAction("");
       console.log('🎯 Sending to FreeFlow Brain:', text);
@@ -322,8 +415,8 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          lat: 50.386,
-          lng: 18.946, // Piekary Śląskie
+          lat: userLocation?.lat || 50.386,
+          lng: userLocation?.lng || 18.946, // Użyj lokalizacji użytkownika lub domyślnej (Piekary Śląskie)
           ttsMode, // Dodaj tryb TTS
         }),
       });
@@ -356,28 +449,25 @@ export default function Home() {
             }, data.parsed_order.restaurant);
           }
           
-          showCartPopup('🛒 Dodano do koszyka z voice ordering!', 'success');
           console.log('✅ Voice order items added to cart successfully');
         } catch (error) {
           console.error('❌ Error adding voice order to cart:', error);
-          showCartPopup('❌ Błąd dodawania do koszyka', 'error');
         }
       }
 
       if (data.reply || data.response) {
         const responseText = data.reply || data.response;
         setResponse(responseText);
-        setChatHistory(prev => [...prev, { speaker: 'agent', text: responseText }]);
         setAmberState('ready');
+        
+        // Dodaj dynamiczną wiadomość
+        addDynamicMessage({
+          text: responseText,
+          sender: 'Amber',
+          icon: '🤖',
+          type: 'info'
+        });
 
-        // Sprawdź czy Amber dodała coś do koszyka (stara logika)
-        const responseTextLower = responseText.toLowerCase();
-        if (responseTextLower.includes('dodaję') || responseTextLower.includes('zamawiam') || responseTextLower.includes('dodano') || 
-            responseTextLower.includes('koszyk') || responseTextLower.includes('zamówienie') || responseTextLower.includes('gotowe')) {
-          showCartPopup('🛒 ' + responseText, 'success');
-        } else if (responseTextLower.includes('nie mogę') || responseTextLower.includes('błąd') || responseTextLower.includes('przepraszam')) {
-          showCartPopup('❌ ' + responseText, 'error');
-        }
 
         // 1. Sprawdź czy odpowiedź zawiera custom_payload z menu
         if (data.customPayload && data.customPayload.menu_items) {
@@ -442,7 +532,7 @@ export default function Home() {
       console.log('🎧 AMBER_AUTO_SPEAK:', AMBER_AUTO_SPEAK);
 
       // Wybierz endpoint w zależności od trybu
-      const endpoint = ttsMode === "classic" ? "/api/tts" : "/api/tts-chirp-hd";
+      const endpoint = ttsMode === "chirp" ? "/api/tts-chirp-hd" : "/api/tts";
       console.log(`🎙️ TTS mode: ${ttsMode} → ${endpoint}`);
       console.log('🌐 Using endpoint:', endpoint);
 
@@ -454,8 +544,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          voice: selectedVoice,
-          languageCode: 'pl-PL'
+          tone: 'swobodny' // Oba tryby używają tego samego tonu
         }),
       });
       
@@ -469,17 +558,34 @@ export default function Home() {
       console.log('🔊 TTS response type:', response.headers.get('content-type'));
       console.log('🔊 TTS response headers:', Object.fromEntries(response.headers.entries()));
       
-      // Sprawdź content-type
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('audio/')) {
-        const errorText = await response.text();
-        console.error('❌ Unexpected content type:', contentType, 'Response:', errorText);
-        throw new Error(`Unexpected content type: ${contentType}`);
-      }
+      let audioBlob;
       
-      // Backend zwraca surowe audio, nie JSON
-      const audioBlob = await response.blob();
-      console.log('🔊 Audio blob size:', audioBlob.size);
+      if (contentType && contentType.includes('audio/')) {
+        // Chirp TTS zwraca raw audio
+        console.log('🔊 Raw audio response detected');
+        audioBlob = await response.blob();
+        console.log('🔊 Audio blob size:', audioBlob.size);
+      } else {
+        // Classic TTS zwraca JSON z base64
+        console.log('🔊 JSON response detected');
+        const data = await response.json();
+        console.log('🔊 TTS response data:', { ok: data.ok, audioContentLength: data.audioContent?.length });
+        
+        if (!data.ok || !data.audioContent) {
+          throw new Error('TTS response error: ' + (data.error || 'Unknown error'));
+        }
+        
+        // Dekoduj base64 do blob
+        const binaryString = atob(data.audioContent);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+        console.log('🔊 Audio blob size:', audioBlob.size);
+      }
       
       if (audioBlob.size > 0) {
         const audioUrl = URL.createObjectURL(audioBlob);
@@ -548,96 +654,11 @@ export default function Home() {
   };
 
   const startLiveMicStream = async () => {
-    try {
-      console.log('🔴 Initializing live mic stream...');
-      
-      // Utwórz WebSocket połączenie
-      const socket = new WebSocket("ws://localhost:3000/api/stt-stream");
-      
-      // Pobierz dostęp do mikrofonu
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          sampleRate: 44100,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true
-        }
-      });
-      
-      // Utwórz AudioContext
-      const audioCtx = new AudioContext({ sampleRate: 44100 });
-      const source = audioCtx.createMediaStreamSource(stream);
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-
-      // Połącz węzły audio
-      source.connect(processor);
-      processor.connect(audioCtx.destination);
-
-      // Obsługa danych audio
-      processor.onaudioprocess = (e) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          const chunk = e.inputBuffer.getChannelData(0);
-          const int16 = new Int16Array(chunk.length);
-          
-          // Konwersja float32 na int16
-          for (let i = 0; i < chunk.length; i++) {
-            int16[i] = Math.max(-32768, Math.min(32767, chunk[i] * 32768));
-          }
-          
-          // Wyślij chunk audio
-          socket.send(int16.buffer);
-        }
-      };
-
-      // Obsługa wiadomości z WebSocket
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("🧠 Live transcription:", data);
-          
-          if (data.transcript) {
-            setTranscript(data.transcript);
-            
-            // Jeśli to finalna transkrypcja, przetwórz ją
-            if (data.isFinal) {
-              handleVoiceProcess(data.transcript);
-            }
-          }
-        } catch (err) {
-          console.error('Error parsing STT response:', err);
-        }
-      };
-
-      socket.onopen = () => {
-        console.log('🔴 Live STT WebSocket connected');
-        setTranscript("🔴 Live streaming active...");
-      };
-
-      socket.onclose = () => {
-        console.log('🔴 Live STT WebSocket closed');
-        setIsRecording(false);
-      };
-
-      socket.onerror = (error) => {
-        console.error('🔴 Live STT WebSocket error:', error);
-        setError('Błąd połączenia live streaming');
-        setIsRecording(false);
-      };
-
-      // Zapisz referencje do cleanup
-      (window as any).liveStreamCleanup = () => {
-        processor.disconnect();
-        source.disconnect();
-        stream.getTracks().forEach(track => track.stop());
-        audioCtx.close();
-        socket.close();
-      };
-
-    } catch (err) {
-      console.error('🔴 Live mic stream error:', err);
-      setError('Błąd inicjalizacji live streaming');
-      setIsRecording(false);
-    }
+    // ⚠️ DISABLED: Live streaming powoduje problemy z performance i zmianami rozmiaru UI
+    // ScriptProcessorNode jest deprecated i powoduje problemy z re-renderami
+    // Użyj standardowego trybu STT zamiast live streaming
+    console.warn('⚠️ Live streaming is disabled. Using standard recording mode.');
+    await startGoogleSTT();
   };
 
   const stopRecording = () => {
@@ -669,6 +690,14 @@ export default function Home() {
     }
   };
 
+  // Funkcja do określania stanu animowanego logo
+  const getLogoState = () => {
+    if (isRecording) return "listening";
+    if (isProcessing) return "thinking";
+    if (response) return "speaking";
+    return "idle";
+  };
+
   return (
     <>
       {/* Loading Screen */}
@@ -679,16 +708,15 @@ export default function Home() {
       {/* Amber Avatar - prawy dolny róg */}
       {!showLoadingScreen && <AmberAvatar />}
 
-      {/* Main UI */}
+      {/* Main UI - Hero Layout */}
       <section
         className={`
-          relative min-h-screen text-slate-100
-          bg-cover bg-center bg-no-repeat
+          logo-hero-container text-slate-100
           transition-opacity duration-1000
           ${showLoadingScreen ? 'opacity-0' : 'opacity-100'}
         `}
         style={{
-          backgroundImage: "url('/images/hero-bg-blur.png')"
+          backgroundImage: `url('/images/${isMobile ? 'background.png' : 'desk.png'}')`
         }}
       >
       {/* Header z menu po prawej stronie */}
@@ -696,39 +724,60 @@ export default function Home() {
         <header className="fixed top-0 left-0 right-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              {/* Left: Empty space */}
+              {/* Left: FreeFlow Logo */}
               <div className="flex items-center">
-                {/* Pusty div dla równowagi */}
+                <div className="text-left">
+                  <div className="text-3xl font-black tracking-tight">
+                    <span className="text-orange-500">Free</span>
+                    <span className="text-white">Flow</span>
+                  </div>
+                  <div className="text-sm text-white font-medium">
+                    Voice to order — Złóż zamówienie
+                  </div>
+                  <div className="text-sm text-white font-medium">
+                    Restauracja, taxi albo hotel?
+                  </div>
+                </div>
               </div>
 
-              {/* Right: Action Buttons + Menu */}
+              {/* Right: Cart + Menu */}
               <div className="flex items-center gap-2">
-                {/* Cart Button */}
-                <button
-                  onClick={() => setShowCart(true)}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-500/30 transition-all relative"
-                  title="Koszyk"
+                {/* Cart Button - Normal Icon */}
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  style={{ cursor: 'pointer', zIndex: 101 }}
                 >
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                  </svg>
-                  {/* Cart Badge */}
-                  {cartPopup.show && (
-                    <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">!</span>
-                    </div>
-                  )}
-                </button>
+                  <button
+                    onClick={() => setIsOpen(true)}
+                    className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-orange-500/50 transition-all relative group"
+                    title="Koszyk"
+                  >
+                    {/* Shopping Cart Icon */}
+                    <svg className="w-6 h-6 text-white group-hover:text-orange-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+                    </svg>
+                    
+                  </button>
+                </motion.div>
 
-                {/* Menu Button - przeniesiony na prawą stronę */}
-                <button
-                  onClick={openDrawer}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-500/30 transition-all"
+                {/* Menu Button (opens glassmorphism MenuDrawer) */}
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  style={{ cursor: 'pointer', zIndex: 101 }}
                 >
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
+                  <button
+                    onClick={openDrawer}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-orange-500/30 transition-all"
+                  >
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                </motion.div>
               </div>
             </div>
           </div>
@@ -737,144 +786,96 @@ export default function Home() {
 
       {/* MenuDrawer */}
       <MenuDrawer />
+      
+      {/* Cart Popup */}
+      <Cart />
 
-      {/* Główna kolumna: mobile layout */}
-      <div className="mx-auto max-w-3xl px-4 min-h-screen flex flex-col justify-center items-center">
+      {/* Główny kontener logo - Hero */}
+      <div className="logo-main-container" onClick={handleLogoClick}>
+        {/* Animowane pierścienie podczas nagrywania - tylko gdy rzeczywiście nagrywamy i nie ma błędów */}
+        {isRecording && !isProcessing && !error && (
+          <>
+            <div className="logo-recording-rings" style={{animationDelay: '0.1s'}} />
+            <div className="logo-recording-rings" style={{animationDelay: '0.4s'}} />
+            <div className="logo-recording-rings" style={{animationDelay: '0.7s'}} />
+          </>
+        )}
         
-        <div className="w-full flex flex-col items-center space-y-1 pt-4">
+        {/* Tło logo */}
+        <div className="logo-background" />
+        
+        {/* Efekt nagrywania - tylko gdy rzeczywiście nagrywamy i nie ma błędów */}
+        {isRecording && !error && !isProcessing && (
+          <div className="logo-recording-bg" />
+        )}
+        
+        {/* Główne logo */}
+        <img
+          src="/images/Freeflowlogo.png"
+          alt="FreeFlow Logo"
+          className="logo-image"
+        />
+      </div>
+
+      {/* Dynamiczne wyskakujące wiadomości */}
+      <DynamicPopups 
+        messages={dynamicMessages} 
+        isVisible={!showLoadingScreen} 
+      />
+
+      {/* Elementy pod logo */}
+      <div className="logo-content-below">
           
-          {(() => {
-            const hasResults = /* restaurants.length > 0 || */ menuItems.length > 0;
-            const viewState = isProcessing
-              ? 'LOADING'
-              : hasResults
-              ? 'SHOWING_RESULTS'
-              : 'IDLE';
-          {/* Status Display */}
-          {(isProcessing || error) && (
-            <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
-              {error && (
-                <div className="text-red-400 text-sm mb-2">
-                  ❌ {error}
-                </div>
-              )}
-              {isProcessing && !error && (
-                <div className="text-blue-300 text-sm mb-2 animate-pulse">
-                  ⏳ Przetwarzam...
-                </div>
-              )}
-            </div>
-          )}
-
-            switch (viewState) {
-              case 'LOADING':
-                return (
-                  <div className="flex flex-col items-center justify-center h-64">
-                    <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="mt-4 text-orange-200">Przetwarzam...</p>
-                  </div>
-                );
-              case 'SHOWING_RESULTS':
-                return (
-                  <div className="w-full max-w-2xl">
-                    {/* {currentAction === 'restaurants' && restaurants.length > 0 && (
-                      <div className="w-full p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
-                        <h3 className="text-orange-400 text-lg font-semibold mb-3 flex items-center">
-                          🍽️ Restauracje w okolicy
-                        </h3>
-                        <div className="space-y-2">
-                          {restaurants.map((restaurant, index) => (
-                            <div
-                              key={restaurant.id || index}
-                              className="p-3 rounded-lg bg-slate-700/50 border border-slate-600/30 hover:bg-slate-600/60 transition-colors cursor-pointer"
-                              onClick={() => handleRestaurantSelect(restaurant)}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <h4 className="text-white font-medium text-sm">{restaurant.name}</h4>
-                                  <p className="text-slate-300 text-xs mt-1">{restaurant.address}</p>
-                                </div>
-                                {restaurant.rating && (
-                                  <div className="flex items-center text-yellow-400 text-xs">
-                                    ⭐ {restaurant.rating}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )} */}
-                    {currentAction === 'menu' && (
-                      <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
-                    )}
-                  </div>
-                );
-              case 'IDLE':
-              default:
-                return (
-                  <div 
-                    className="w-[360px] sm:w-[420px] md:w-[460px] aspect-[3/4] relative select-none cursor-pointer"
-                    onClick={handleLogoClick}
-                  >
-                    {isRecording && (
-                      <>
-                        <div className="absolute inset-[-8px] rounded-full border-2 border-orange-400/60 bg-transparent animate-ping z-0" style={{animationDelay: '0.1s'}} />
-                        <div className="absolute inset-[-16px] rounded-full border-2 border-orange-400/40 bg-transparent animate-ping z-0" style={{animationDelay: '0.4s'}} />
-                        <div className="absolute inset-[-24px] rounded-full border-2 border-orange-400/20 bg-transparent animate-ping z-0" style={{animationDelay: '0.7s'}} />
-                      </>
-                    )}
-                    <div className="absolute inset-0 rounded-[40px] z-0 bg-[conic-gradient(at_50%_30%,#ff7a18_0deg,#7c3aed_120deg,#0ea5e9_240deg,#ff7a18_360deg)] opacity-[.08] blur-3xl" />
-                    {isRecording && (
-                      <div className="absolute inset-0 rounded-[40px] bg-orange-400/20 blur-2xl animate-pulse z-0" />
-                    )}
-                    <img
-                      src="/images/freeflow-drop.png"
-                      alt="FreeFlow logo"
-                      className={`relative z-10 h-full w-full object-contain drop-shadow-[0_25px_45px_rgba(0,0,0,.45)] transition-transform duration-300 cursor-pointer ${isRecording ? 'animate-pulse scale-105' : 'hover:scale-105'}`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="FreeFlow - naciśnij aby mówić"
-                      title="Naciśnij aby mówić"
-                      onClick={handleLogoClick}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          handleLogoClick();
-                        }
-                      }}
-                    />
-                  </div>
-                );
-            }
-          })()}
-
-          {/* 🎛️ Amber Status Indicator */}
-          <div className="w-full max-w-2xl flex justify-center -mt-6 mb-2">
-            <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800/30 backdrop-blur-sm border border-slate-600/30">
-              <AmberStatus state={amberState} />
-            </div>
+        {/* Status Display */}
+        {(isProcessing || error) && (
+          <div className="w-full max-w-md p-4 rounded-xl bg-slate-800/30 backdrop-blur-sm border border-slate-600/30 mb-4">
+            {error && (
+              <div className="text-red-400 text-sm mb-2">
+                ❌ {error}
+              </div>
+            )}
+            {isProcessing && !error && (
+              <div className="text-blue-300 text-sm mb-2 animate-pulse">
+                ⏳ Przetwarzam...
+              </div>
+            )}
           </div>
+        )}
 
-          {/* Pole transkrypcji z animacją demo */}
-          <div className="w-full max-w-2xl relative -mt-8 mb-1">
+        {/* Wyniki menu */}
+        {menuItems.length > 0 && (
+          <div className="w-full max-w-2xl">
+            <MenuView menuItems={menuItems} onAddToCart={handleAddToCart} />
+          </div>
+        )}
+
+        {/* 🎛️ Amber Status Indicator */}
+        <div className="amber-status-container">
+          <AmberStatus state={amberState} />
+        </div>
+
+        {/* Pole transkrypcji */}
+        <div className="voice-input-container">
+          {isRecording ? (
+            <VoiceBar />
+          ) : (
             <VoiceTextBox
               value={transcript}
               onChange={setTranscript}
               onSubmit={handleTextInputSubmit}
-              chatHistory={chatHistory}
-              placeholder={isRecording ? "🎙️ Nasłuchuję..." : "Wpisz lub powiedz co chcesz zamówić..."}
+              chatHistory={[]}
+              placeholder="Wpisz lub powiedz co chcesz zamówić..."
               onTTSModeChange={handleTTSModeChange}
             />
-          </div>
-
-          {/* 3 panele w rzędzie */}
-          <div className="w-full max-w-2xl grid grid-cols-3 gap-2 -mt-4">
-            <Tile onClick={() => handleOptionClick('Jedzenie')}><span className="text-2xl">🍽️</span>&nbsp;Jedzenie</Tile>
-            <Tile onClick={() => handleOptionClick('Taxi')}><span className="text-2xl">🚕</span>&nbsp;Taxi</Tile>
-            <Tile onClick={() => handleOptionClick('Hotel')}><span className="text-2xl">🏨</span>&nbsp;Hotel</Tile>
-          </div>
+          )}
         </div>
-        
+
+        {/* 3 panele w rzędzie */}
+        <div className="options-grid">
+          <Tile onClick={() => handleOptionClick('Jedzenie')}><span className="text-2xl">🍽️</span>&nbsp;Jedzenie</Tile>
+          <Tile onClick={() => handleOptionClick('Taxi')}><span className="text-2xl">🚕</span>&nbsp;Taxi</Tile>
+          <Tile onClick={() => handleOptionClick('Hotel')}><span className="text-2xl">🏨</span>&nbsp;Hotel</Tile>
+        </div>
       </div>
       
     </section>
@@ -885,22 +886,24 @@ export default function Home() {
 /** Kafelek o stałej wysokości i tym samym stylu */
 function Tile({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400 }}
       className="
         h-16 w-full
         rounded-lg bg-orange-900/20 ring-1 ring-orange-400/30 backdrop-blur
         text-orange-100 font-semibold text-sm sm:text-base
         shadow-[0_4px_15px_rgba(0,0,0,.25)]
-        hover:bg-orange-900/30 hover:ring-orange-400/50 hover:scale-105 
-        active:scale-95 transition-all duration-200
+        hover:bg-orange-900/30 hover:ring-orange-400/50
         cursor-pointer
         flex items-center justify-center
         text-lg
       "
     >
       {children}
-    </button>
+    </motion.button>
   );
 }

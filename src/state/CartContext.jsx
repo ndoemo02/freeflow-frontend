@@ -136,6 +136,9 @@ export function CartProvider({ children }) {
 
   // Submit order
   const submitOrder = async (deliveryInfo) => {
+    console.log('🛒 submitOrder called with user:', user);
+    
+    // Require login for orders
     if (!user) {
       push('Musisz być zalogowany, aby złożyć zamówienie', 'error');
       return false;
@@ -156,36 +159,49 @@ export function CartProvider({ children }) {
     try {
       // Prepare order data
       const orderData = {
-        user_id: user.id,
+        user_id: user?.id || null, // User must be logged in
         restaurant_id: restaurant.id,
         restaurant_name: restaurant.name,
         items: cart.map(item => ({
-          id: item.id,
+          menu_item_id: item.id, // Use menu_item_id instead of id
           name: item.name,
-          price: item.price,
-          quantity: item.quantity
+          unit_price_cents: Math.round(item.price * 100), // Convert to cents
+          qty: item.quantity
         })),
-        total_price: total,
+        total_price: Math.round(total * 100), // Convert to cents
         status: 'pending',
-        customer_name: deliveryInfo.name || user.user_metadata?.first_name || user.email,
-        customer_phone: deliveryInfo.phone || user.user_metadata?.phone || '',
-        delivery_address: deliveryInfo.address || user.user_metadata?.address || '',
+        customer_name: deliveryInfo.name || user?.user_metadata?.first_name || user?.email || 'Gość',
+        customer_phone: deliveryInfo.phone || user?.user_metadata?.phone || '',
+        delivery_address: deliveryInfo.address || user?.user_metadata?.address || '',
         notes: deliveryInfo.notes || '',
         created_at: new Date().toISOString()
       };
 
-      console.log('Submitting order', orderData);
+      console.log('🛒 Submitting order', orderData);
+      console.log('🛒 Restaurant ID type:', typeof restaurant.id, 'value:', restaurant.id);
+      console.log('🛒 User ID type:', typeof user?.id, 'value:', user?.id);
+      console.log('🛒 Items structure:', orderData.items);
+      console.log('🛒 Restaurant object:', restaurant);
 
-      // Insert order into Supabase
-      const { data, error } = await supabase
-        .from('orders')
-        .insert([orderData])
-        .select()
-        .single();
+      // Use backend API instead of direct Supabase access
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
 
-      if (error) {
-        throw error;
+      console.log('🛒 Backend API response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('🛒 Backend API error:', errorData);
+        throw new Error(errorData.error || 'Failed to create order');
       }
+
+      const data = await response.json();
+      console.log('🛒 Backend API success:', data);
 
       console.log('Order created successfully', data);
       push('Zamówienie złożone pomyślnie! 🎉', 'success');
