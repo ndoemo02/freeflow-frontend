@@ -726,7 +726,7 @@ export default function Home() {
             <div className="flex items-center justify-between h-16">
               {/* Left: FreeFlow Logo */}
               <div className="flex items-center">
-                <div className="text-left">
+                <div className="text-left mt-2">
                   <div className="text-3xl font-black tracking-tight">
                     <span className="text-orange-500">Free</span>
                     <span className="text-white">Flow</span>
