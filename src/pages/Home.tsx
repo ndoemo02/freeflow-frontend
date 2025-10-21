@@ -433,10 +433,11 @@ export default function Home() {
       }
 
       console.log('🧠 FreeFlow Brain response:', data);
+      console.log('   - intent:', data.intent);
 
-      // 🎯 OBSŁUGA PARSED_ORDER - dodaj do koszyka
-      if (data.parsed_order && data.parsed_order.items && data.parsed_order.restaurant) {
-        console.log('🛒 Voice order detected, adding to cart:', data.parsed_order);
+      // 🎯 NOWY FLOW: confirm_order - dodaj do koszyka po potwierdzeniu
+      if (data.intent === 'confirm_order' && data.parsed_order && data.parsed_order.items && data.parsed_order.restaurant) {
+        console.log('✅ confirm_order detected - adding to cart:', data.parsed_order);
         console.log('   - items count:', data.parsed_order.items.length);
         console.log('   - items:', data.parsed_order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', '));
 
@@ -452,10 +453,18 @@ export default function Home() {
             }, data.parsed_order.restaurant);
           }
 
-          console.log('✅ Voice order items added to cart successfully');
+          console.log('✅ Order confirmed and added to cart successfully');
+          
+          // Automatycznie otwórz koszyk po dodaniu
+          setIsOpen(true);
         } catch (error) {
-          console.error('❌ Error adding voice order to cart:', error);
+          console.error('❌ Error adding confirmed order to cart:', error);
         }
+      }
+      // 📝 create_order - tylko pokaż co zostanie zamówione (czeka na potwierdzenie)
+      else if (data.intent === 'create_order') {
+        console.log('📝 create_order detected - waiting for confirmation');
+        console.log('   - Backend is waiting for user to say "tak", "dodaj", etc.');
       }
 
       if (data.reply || data.response) {
