@@ -437,10 +437,13 @@ export default function Home() {
       // 🎯 OBSŁUGA PARSED_ORDER - dodaj do koszyka
       if (data.parsed_order && data.parsed_order.items && data.parsed_order.restaurant) {
         console.log('🛒 Voice order detected, adding to cart:', data.parsed_order);
-        
+        console.log('   - items count:', data.parsed_order.items.length);
+        console.log('   - items:', data.parsed_order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', '));
+
         try {
           // Dodaj każdą pozycję do koszyka
           for (const item of data.parsed_order.items) {
+            console.log(`   - Adding item to cart: ${item.quantity}x ${item.name} (id: ${item.menuItemId || item.id})`);
             addToCart({
               id: item.menuItemId || item.id,
               name: item.name,
@@ -448,7 +451,7 @@ export default function Home() {
               quantity: item.quantity || 1
             }, data.parsed_order.restaurant);
           }
-          
+
           console.log('✅ Voice order items added to cart successfully');
         } catch (error) {
           console.error('❌ Error adding voice order to cart:', error);

@@ -6,12 +6,13 @@ import { supabase, AmberLogger } from '../../lib/supabaseClient'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
 import { useCart } from '../../state/CartContext'
+import Cart from '../../components/Cart'
 
 export default function CustomerPanel() {
   const { user, setUser } = useAuth()
   const { push } = useToast()
   const navigate = useNavigate()
-  const { addToCart } = useCart()
+  const { addToCart, itemCount, setIsOpen } = useCart()
 
   const [tab, setTab] = useState('profile')
   const [profile, setProfile] = useState(null)
@@ -60,12 +61,14 @@ export default function CustomerPanel() {
       // Load orders via backend API (bypasses RLS)
       let ordersData = [];
       try {
+        console.log('🔍 CustomerPanel: Loading orders for user_id:', user.id);
         const response = await fetch(`/api/orders?user_id=${user.id}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         ordersData = data.orders || [];
+        console.log('📦 CustomerPanel: Orders loaded via API:', ordersData.length, 'orders');
         AmberLogger.log("Orders loaded via API:", ordersData);
         setOrders(ordersData);
       } catch (error) {
@@ -299,6 +302,7 @@ export default function CustomerPanel() {
             ← Strona główna
           </motion.button>
           
+          
           <motion.button
             onClick={() => {
               console.log('👤 CustomerPanel - ustawiam skipIntro flag');
@@ -364,6 +368,7 @@ export default function CustomerPanel() {
           <TabButton current={tab} setTab={setTab} id="orders" icon="📋">Zamówienia</TabButton>
           <TabButton current={tab} setTab={setTab} id="restaurants" icon="🍕">Restauracje</TabButton>
           <TabButton current={tab} setTab={setTab} id="reservations" icon="🪑">Rezerwacje</TabButton>
+          <TabButton current={tab} setTab={setTab} id="cart" icon="🛒">Koszyk {itemCount > 0 && `(${itemCount})`}</TabButton>
           <TabButton current={tab} setTab={setTab} id="settings" icon="⚙️">Ustawienia</TabButton>
         </motion.div>
 
@@ -444,6 +449,17 @@ export default function CustomerPanel() {
                 <ReservationsTab userId={user?.id} />
               </motion.div>
             )}
+            {tab === 'cart' && (
+              <motion.div
+                key="cart"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CartTab />
+              </motion.div>
+            )}
             {tab === 'settings' && (
               <motion.div
                 key="settings"
@@ -463,6 +479,9 @@ export default function CustomerPanel() {
           </AnimatePresence>
         </motion.div>
       </div>
+      
+      {/* Cart Popup */}
+      <Cart />
     </motion.div>
   )
 }
@@ -1413,4 +1432,91 @@ function StatCard({ title, value, icon, gradient, borderColor, glowColor, index 
       />
     </motion.div>
   )
+}
+
+function CartTab() {
+  const { cart, restaurant, total, removeFromCart, updateQuantity, clearCart, submitOrder, isSubmitting } = useCart();
+  const { push } = useToast();
+
+  if (cart.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🛒</div>
+        <h3 className="text-xl font-semibold text-white mb-2">Koszyk jest pusty</h3>
+        <p className="text-slate-400">Dodaj produkty z zakładki "Restauracje"</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Twój koszyk</h2>
+        <button
+          onClick={clearCart}
+          className="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+        >
+          Wyczyść koszyk
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {cart.map((item) => (
+          <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex-1">
+              <h3 className="font-medium text-white">{item.name}</h3>
+              <p className="text-sm text-slate-400">{((item.price * item.quantity) / 100).toFixed(2)} zł</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+              >
+                -
+              </button>
+              <span className="w-8 text-center text-white">{item.quantity}</span>
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+              >
+                +
+              </button>
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="ml-2 p-2 text-red-400 hover:text-red-300"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {restaurant && (
+        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+          <h3 className="font-medium text-white mb-2">Restauracja: {restaurant.name}</h3>
+          <p className="text-sm text-slate-300">{restaurant.address}</p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30">
+        <span className="text-lg font-bold text-white">Razem: {(total / 100).toFixed(2)} zł</span>
+        <button
+          onClick={() => {
+            const deliveryInfo = {
+              name: 'Użytkownik',
+              phone: '',
+              address: '',
+              notes: ''
+            };
+            submitOrder(deliveryInfo);
+          }}
+          disabled={isSubmitting}
+          className="px-6 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? 'Składanie...' : 'Złóż zamówienie'}
+        </button>
+      </div>
+    </div>
+  );
 }

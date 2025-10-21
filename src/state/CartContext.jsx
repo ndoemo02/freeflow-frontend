@@ -69,7 +69,7 @@ export function CartProvider({ children }) {
         `Masz już pozycje z ${restaurant.name} w koszyku. Czy chcesz wyczyścić koszyk i dodać pozycję z ${restaurantData.name}?`
       );
       if (!confirm) return;
-      
+
       // Clear cart and set new restaurant
       setCart([]);
       setRestaurant(restaurantData);
@@ -77,22 +77,27 @@ export function CartProvider({ children }) {
       setRestaurant(restaurantData);
     }
 
+    // Pobierz ilość z item.quantity (domyślnie 1 jeśli nie podano)
+    const quantityToAdd = item.quantity || 1;
+
     // Check if item already exists in cart
     const existingIndex = cart.findIndex(cartItem => cartItem.id === item.id);
-    
+
     if (existingIndex >= 0) {
-      // Update quantity
+      // Update quantity - dodaj ilość z item.quantity (nie zawsze +1!)
       const newCart = [...cart];
-      newCart[existingIndex].quantity += 1;
+      newCart[existingIndex].quantity += quantityToAdd;
       setCart(newCart);
-      push(`Zwiększono ilość: ${item.name}`, 'success');
+      console.log(`✅ Updated quantity for ${item.name}: +${quantityToAdd} (total: ${newCart[existingIndex].quantity})`);
+      push(`Zwiększono ilość: ${item.name} (+${quantityToAdd})`, 'success');
     } else {
-      // Add new item
-      setCart([...cart, { ...item, quantity: 1 }]);
-      push(`Dodano do koszyka: ${item.name}`, 'success');
+      // Add new item - użyj item.quantity z backendu (nie nadpisuj na 1!)
+      setCart([...cart, { ...item, quantity: quantityToAdd }]);
+      console.log(`✅ Added new item to cart: ${item.name} (quantity: ${quantityToAdd})`);
+      push(`Dodano do koszyka: ${item.name} (${quantityToAdd}x)`, 'success');
     }
 
-    console.log('Item added to cart', { item, restaurant: restaurantData });
+    console.log('Item added to cart', { item, restaurant: restaurantData, quantityAdded: quantityToAdd });
   };
 
   // Remove item from cart
