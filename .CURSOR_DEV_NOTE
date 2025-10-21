@@ -5,7 +5,7 @@ Utrzymać pełen kontekst projektu FreeFlow Voice-to-Order, bez przeciążania p
 Każdy patcher raportuje swoje działania w sposób krótki, zwięzły, ale treściwy.
 Raporty służą do analizy zmian, szybkiej synchronizacji i iteracyjnego podejmowania decyzji.
 
-⚙️ Zasady pracy:
+⚙️ Zasady pracy:.
 
 Nie klep kodu w ciemno.
 Jeśli coś jest niejasne → wypisz jawne założenia techniczne i działaj dalej.
