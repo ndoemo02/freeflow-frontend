@@ -29,6 +29,11 @@ export default function Home() {
     })
   }
 
+  const handleLogoClick = () => {
+    setShowTextPanel(!showTextPanel)
+    toggleUI(!showTextPanel)
+  }
+
   return (
     <div className="freeflow">
       <Switch onToggle={toggleUI} />
@@ -65,7 +70,7 @@ export default function Home() {
         </header>
 
 
-      <div className="logo-container">
+      <div className="logo-container" onClick={handleLogoClick}>
         <img src="/images/Freeflowlogo.png" alt="FreeFlow" className="logo" />
         <div className="amber-status">
           <span>Amber:</span> <div className="dot" /> Gotowa

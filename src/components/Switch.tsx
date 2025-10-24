@@ -40,9 +40,10 @@ export default function Switch({ onToggle, initial = false }: Props) {
 
 const Wrapper = styled.div`
   position: fixed;
-  left: 16px;
+  left: 8px; /* Bliżej lewej strony */
   bottom: 16px;
   z-index: 1000;
+  transform: rotate(180deg); /* Obrócony o 180° */
 
   .toggle-container { --knob-size: 1.75em; display: flex; justify-content: center; position: relative; }
   .toggle-input { position: absolute; z-index: 2; bottom: 132.5%; border-radius: 50%; transform: rotate(-25deg); transform-origin: 50% 4.75em; width: var(--knob-size); height: var(--knob-size); opacity: 0; font: inherit; transition: transform .24s cubic-bezier(.65, 1.35, .5, 1); cursor: pointer; }

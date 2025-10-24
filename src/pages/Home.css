@@ -20,13 +20,11 @@
   z-index: 50;
   background: rgba(0, 0, 0, 0.5);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1.25rem 2rem; /* Rozciągnięty header */
+  min-height: 90px; /* Zwiększona wysokość */
 }
 
 .header-left h1 {
@@ -99,9 +97,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-top: 120px; /* Obniżone logo */
+  cursor: pointer; /* Dodane onclick */
 }
 .logo {
-  width: 230px;
+  width: 460px; /* Powiększone x2 */
   animation: float 4s ease-in-out infinite;
 }
 
@@ -134,7 +134,7 @@
 .tiles {
   display: flex;
   gap: 40px;
-  margin-top: 20px;
+  margin-top: -60px; /* Kafelki wyżej */
   transition: all 0.6s ease;
 }
 .tile img {
