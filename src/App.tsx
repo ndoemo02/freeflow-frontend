@@ -15,6 +15,8 @@ import CustomerPanel from "./pages/Panel/CustomerPanel";
 // @ts-ignore
 import BusinessPanel from "./pages/Panel/BusinessPanel";
 // @ts-ignore
+import BusinessPanelV2 from "./pages/Panel/BusinessPanelV2";
+// @ts-ignore
 import TaxiPanel from "./pages/Panel/TaxiPanel";
 // @ts-ignore
 import CartPage from "./pages/CartPage";
@@ -55,6 +57,7 @@ function AppContent() {
           <Route path="/" element={<Home />} />
             <Route path="/panel/customer" element={<CustomerPanel />} />
             <Route path="/panel/business" element={<BusinessPanel />} />
+            <Route path="/panel/business-v2" element={<BusinessPanelV2 />} />
             <Route path="/panel/taxi" element={<TaxiPanel />} />
             <Route path="/panel/restaurant" element={<BusinessPanel />} />
             <Route path="/panel/hotel" element={<BusinessPanel />} />

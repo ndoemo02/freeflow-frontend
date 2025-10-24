@@ -39,7 +39,7 @@ export async function getAnalyticsKPI(period: string = '7'): Promise<AnalyticsDa
     // Oblicz daty dla porównania
     const endDate = new Date();
     const startDate = new Date();
-    const days = parseInt(period);
+    const days = Number.isFinite(parseInt(period)) ? parseInt(period) : 7;
     startDate.setDate(endDate.getDate() - days);
     
     const prevStartDate = new Date(startDate);
@@ -131,7 +131,7 @@ export async function getOrdersChartData(period: string = '7'): Promise<OrdersCh
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0];
       dailyOrders[dateKey] = 0;
     }
 

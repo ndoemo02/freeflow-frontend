@@ -28,9 +28,14 @@ export default function MenuDrawer() {
     }))
   }
 
-  const MenuItem = ({ icon, text, onClick, isSubItem = false, isDanger = false, route = null }) => {
+  const MenuItem = ({ icon, text, onClick, isSubItem = false, isDanger = false, route = null, requiresAuth = false }) => {
     const handleClick = () => {
       if (route) {
+        // Wymagaj zalogowania dla paneli
+        if ((requiresAuth || route.startsWith('/panel')) && !user?.id) {
+          openAuth();
+          return;
+        }
         navigate(route);
         close();
       } else if (onClick) {
@@ -152,9 +157,10 @@ export default function MenuDrawer() {
                   icon="📂" 
                   isExpanded={expandedSections['Panele']}
                 >
-                  <MenuItem icon="🙍" text="Panel Klienta" route="/panel/customer" isSubItem />
-                  <MenuItem icon="🏢" text="Panel Biznesowy" route="/panel/business" isSubItem />
-                  <MenuItem icon="📈" text="Analytics" route="/admin" isSubItem />
+                  <MenuItem icon="🙍" text="Panel Klienta" route="/panel/customer" isSubItem requiresAuth />
+                  <MenuItem icon="🏢" text="Panel Biznesowy" route="/panel/business" isSubItem requiresAuth />
+                  <MenuItem icon="🆕" text="Panel Biznesowy v2" route="/panel/business-v2" isSubItem requiresAuth />
+                  <MenuItem icon="📈" text="Analytics" route="/admin" isSubItem requiresAuth />
                 </ExpandableSection>
 
                 {/* Moja Aktywność */}
@@ -196,11 +202,10 @@ export default function MenuDrawer() {
                     </div>
                     <div className="flex-1">
                       <p className="text-white font-semibold text-sm">
-                        {user?.email || 'ndoemo02'}
+                        {user?.email || 'Gość' }
                       </p>
                       <p className="text-white/60 text-xs">
-                        {userRole === 'admin' ? 'Administrator' : 
-                         userRole === 'business' ? 'Właściciel' : 'Użytkownik'}
+                        {user?.id ? (userRole === 'admin' ? 'Administrator' : userRole === 'business' ? 'Właściciel' : 'Użytkownik') : 'Niezalogowany'}
                       </p>
                     </div>
                   </div>
@@ -236,8 +241,12 @@ export default function MenuDrawer() {
                   </ExpandableSection>
                 )}
                 
-                {/* Wyloguj */}
-                <MenuItem icon="🚪" text="Wyloguj się" onClick={() => { signOut(); close(); }} isDanger />
+                {/* Auth action */}
+                {user?.id ? (
+                  <MenuItem icon="🚪" text="Wyloguj się" onClick={() => { signOut(); close(); }} isDanger />
+                ) : (
+                  <MenuItem icon="🔐" text="Zaloguj się" onClick={() => { openAuth(); }} />
+                )}
               </ul>
             </div>
           </motion.aside>

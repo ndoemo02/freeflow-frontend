@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../../state/auth'
-import { supabase, AmberLogger } from '../../lib/supabaseClient'
+import { supabase } from '../../lib/supabase'
+import { AmberLogger } from '../../lib/supabaseClient'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
 import { useCart } from '../../state/CartContext'
@@ -32,9 +33,11 @@ export default function CustomerPanel() {
 
   // Redirect if not logged in
   useEffect(() => {
+    // Poczekaj aż stan auth będzie znany; jeśli brak usera → wróć do Home bez intro
+    if (user === undefined) return;
     if (!user?.id) {
+      try { sessionStorage.setItem('skipIntro', 'true'); } catch {}
       navigate('/');
-      return;
     }
   }, [user, navigate]);
 

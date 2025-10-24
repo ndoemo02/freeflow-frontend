@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './auth';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 import { useToast } from '../components/Toast';
 
 const CartContext = createContext();
