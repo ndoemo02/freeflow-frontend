@@ -1,4 +1,5 @@
 import React, { useState, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../state/CartContext';
@@ -6,6 +7,12 @@ import { useAuth } from '../state/auth';
 
 export default function Cart() {
   const { cart, restaurant, total, isOpen, isSubmitting, removeFromCart, updateQuantity, clearCart, submitOrder, setIsOpen } = useCart();
+  const restaurantLabel = restaurant
+    ? (typeof restaurant === 'object'
+        ? (typeof restaurant.name === 'string' ? restaurant.name : JSON.stringify(restaurant.name ?? restaurant))
+        : String(restaurant))
+    : null;
+  const navigate = useNavigate();
   const { user } = useAuth();
   
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -21,6 +28,8 @@ export default function Cart() {
     if (result) {
       // Order submitted successfully
       setDeliveryInfo({ name: '', phone: '', address: '', notes: '' });
+      // Przejdź do panelu klienta
+      navigate('/panel/customer');
     }
   };
 
@@ -69,9 +78,9 @@ export default function Cart() {
                       ✕
                     </button>
                   </div>
-                  {restaurant && (
+                  {restaurantLabel && (
                     <p className="text-sm text-slate-400 mt-2">
-                      🏪 {restaurant.name}
+                      🏪 {restaurantLabel}
                     </p>
                   )}
                 </div>
@@ -87,7 +96,14 @@ export default function Cart() {
                   ) : (
                     <div className="space-y-3">
                       <AnimatePresence>
-                        {cart.map((item, index) => (
+                        {cart.map((rawItem, index) => {
+                          const item = {
+                            id: (rawItem?.id ?? String(index)).toString(),
+                            name: typeof rawItem?.name === 'object' ? JSON.stringify(rawItem.name) : (rawItem?.name ?? 'pozycja'),
+                            price: Number(rawItem?.price ?? rawItem?.price_pln ?? 0),
+                            quantity: Number(rawItem?.quantity ?? rawItem?.qty ?? 1)
+                          };
+                          return (
                           <motion.div
                             key={item.id}
                             initial={{ opacity: 0, x: -20 }}
@@ -99,7 +115,7 @@ export default function Cart() {
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
                                 <h3 className="text-white font-semibold">{item.name}</h3>
-                                <p className="text-sm text-slate-400">{item.price.toFixed(2)} zł</p>
+                                <p className="text-sm text-slate-400">{Number(item.price).toFixed(2)} zł</p>
                               </div>
                               
                               {/* Quantity Controls */}
@@ -123,7 +139,7 @@ export default function Cart() {
                                 </div>
                                 
                                 <div className="text-white font-bold min-w-[80px] text-right">
-                                  {(item.price * item.quantity).toFixed(2)} zł
+                                  {(Number(item.price) * Number(item.quantity)).toFixed(2)} zł
                                 </div>
                                 
                                 <button
@@ -135,7 +151,7 @@ export default function Cart() {
                               </div>
                             </div>
                           </motion.div>
-                        ))}
+                        )})}
                       </AnimatePresence>
                     </div>
                   )}

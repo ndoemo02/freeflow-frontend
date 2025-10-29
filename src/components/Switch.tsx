@@ -4,17 +4,18 @@ import styled from 'styled-components'
 type Props = {
   onToggle?: (checked: boolean) => void
   initial?: boolean
+  amberReady?: boolean
 }
 
-export default function Switch({ onToggle, initial = false }: Props) {
+export default function Switch({ onToggle, initial = false, amberReady = true }: Props) {
   const [checked, setChecked] = useState<boolean>(initial)
 
   return (
-    <Wrapper>
-      <div className="toggle-container">
+    <Wrapper $amberReady={amberReady}>
+      <div className="vertical-switch">
         <input
-          className="toggle-input"
           type="checkbox"
+          className="switch-input"
           checked={checked}
           onChange={(e) => {
             setChecked(e.target.checked)
@@ -22,46 +23,187 @@ export default function Switch({ onToggle, initial = false }: Props) {
           }}
           aria-label="Toggle voice/tiles"
         />
-        <div className="toggle-handle-wrapper">
-          <div className="toggle-handle">
-            <div className="toggle-handle-knob" />
-            <div className="toggle-handle-bar-wrapper">
-              <div className="toggle-handle-bar" />
-            </div>
-          </div>
-        </div>
-        <div className="toggle-base">
-          <div className="toggle-base-inside" />
+        
+        {/* Kulka na górze */}
+        <div className="switch-knob" />
+        
+        {/* Pasek */}
+        <div className="switch-track" />
+        
+        {/* Podstawa na dole */}
+        <div className="switch-base">
+          <div className="switch-base-inner" />
         </div>
       </div>
     </Wrapper>
   )
 }
 
-const Wrapper = styled.div`
+const Wrapper = styled.div<{ $amberReady: boolean }>`
   position: fixed;
-  left: 8px; /* Bliżej lewej strony */
-  bottom: 16px;
+  left: clamp(12px, 3vw, 20px);
+  bottom: clamp(1rem, 3vh, 1.5rem);
   z-index: 1000;
-  transform: rotate(180deg); /* Obrócony o 180° */
 
-  .toggle-container { --knob-size: 1.75em; display: flex; justify-content: center; position: relative; }
-  .toggle-input { position: absolute; z-index: 2; bottom: 132.5%; border-radius: 50%; transform: rotate(-25deg); transform-origin: 50% 4.75em; width: var(--knob-size); height: var(--knob-size); opacity: 0; font: inherit; transition: transform .24s cubic-bezier(.65, 1.35, .5, 1); cursor: pointer; }
-  .toggle-input:checked { transform: rotate(25deg); }
-  .toggle-handle-wrapper { position: absolute; z-index: 1; bottom: -135%; -webkit-mask-image: linear-gradient(to bottom, #000 62.125%, transparent 50%); mask-image: linear-gradient(to bottom, #000 62.125%, transparent 50%); width: 200%; overflow: hidden; }
-  .toggle-handle { display: flex; flex-direction: column; align-items: center; transform: rotate(-25deg); transform-origin: bottom center; transition: transform .24s cubic-bezier(.65, 1.35, .5, 1); }
-  .toggle-input:checked + .toggle-handle-wrapper > .toggle-handle { transform: rotate(25deg); }
-  .toggle-handle-knob { position: relative; z-index: 1; border-radius: 50%; width: var(--knob-size); height: var(--knob-size); background-image: radial-gradient(farthest-corner at 70% 30%, #ffffff 4%, #61bdda 12% 24%, #4791b2 50% 65%, #61bdda 75%); transition: transform .24s cubic-bezier(.65, 1.35, .5, 1); }
-  .toggle-input:checked + .toggle-handle-wrapper .toggle-handle-knob { transform: rotate(-90deg); }
-  .toggle-handle-knob::after { content: ''; position: absolute; top: 0; left: 0; border-radius: inherit; width: 100%; height: 100%; box-shadow: inset 0 0 8px 2px rgb(255 255 255 / .4); opacity: 0; transition: opacity .2s; }
-  @media (hover: hover) { .toggle-input:hover + .toggle-handle-wrapper .toggle-handle-knob::after, .toggle-input:focus-visible + .toggle-handle-wrapper .toggle-handle-knob::after { opacity: 1; } }
-  .toggle-handle-bar-wrapper { position: relative; width: .5em; height: 3em; }
-  .toggle-handle-bar { position: absolute; top: calc(var(--knob-size) / 2 * -1); left: 0; width: 100%; height: calc(100% + var(--knob-size) / 2); background-image: linear-gradient(to right, #1f1f1f, #161616, #1f1f1f 45% 55%, #161616, #1f1f1f); background-position-x: .06125em; transition: background-position-x .24s cubic-bezier(.65, 1.35, .5, 1); box-shadow: inset 0 1em .25em rgb(0 0 0 / .4); }
-  .toggle-input:checked + .toggle-handle-wrapper .toggle-handle-bar { background-position-x: -.06125em; }
-  .toggle-base { position: relative; border-radius: 3.125em; padding: .25em; width: 3.5em; height: 1.125em; background-color: #222222; background-image: linear-gradient(to bottom, #444444, #222222); box-shadow: 0 -.25em .5em #fff, 0 .25em .5em #d7d7d7; }
-  .toggle-base-inside { position: relative; border-radius: inherit; width: 100%; height: 100%; background-image: linear-gradient(to bottom, #1f1f1f, #0f0f0f); box-shadow: inset 0 .0625em rgb(255 255 255 / .2), inset 0 -.03125em rgb(255 255 255 / 1), inset 0 -.0625em .25em rgb(0 0 0 / .1); }
-  .toggle-base-inside::after { content: ''; position: absolute; border-radius: inherit; width: 100%; height: 100%; background-image: linear-gradient(to bottom, #00cfb6, #00a5bf); box-shadow: inherit; opacity: 0; transition: opacity .24s cubic-bezier(.65, 1.35, .5, 1); }
-  .toggle-input:checked ~ .toggle-base .toggle-base-inside::after { opacity: 1; }
+  .vertical-switch {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  
+  .switch-input {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.5em;
+    height: 2.5em;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 10;
+  }
+  
+  /* Kulka z kolorem Amber status */
+  .switch-knob {
+    width: clamp(1.5em, 4vw, 2em);
+    height: clamp(1.5em, 4vw, 2em);
+    border-radius: 50%;
+    background-image: ${props => props.$amberReady 
+      ? 'radial-gradient(farthest-corner at 70% 30%, #00ff77 4%, #00cc55 12% 24%, #009944 50% 65%, #00ff77 75%)'
+      : 'radial-gradient(farthest-corner at 70% 30%, #ff4444 4%, #cc2222 12% 24%, #aa0000 50% 65%, #ff4444 75%)'
+    };
+    box-shadow: ${props => props.$amberReady 
+      ? '0 0 15px rgba(0, 255, 119, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
+      : '0 0 15px rgba(255, 68, 68, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
+    };
+    transition: all 0.3s cubic-bezier(.65, 1.35, .5, 1);
+    position: relative;
+    z-index: 2;
+  }
+  
+  .switch-input:hover ~ .switch-knob {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+  }
+  
+  .switch-input:checked ~ .switch-knob {
+    transform: scale(1.15);
+  }
+  
+  /* Pasek pionowy */
+  .switch-track {
+    width: 0.4em;
+    height: clamp(2.5em, 6vh, 3.5em);
+    background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    border-radius: 0.2em;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    margin-top: -0.2em;
+    margin-bottom: -0.2em;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+  }
+  
+  .switch-input:checked ~ .switch-track {
+    background: linear-gradient(to bottom,
+      rgba(0, 200, 255, 0.3) 0%,
+      rgba(0, 200, 255, 0.15) 50%,
+      rgba(0, 200, 255, 0.3) 100%
+    );
+  }
+  
+  /* Podstawa */
+  .switch-base {
+    position: relative;
+    border-radius: 50%;
+    padding: 0.25em;
+    width: 1.2em;
+    height: 1.2em;
+    background-color: #222222;
+    background-image: linear-gradient(to bottom, #444444, #222222);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .switch-base-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-image: linear-gradient(to bottom, #1f1f1f, #0f0f0f);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .switch-base-inner::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background-image: linear-gradient(to bottom, #00cfb6, #00a5bf);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .switch-input:checked ~ .switch-base .switch-base-inner::after {
+    opacity: 1;
+  }
+  
+  /* Mobile adjustments */
+  @media (max-width: 768px) {
+    left: 10px;
+    bottom: 1rem;
+    
+    .switch-knob {
+      width: 1.5em;
+      height: 1.5em;
+    }
+    
+    .switch-track {
+      height: 2.5em;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    left: 8px;
+    bottom: 0.85rem;
+    
+    .switch-knob {
+      width: 1.3em;
+      height: 1.3em;
+    }
+    
+    .switch-track {
+      height: 2em;
+      width: 0.35em;
+    }
+    
+    .switch-base {
+      width: 1em;
+      height: 1em;
+    }
+  }
+  
+  @media (max-width: 360px) {
+    left: 6px;
+    bottom: 0.75rem;
+    
+    .switch-knob {
+      width: 1.2em;
+      height: 1.2em;
+    }
+    
+    .switch-track {
+      height: 1.8em;
+    }
+  }
 `
-
-

@@ -1,14 +1,50 @@
 .freeflow {
-  height: 100vh;
+  min-height: 100vh;
   width: 100%;
-  background: url('/images/background.png') center/cover no-repeat;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  overflow: hidden;
+  background: url('/images/desk.png') center/cover no-repeat;
   position: relative;
   color: white;
+  overflow: hidden;
+}
+
+/* Tło jako fixed layer */
+.bg {
+  position: fixed;
+  inset: 0;
+  object-fit: cover;
+  z-index: 1;
+}
+
+/* Main wrapper - CSS Grid + safe-area-inset + dvh */
+.main-wrapper {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh; /* nie 100vh – naprawa iOS */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 440px env(safe-area-inset-left); /* podniesiono do 440px (2x wyżej) */
+  position: relative;
+  overflow: visible !important; /* zmienione z hidden */
+  z-index: 2;
+  pointer-events: none; /* dzieci muszą włączyć pointer-events */
+}
+
+/* Hero stack – TYLKO LOGO (wyśrodkowane) */
+.hero-stack {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100; /* wysoki z-index, żeby logo było nad kafelkami */
+  pointer-events: auto;
+  position: relative;
+  min-width: 400px;
+  min-height: 400px;
+}
+
+/* Mobile - użyj background.png */
+@media (max-width: 768px) {
+  .freeflow {
+    background: url('/images/background.png') center/cover no-repeat;
+  }
 }
 
 /* === TOP HEADER z menu i koszykiem === */
@@ -17,18 +53,19 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 50;
+  z-index: 50; /* nad bg */
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 2rem; /* Rozciągnięty header */
-  min-height: 90px; /* Zwiększona wysokość */
+  padding: clamp(0.75rem, 2vw, 1.25rem) clamp(1rem, 4vw, 2rem);
+  min-height: clamp(60px, 10vh, 80px);
 }
 
 .header-left h1 {
-  font-size: 1.5rem;
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
   font-weight: 800;
   margin: 0;
 }
@@ -39,7 +76,7 @@
 
 .header-left p {
   margin: 0.25rem 0 0 0;
-  font-size: 0.8rem;
+  font-size: clamp(0.65rem, 1.8vw, 0.8rem);
   opacity: 0.8;
   line-height: 1.2;
 }
@@ -51,7 +88,7 @@
 }
 
 .cart-btn, .menu-btn {
-  padding: 0.75rem;
+  padding: clamp(0.5rem, 1.5vw, 0.75rem);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.75rem;
@@ -59,6 +96,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cart-btn:hover, .menu-btn:hover {
@@ -68,8 +108,8 @@
 }
 
 .cart-btn svg, .menu-btn svg {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: clamp(1.2rem, 3vw, 1.5rem);
+  height: clamp(1.2rem, 3vw, 1.5rem);
 }
 
 .header {
@@ -94,15 +134,58 @@
 }
 
 .logo-container {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   align-items: center;
-  margin-top: 120px; /* Obniżone logo */
-  cursor: pointer; /* Dodane onclick */
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  position: relative;
+  pointer-events: auto;
+  z-index: 200 !important; /* nad wszystkim */
+  opacity: 1 !important;
+  visibility: visible !important;
+  min-width: 300px; /* wymuszenie rozmiaru */
+  min-height: 300px;
+}
+.logo-container:hover {
+  transform: scale(1.05);
+}
+.logo-container:active {
+  transform: scale(0.98);
+}
+
+/* Wyłącz hover podczas nagrywania */
+.logo-container:has(.logo.recording):hover {
+  transform: scale(1);
+}
+
+/* Warstwa tła - najniższy z-index */
+.freeflow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 .logo {
-  width: 460px; /* Powiększone x2 */
+  width: clamp(220px, 28vw, 360px);
+  height: auto;
   animation: float 4s ease-in-out infinite;
+  transition: filter 0.3s ease, transform 0.2s ease;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 200 !important; /* najpierw */
+}
+
+/* Zatrzymaj animację float podczas nagrywania */
+.logo.recording {
+  animation: none;
+  transform: scale(1.02);
 }
 
 @keyframes float {
@@ -110,64 +193,87 @@
   50% { transform: translateY(-8px); }
 }
 
-.amber-status {
-  margin-top: -10px;
+.recording-indicator {
+  margin-top: 12px;
   display: flex;
   align-items: center;
-  background: rgba(0,0,0,0.45);
-  padding: 6px 14px;
+  justify-content: center;
+  background: rgba(255, 0, 100, 0.5);
+  padding: clamp(6px, 1.5vw, 8px) clamp(12px, 3vw, 16px);
   border-radius: 20px;
   backdrop-filter: blur(12px);
   font-weight: 500;
-  font-size: 0.95rem;
-}
-.amber-status .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #00ff77;
-  margin: 0 8px;
-  box-shadow: 0 0 8px #00ff77;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  color: white;
+  box-shadow: 0 0 15px rgba(255, 0, 100, 0.5);
+  animation: recordingPulse 2s ease-in-out infinite;
 }
 
-/* === TILES === */
+@keyframes recordingPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 0, 100, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 0, 100, 0.7);
+  }
+}
+
+/* === TILES - NA DOLE (fixed) === */
 .tiles {
-  display: flex;
-  gap: 40px;
-  margin-top: -60px; /* Kafelki wyżej */
-  transition: all 0.6s ease;
-}
-.tile img {
-  width: 90px;
-  height: 90px;
-  border-radius: 24px;
-  box-shadow: 0 0 20px rgba(255,255,255,0.05);
-  transition: all 0.4s ease;
-}
-.tile:hover img {
-  transform: scale(1.05);
-  box-shadow: 0 0 30px rgba(255,150,0,0.25);
-}
-
-/* === PANEL === */
-.voice-panel {
   position: fixed;
-  bottom: -140px;
+  bottom: calc(16px + env(safe-area-inset-bottom)); /* tuż nad voicebar */
   left: 50%;
   transform: translateX(-50%);
-  width: 90%;
-  height: 140px;
-  background: rgba(15, 15, 15, 0.6);
-  border-radius: 30px 30px 0 0;
-  backdrop-filter: blur(25px);
-  transition: all 0.6s cubic-bezier(0.19,1,0.22,1);
-  overflow: hidden;
-  box-shadow: 0 0 25px rgba(0,255,200,0.2);
-  z-index: 100;
+  display: flex;
+  gap: clamp(12px, 2.5vw, 20px);
+  flex-wrap: wrap;
+  justify-content: center;
+  z-index: 25; /* pod logo (100) */
+  pointer-events: auto;
+  transition: all 0.6s ease;
 }
-.voice-panel.active {
-  bottom: 0;
-  box-shadow: 0 0 50px rgba(255,180,60,0.4);
+
+/* Gdy voice panel jest aktywny, kafelki znikają */
+.tiles.hidden {
+  transform: translate(-50%, 150%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tile img {
+  width: clamp(70px, 8vw, 100px); /* mniejsze kafelki */
+  height: clamp(70px, 8vw, 100px);
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(255,255,255,0.05);
+  transition: transform 0.3s ease, box-shadow 0.4s ease;
+}
+.tile:hover img {
+  transform: scale(1.1);
+  box-shadow: 0 0 40px rgba(255,150,0,0.3);
+  cursor: pointer;
+}
+
+/* === VOICEBAR (przy dolnej krawędzi) === */
+.voicebar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: min(80vw, 640px);
+  z-index: 30;
+  pointer-events: auto;
+}
+
+/* === PRZEŁĄCZNIK (pionowy dock po lewej) === */
+.mode-toggle {
+  position: fixed;
+  left: clamp(10px, 2vw, 20px);
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
+  filter: drop-shadow(0 0 10px rgba(255, 107, 0, 0.35));
 }
 
 /* OBRAMÓWKA */
@@ -246,6 +352,7 @@
   bottom: -160px;
   left: 50%;
   transform: translateX(-50%);
+  width: clamp(280px, 80vw, 640px);
   transition: all 0.6s cubic-bezier(0.19,1,0.22,1);
   z-index: 100;
 }
@@ -272,4 +379,60 @@
 
 .panel-toggle:hover {
   transform: scale(1.1);
+}
+
+/* === RESPONSIVE MEDIA QUERIES === */
+
+/* Tablet i małe laptopy */
+@media (max-width: 1024px) {
+  .header-left p {
+    display: none; /* Ukryj podtytuł na mniejszych ekranach */
+  }
+}
+
+/* Mobile landscape i małe tablety */
+@media (max-width: 768px) {
+  .top-header {
+    padding: 0.75rem 1rem;
+    min-height: 60px;
+  }
+  .mode-toggle {
+    transform: scale(0.88);
+  }
+  .logo { 
+    width: clamp(200px, 60vw, 280px); 
+  }
+}
+
+/* Mobile portrait */
+@media (max-width: 480px) {
+  .header-left h1 {
+    font-size: 1rem;
+  }
+  
+  .header-right {
+    gap: 0.5rem;
+  }
+  
+  .cart-btn, .menu-btn {
+    padding: 0.5rem;
+  }
+  
+  .tile img { 
+    width: 70px; 
+    height: 70px; 
+  }
+  
+  .recording-indicator {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}
+
+/* Bardzo małe ekrany */
+@media (max-width: 360px) {
+  .tile img { 
+    width: 60px; 
+    height: 60px; 
+  }
 }
