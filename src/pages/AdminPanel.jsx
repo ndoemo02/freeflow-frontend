@@ -40,6 +40,15 @@ export default function AdminPanel() {
   const [chartType, setChartType] = useState('Dzienna');
   const [loading, setLoading] = useState(true);
   
+  // Admin token
+  const [adminToken, setAdminToken] = useState('');
+  useEffect(() => {
+    const t = localStorage.getItem('admin-token') || '';
+    setAdminToken(t);
+  }, []);
+  const saveToken = (v) => { setAdminToken(v); localStorage.setItem('admin-token', v || ''); };
+  const tokenOk = !!adminToken;
+
   // State dla danych z Supabase
   const [analyticsData, setAnalyticsData] = useState(null);
   const [ordersChart, setOrdersChart] = useState(null);
@@ -49,11 +58,75 @@ export default function AdminPanel() {
   const [accounts, setAccounts] = useState([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
 
+  // Admin API states
+  const [intents, setIntents] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItem, setNewItem] = useState({ name: '', price: '', category: '', available: true });
+
+  const adminFetch = async (url, opts = {}) => {
+    const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken, ...(opts.headers || {}) };
+    const res = await fetch(url, { ...opts, headers });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  };
+
+  const loadIntents = async () => {
+    if (!tokenOk) return setIntents([]);
+    try {
+      const j = await adminFetch('/api/admin/intents');
+      setIntents(j.data || []);
+    } catch (e) {
+      console.warn('intents error', e.message);
+      setIntents([]);
+    }
+  };
+
+  const loadRestaurants = async () => {
+    if (!tokenOk) return setRestaurants([]);
+    try {
+      const j = await adminFetch('/api/admin/restaurants');
+      setRestaurants(j.data || []);
+    } catch (e) {
+      console.warn('restaurants error', e.message);
+      setRestaurants([]);
+    }
+  };
+
+  const loadMenu = async (restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setMenuItems([]);
+    if (!restaurant) return;
+    try {
+      const j = await adminFetch(`/api/admin/menu?restaurant_id=${restaurant.id}`);
+      setMenuItems(j.data || []);
+    } catch (e) {
+      console.warn('menu error', e.message);
+      setMenuItems([]);
+    }
+  };
+
+  const saveMenuItem = async () => {
+    if (!selectedRestaurant) return;
+    const payload = { ...newItem, restaurant_id: selectedRestaurant.id, price: Number(newItem.price) || 0 };
+    try {
+      await adminFetch('/api/admin/menu', { method: 'POST', body: JSON.stringify(payload) });
+      setShowAddModal(false);
+      setNewItem({ name: '', price: '', category: '', available: true });
+      await loadMenu(selectedRestaurant);
+    } catch (e) {
+      alert('Save failed: ' + e.message);
+    }
+  };
+
   // Funkcja do ładowania wszystkich danych
   const loadAnalyticsData = async (period = '7') => {
     setLoading(true);
     try {
-      const [kpi, orders, hourly, dishes, restaurants] = await Promise.all([
+      const [kpi, orders, hourly, dishes, restaurantsTop] = await Promise.all([
         getAnalyticsKPI(period),
         getOrdersChartData(period),
         getHourlyDistribution(),
@@ -65,7 +138,7 @@ export default function AdminPanel() {
       setOrdersChart(orders);
       setHourlyChart(hourly);
       setTopDishes(dishes);
-      setTopRestaurants(restaurants);
+      setTopRestaurants(restaurantsTop);
     } catch (error) {
       console.error('Error loading analytics data:', error);
     } finally {
@@ -112,7 +185,9 @@ export default function AdminPanel() {
     const period = selectedPeriod.split(' ')[0]; // '7 dni' -> '7'
     loadAnalyticsData(period);
     loadAccounts();
-  }, [selectedPeriod]);
+    loadIntents();
+    loadRestaurants();
+  }, [selectedPeriod, tokenOk]);
 
   // Funkcja do określania typu konta
   const getAccountType = (userType) => {
@@ -265,9 +340,42 @@ export default function AdminPanel() {
           padding: 20,
           color: '#9CA3AF'
         }
-      }
+      },
+      tooltip: { enabled: true }
     }
   };
+
+  // Intents chart data
+  const intentsChartData = {
+    labels: intents.map(i => new Date(i.timestamp).toLocaleTimeString()),
+    datasets: [{
+      label: 'Confidence',
+      data: intents.map(i => i.confidence ?? 0),
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3
+    }]
+  };
+  const intentsChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const i = intents[ctx.dataIndex];
+            return `${i.intent} • ${i.confidence?.toFixed?.(2) ?? '-'}\n${(i.replySnippet || '').slice(0, 60)}`;
+          }
+        }
+      },
+      legend: { display: false }
+    },
+    scales: { y: { beginAtZero: true, max: 1 } }
+  };
+
+  const fallbackBlocks = intents.filter(i => i.fallback && (i.confidence ?? 1) < 0.5).slice(0, 10);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A]">
@@ -277,6 +385,19 @@ export default function AdminPanel() {
             title="📊 FreeFlow Analytics" 
             subtitle="Panel analityczny z danymi w czasie rzeczywistym"
           />
+
+          {/* Admin token */}
+          <div className="flex items-center gap-3 mb-6">
+            <input
+              value={adminToken}
+              onChange={(e)=>saveToken(e.target.value)}
+              placeholder="x-admin-token"
+              className="px-3 py-2 rounded bg-white/10 border border-white/20 text-white w-80"
+            />
+            <span className={`text-sm ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
+              {tokenOk ? 'Połączono jako Admin ✅' : 'Brak tokenu ❌'}
+            </span>
+          </div>
 
           {/* Period Controls */}
           <div className="flex justify-center gap-4 items-center mb-8">
@@ -374,6 +495,110 @@ export default function AdminPanel() {
             <div className="h-80">
               <Doughnut data={hourlyChartData} options={doughnutOptions} />
             </div>
+          </div>
+        </div>
+
+        {/* Krzywa Intencji Amber */}
+        <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="text-xl font-bold text-white">Krzywa Intencji Amber</div>
+              <div className="text-sm text-gray-300">Confidence w czasie (ostatnie {intents.length})</div>
+            </div>
+            <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">
+              Odśwież
+            </button>
+          </div>
+          <div className="h-72">
+            <Line data={intentsChartData} options={intentsChartOptions} />
+          </div>
+        </div>
+
+        {/* Restauracje & Menu */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+            <div className="text-xl font-bold text-white mb-4">🍽️ Restauracje</div>
+            <ol className="space-y-2 list-decimal list-inside text-white/90">
+              {restaurants.map((r, idx) => (
+                <li key={r.id} className="flex items-center justify-between gap-3">
+                  <button onClick={() => loadMenu(r)} className="text-left hover:text-purple-300">
+                    {r.name}
+                    <span className="text-xs text-gray-400 ml-2">({r.partner_mode})</span>
+                  </button>
+                  <span className="text-xs text-gray-400">menu: {r.menu_count}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xl font-bold text-white">Menu: {selectedRestaurant?.name || '—'}</div>
+              <button disabled={!selectedRestaurant} onClick={()=>setShowAddModal(true)} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded-lg">➕ Add Item</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-gray-300">
+                    <th className="py-2">Name</th>
+                    <th className="py-2">Price</th>
+                    <th className="py-2">Category</th>
+                    <th className="py-2">Available</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {menuItems.map(m => (
+                    <tr key={m.id} className="border-t border-gray-700 text-white/90">
+                      <td className="py-2">{m.name}</td>
+                      <td className="py-2">{Number(m.price).toFixed(2)} zł</td>
+                      <td className="py-2">{m.category || '—'}</td>
+                      <td className="py-2">{m.available ? '✓' : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Add Item */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md">
+              <div className="text-white font-bold text-lg mb-4">Dodaj pozycję</div>
+              <div className="space-y-3">
+                <input value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} placeholder="Name" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
+                <input value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} placeholder="Price" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
+                <input value={newItem.category} onChange={e=>setNewItem({...newItem,category:e.target.value})} placeholder="Category" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
+                <label className="flex items-center gap-2 text-white/80 text-sm">
+                  <input type="checkbox" checked={newItem.available} onChange={e=>setNewItem({...newItem,available:e.target.checked})} /> Available
+                </label>
+              </div>
+              <div className="flex justify-end gap-2 mt-5">
+                <button onClick={()=>setShowAddModal(false)} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white">Anuluj</button>
+                <button onClick={saveMenuItem} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">💾 Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ostatnie blokady Amber */}
+        <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700 mb-12">
+          <div className="text-xl font-bold text-white mb-4">⚠️ Ostatnie blokady Amber</div>
+          <div className="space-y-2">
+            {fallbackBlocks.length === 0 ? (
+              <div className="text-gray-400 text-sm">Brak blokad w ostatnich zapisach</div>
+            ) : (
+              fallbackBlocks.map((b, i) => (
+                <div key={i} className="text-sm text-white/90 flex items-center justify-between border-b border-gray-700 py-2">
+                  <div>
+                    <div className="font-semibold">{b.intent} • {(b.confidence ?? 0).toFixed(2)}</div>
+                    <div className="text-gray-400">{(b.replySnippet || '').slice(0, 80)}</div>
+                  </div>
+                  <div className="text-gray-400">{new Date(b.timestamp).toLocaleTimeString()}</div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
