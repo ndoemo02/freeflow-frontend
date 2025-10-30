@@ -3,9 +3,15 @@ import styled from 'styled-components'
 
 type Props = {
   amberResponse?: string
+  interimText?: string
+  finalText?: string
+  recording?: boolean
 }
 
-export default function VoicePanelText({ amberResponse = "" }: Props) {
+export default function VoicePanelText({ amberResponse = "", interimText = "", finalText = "", recording = false }: Props) {
+  const liveFinal = (finalText || "").trim()
+  const liveInterim = (interimText || "").trim()
+  const hasLive = !!(liveFinal || liveInterim)
   return (
     <StyledWrapper>
       <div>
@@ -20,6 +26,11 @@ export default function VoicePanelText({ amberResponse = "" }: Props) {
           <div id="main">
             {amberResponse ? (
               <div className="amber-text">{amberResponse}</div>
+            ) : hasLive ? (
+              <div className="live-text" aria-live="polite">
+                {liveFinal && <span className="live-final">{liveFinal} </span>}
+                {liveInterim && <span className="live-interim">{liveInterim}</span>}
+              </div>
             ) : (
               <input placeholder="Czekam na polecenie..." type="text" name="text" className="input" readOnly />
             )}
@@ -106,6 +117,21 @@ const StyledWrapper = styled.div`
     text-align: left;
     animation: fadeIn 0.5s ease;
   }
+  .live-text {
+    background-color: #010201;
+    width: clamp(260px, 75vw, 600px);
+    min-height: 56px;
+    border-radius: 10px;
+    color: #ffffff;
+    padding: 16px 20px;
+    font-size: clamp(14px, 4vw, 18px);
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+  .live-final { color: #ffffff; }
+  .live-interim { color: #b3b3b3; opacity: 0.8; }
   
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

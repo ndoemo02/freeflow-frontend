@@ -55,3 +55,13 @@ declare module '../components/DynamicPopups.jsx' {
 }
 
 
+declare module '../components/LogoFreeFlow' {
+  const Component: React.ComponentType<any>;
+  export default Component;
+}
+declare module '../components/LogoFreeFlow.jsx' {
+  const Component: React.ComponentType<any>;
+  export default Component;
+}
+
+

@@ -8,6 +8,7 @@ import Cart from "../components/Cart"
 import MenuDrawer from "../ui/MenuDrawer"
 import VoicePanelText from "../components/VoicePanelText"
 import Switch from "../components/Switch"
+import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 // @ts-ignore
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
 import "./Home.css"
@@ -283,7 +284,7 @@ export default function Home() {
       {/* Header z menu i koszykiem */}
       <header className="top-header">
         <div className="header-left">
-          <h1><span>Free</span>Flow</h1>
+          <LogoFreeFlow />
           <p>Voice to order — Złóż zamówienie<br/>Restauracja, taxi albo hotel?</p>
         </div>
 
@@ -334,8 +335,15 @@ export default function Home() {
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
       </div>
 
-      {/* VoicePanelText - dolny środek (widoczny gdy przełącznik włączony lub jest odpowiedź) */}
-      {(showTextPanel || amberResponse) && <VoicePanelText amberResponse={amberResponse} />}
+      {/* VoicePanelText - dolny środek (włącz gdy panel, odpowiedź lub trwa mówienie) */}
+      {(showTextPanel || amberResponse || recording || interimText || finalText) && (
+        <VoicePanelText
+          amberResponse={amberResponse}
+          interimText={interimText as unknown as string}
+          finalText={finalText as unknown as string}
+          recording={recording}
+        />
+      )}
 
       {/* MenuDrawer i Cart */}
       <MenuDrawer />
