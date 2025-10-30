@@ -402,6 +402,19 @@
   .logo { 
     width: clamp(200px, 60vw, 280px); 
   }
+  /* Kafelki w jednej linii na dole ekranu */
+  .tiles {
+    width: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: clamp(10px, 4vw, 16px);
+  }
+  .tile img {
+    width: clamp(56px, 14vw, 72px);
+    height: clamp(56px, 14vw, 72px);
+  }
 }
 
 /* Mobile portrait */
@@ -419,8 +432,8 @@
   }
   
   .tile img { 
-    width: 70px; 
-    height: 70px; 
+    width: 60px; 
+    height: 60px; 
   }
   
   .recording-indicator {
