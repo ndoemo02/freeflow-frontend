@@ -20,7 +20,7 @@
   display: grid;
   place-items: center;
   min-height: 100dvh; /* nie 100vh – naprawa iOS */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) 440px env(safe-area-inset-left); /* podniesiono do 440px (2x wyżej) */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 420px env(safe-area-inset-left); /* podciągnięto logo wyżej */
   position: relative;
   overflow: visible !important; /* zmienione z hidden */
   z-index: 2;
@@ -172,7 +172,7 @@
   pointer-events: none;
 }
 .logo {
-  width: clamp(220px, 28vw, 360px);
+  width: clamp(280px, 34vw, 440px);
   height: auto;
   animation: float 4s ease-in-out infinite;
   transition: filter 0.3s ease, transform 0.2s ease;
@@ -221,11 +221,11 @@
 /* === TILES - NA DOLE (fixed) === */
 .tiles {
   position: fixed;
-  bottom: calc(16px + env(safe-area-inset-bottom)); /* tuż nad voicebar */
+  bottom: calc(16px + env(safe-area-inset-bottom)); /* nieco niżej */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: clamp(12px, 2.5vw, 20px);
+  gap: clamp(8px, 2vw, 16px); /* bliżej siebie */
   flex-wrap: wrap;
   justify-content: center;
   z-index: 25; /* pod logo (100) */
@@ -241,8 +241,8 @@
 }
 
 .tile img {
-  width: clamp(70px, 8vw, 100px); /* mniejsze kafelki */
-  height: clamp(70px, 8vw, 100px);
+  width: clamp(90px, 9.5vw, 120px); /* większe kafelki */
+  height: clamp(90px, 9.5vw, 120px);
   border-radius: 16px;
   box-shadow: 0 0 20px rgba(255,255,255,0.05);
   transition: transform 0.3s ease, box-shadow 0.4s ease;
@@ -400,7 +400,7 @@
     transform: scale(0.88);
   }
   .logo { 
-    width: clamp(200px, 60vw, 280px); 
+    width: clamp(240px, 72vw, 340px); 
   }
   /* Kafelki w jednej linii na dole ekranu */
   .tiles {
@@ -409,11 +409,12 @@
     transform: translateX(-50%);
     flex-wrap: nowrap;
     justify-content: center;
-    gap: clamp(10px, 4vw, 16px);
+    gap: clamp(8px, 3.5vw, 14px);
+    padding-left: clamp(36px, 12vw, 64px); /* dystans od przełącznika po lewej */
   }
   .tile img {
-    width: clamp(56px, 14vw, 72px);
-    height: clamp(56px, 14vw, 72px);
+    width: clamp(72px, 18vw, 96px);
+    height: clamp(72px, 18vw, 96px);
   }
 }
 
@@ -432,8 +433,8 @@
   }
   
   .tile img { 
-    width: 60px; 
-    height: 60px; 
+    width: 72px; 
+    height: 72px; 
   }
   
   .recording-indicator {
