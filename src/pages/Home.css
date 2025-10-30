@@ -225,7 +225,7 @@
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: clamp(8px, 2vw, 16px); /* bliżej siebie */
+  gap: clamp(6px, 1.8vw, 14px); /* jeszcze bliżej siebie */
   flex-wrap: wrap;
   justify-content: center;
   z-index: 25; /* pod logo (100) */
@@ -409,7 +409,7 @@
     transform: translateX(-50%);
     flex-wrap: nowrap;
     justify-content: center;
-    gap: clamp(8px, 3.5vw, 14px);
+    gap: clamp(6px, 3vw, 12px);
     padding-left: clamp(36px, 12vw, 64px); /* dystans od przełącznika po lewej */
   }
   .tile img {
