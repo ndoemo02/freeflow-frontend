@@ -11,6 +11,7 @@ import Switch from "../components/Switch"
 // @ts-ignore
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
 import "./Home.css"
+import { CONFIG } from "../lib/config"
 
 export default function Home() {
   const [showTextPanel, setShowTextPanel] = useState(false)
@@ -110,12 +111,13 @@ export default function Home() {
         }
       }
 
+      const apiUrl = `${CONFIG.BACKEND_URL}/api/brain`
       console.log("📡 Wysyłam do Amber Brain:", text)
-      console.log("🌐 URL:", "http://localhost:3000/api/brain")
+      console.log("🌐 URL:", apiUrl)
       console.log("📦 Body:", { text, sessionId, includeTTS: true, lat: finalLat, lng: finalLng })
       console.log("🔑 Using sessionId:", sessionId)
       
-      const response = await fetch("http://localhost:3000/api/brain", {
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
