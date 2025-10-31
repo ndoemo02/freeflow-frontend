@@ -26,6 +26,7 @@ import PanelHeader from '../components/PanelHeader';
 import { CONFIG } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
 import AmberLiveMonitor from '../components/AmberLiveMonitor';
+import FreeFunNearby from '../components/FreeFunNearby';
 
 ChartJS.register(
   CategoryScale,
@@ -896,6 +897,9 @@ export default function AdminPanel() {
               </table>
             </div>
           </div>
+
+          {/* FreeFun Nearby */}
+          <FreeFunNearby />
 
         {/* Control Deck przeniesiony do osobnego komponentu i zakładki */}
 
