@@ -83,7 +83,7 @@ export default function AdminPanel() {
     try {
       setDiag(d => ({ ...d, running: true }));
       const t0 = performance.now();
-      const resp = await fetch('/api/brain', {
+      const resp = await fetch(`${CONFIG.BACKEND_URL}/api/brain`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: 'Gdzie mogę zjeść w pobliżu?', includeTTS: true, sessionId: `diag-${Date.now()}` })
@@ -111,7 +111,7 @@ export default function AdminPanel() {
     let timer;
     const tick = async () => {
       try {
-        const r = await fetch('/api/health');
+        const r = await fetch(`${CONFIG.BACKEND_URL}/api/health`);
         setHb({ status: r.ok ? '🟢 online' : '🔴 offline', last: new Date().toISOString() });
       } catch {
         setHb({ status: '🔴 offline', last: new Date().toISOString() });
@@ -201,7 +201,8 @@ export default function AdminPanel() {
 
   const adminFetch = async (url, opts = {}) => {
     const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken, ...(opts.headers || {}) };
-    const res = await fetch(url, { ...opts, headers });
+    const fullUrl = /^https?:/i.test(url) ? url : `${CONFIG.BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    const res = await fetch(fullUrl, { ...opts, headers });
     const json = await res.json().catch(() => ({}));
     if (!res.ok || json.ok === false) throw new Error(json.error || `HTTP ${res.status}`);
     return json;
@@ -686,7 +687,7 @@ export default function AdminPanel() {
                 if (fIso) qs.append('from', fIso);
                 if (tIso) qs.append('to', tIso);
                 if (intentFilter) qs.append('intent', intentFilter);
-                window.open(`/api/admin/intents/export?${qs.toString()}`);
+                window.open(`${CONFIG.BACKEND_URL}/api/admin/intents/export?${qs.toString()}`);
               }} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
             </div>
           </div>
