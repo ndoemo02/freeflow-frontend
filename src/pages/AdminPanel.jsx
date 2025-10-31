@@ -122,6 +122,29 @@ export default function AdminPanel() {
     return () => clearInterval(timer);
   }, []);
 
+  // Live diagnostics via SSE
+  useEffect(() => {
+    try {
+      const es = new EventSource(`${CONFIG.BACKEND_URL}/api/amber/live`);
+      es.onmessage = (e) => {
+        try {
+          const j = JSON.parse(e.data || '{}');
+          setDiag(d => ({
+            nluMs: Math.round(j.nlu_ms ?? j.nluMs ?? d.nluMs),
+            dbMs: Math.round(j.db_ms ?? j.dbMs ?? d.dbMs),
+            ttsMs: Math.round(j.tts_ms ?? j.ttsMs ?? d.ttsMs),
+            durationMs: Math.round(j.duration_ms ?? j.durationMs ?? d.durationMs),
+            lastAt: j.created_at || new Date().toISOString(),
+            running: false,
+          }));
+        } catch {}
+      };
+      return () => es.close();
+    } catch {
+      // ignore if EventSource not supported
+    }
+  }, []);
+
   // Trends & Top slow intents
   const [trends, setTrends] = useState([]);
   const [topSlow, setTopSlow] = useState([]);
