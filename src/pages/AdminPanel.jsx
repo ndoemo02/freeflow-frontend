@@ -23,6 +23,7 @@ import {
 } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import PanelHeader from '../components/PanelHeader';
+import { CONFIG } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
 
 ChartJS.register(
@@ -124,6 +125,8 @@ export default function AdminPanel() {
   // Trends & Top slow intents
   const [trends, setTrends] = useState([]);
   const [topSlow, setTopSlow] = useState([]);
+  const [debugStatus, setDebugStatus] = useState("");
+  const [debugMsg, setDebugMsg] = useState("");
   // Tabs
   const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control'
 
@@ -776,6 +779,35 @@ export default function AdminPanel() {
             </div>
           </div>
         </div>
+
+            {/* Debug Card */}
+            <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700 mt-6">
+              <div className="text-xl font-bold text-white mb-3">🧠 Debug Info</div>
+              <div className="text-sm text-gray-300 space-y-1">
+                <p><span className="font-semibold text-white">Token:</span> {adminToken ? (adminToken.slice(0, 20) + '****') : 'Brak'}</p>
+                <p><span className="font-semibold text-white">Status:</span> {debugStatus || 'Nie testowano'}</p>
+                <p><span className="font-semibold text-white">Odpowiedź:</span> {debugMsg || 'Brak danych'}</p>
+              </div>
+              <div>
+                <button
+                  className="mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded"
+                  onClick={async () => {
+                    setDebugStatus('Łączenie...');
+                    const start = performance.now();
+                    try {
+                      const res = await fetch(`${CONFIG.BACKEND_URL}/api/admin/restaurants`, { headers: { 'x-admin-token': adminToken } });
+                      const data = await res.json();
+                      const end = (performance.now() - start).toFixed(1);
+                      setDebugStatus(`HTTP ${res.status} (${end}ms)`);
+                      setDebugMsg(JSON.stringify(data).slice(0, 250) + '...');
+                    } catch (err) {
+                      setDebugStatus('❌ Błąd połączenia');
+                      setDebugMsg(err.message);
+                    }
+                  }}
+                >Testuj Połączenie</button>
+              </div>
+            </div>
 
             </>
           )}
