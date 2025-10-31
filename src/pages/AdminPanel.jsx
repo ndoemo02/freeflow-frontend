@@ -130,12 +130,29 @@ export default function AdminPanel() {
   // Tabs
   const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control'
 
+  // Date helper that accepts YYYY-MM-DD and DD.MM.YYYY
+  const toIsoSafe = (v, endOfDay = false) => {
+    if (!v) return null;
+    let d = null;
+    if (v instanceof Date) d = v;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) d = new Date(v);
+    else if (/^\d{2}\.\d{2}\.\d{4}$/.test(String(v))) {
+      const [dd, mm, yyyy] = String(v).split('.');
+      d = new Date(`${yyyy}-${mm}-${dd}`);
+    }
+    if (!d || isNaN(d.getTime())) return null;
+    if (endOfDay) d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  };
+
   const loadTrends = async () => {
     if (!tokenOk) return setTrends([]);
     try {
       const qs = new URLSearchParams();
-      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
-      if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+      const fIso = toIsoSafe(fromDate);
+      const tIso = toIsoSafe(toDate, true);
+      if (fIso) qs.append('from', fIso);
+      if (tIso) qs.append('to', tIso);
       if (intentFilter) qs.append('intent', intentFilter);
       const j = await adminFetch(`/api/admin/performance/trends?${qs.toString()}`);
       setTrends(j.data || []);
@@ -148,8 +165,10 @@ export default function AdminPanel() {
     if (!tokenOk) return setTopSlow([]);
     try {
       const qs = new URLSearchParams();
-      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
-      if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+      const fIso = toIsoSafe(fromDate);
+      const tIso = toIsoSafe(toDate, true);
+      if (fIso) qs.append('from', fIso);
+      if (tIso) qs.append('to', tIso);
       if (intentFilter) qs.append('intent', intentFilter);
       const j = await adminFetch(`/api/admin/performance/top-intents?${qs.toString()}`);
       setTopSlow(j.data || []);
@@ -192,13 +211,10 @@ export default function AdminPanel() {
     if (!tokenOk) return setIntents([]);
     try {
       const qs = new URLSearchParams();
-      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
-      if (toDate) {
-        // koniec dnia
-        const end = new Date(toDate);
-        end.setHours(23,59,59,999);
-        qs.append('to', end.toISOString());
-      }
+      const fIso = toIsoSafe(fromDate);
+      const tIso = toIsoSafe(toDate, true);
+      if (fIso) qs.append('from', fIso);
+      if (tIso) qs.append('to', tIso);
       if (intentFilter) qs.append('intent', intentFilter);
       const j = await adminFetch(`/api/admin/intents?${qs.toString()}`);
       setIntents(j.data || []);
@@ -656,8 +672,10 @@ export default function AdminPanel() {
               <button onClick={() => {
                 const qs = new URLSearchParams();
                 qs.append('token', adminToken);
-                if (fromDate) qs.append('from', new Date(fromDate).toISOString());
-                if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+                const fIso = toIsoSafe(fromDate);
+                const tIso = toIsoSafe(toDate, true);
+                if (fIso) qs.append('from', fIso);
+                if (tIso) qs.append('to', tIso);
                 if (intentFilter) qs.append('intent', intentFilter);
                 window.open(`/api/admin/intents/export?${qs.toString()}`);
               }} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
