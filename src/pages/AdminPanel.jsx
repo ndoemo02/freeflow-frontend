@@ -10,8 +10,9 @@ import {
   Legend,
   ArcElement,
   Filler,
+  BarElement,
 } from 'chart.js';
-import { Line, Doughnut } from 'react-chartjs-2';
+import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import { motion } from 'framer-motion';
 import { 
   getAnalyticsKPI, 
@@ -32,7 +33,8 @@ ChartJS.register(
   Tooltip,
   Legend,
   ArcElement,
-  Filler
+  Filler,
+  BarElement
 );
 
 export default function AdminPanel() {
@@ -65,6 +67,34 @@ export default function AdminPanel() {
   const [menuItems, setMenuItems] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ name: '', price: '', category: '', available: true });
+
+  // Amber Diagnostics
+  const [diag, setDiag] = useState({ nluMs: 0, dbMs: 0, ttsMs: 0, durationMs: 0, lastAt: null, running: false });
+  const testAmber = async () => {
+    try {
+      setDiag(d => ({ ...d, running: true }));
+      const t0 = performance.now();
+      const resp = await fetch('/api/brain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'Gdzie mogę zjeść w pobliżu?', includeTTS: true, sessionId: `diag-${Date.now()}` })
+      });
+      const json = await resp.json();
+      const t1 = performance.now();
+      const timings = json.timings || {};
+      setDiag({
+        nluMs: Math.round(timings.nluMs || 0),
+        dbMs: Math.round(timings.dbMs || 0),
+        ttsMs: Math.round(timings.ttsMs || 0),
+        durationMs: Math.round(timings.durationMs || (t1 - t0)),
+        lastAt: new Date().toISOString(),
+        running: false,
+      });
+    } catch (e) {
+      console.warn('Amber test failed', e);
+      setDiag(d => ({ ...d, running: false }));
+    }
+  };
 
   const adminFetch = async (url, opts = {}) => {
     const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken, ...(opts.headers || {}) };
@@ -377,6 +407,16 @@ export default function AdminPanel() {
 
   const fallbackBlocks = intents.filter(i => i.fallback && (i.confidence ?? 1) < 0.5).slice(0, 10);
 
+  const diagData = {
+    labels: ['NLU parse', 'DB fetch', 'TTS gen'],
+    datasets: [{
+      label: 'ms',
+      data: [diag.nluMs, diag.dbMs, diag.ttsMs],
+      backgroundColor: ['#22d3ee', '#f59e0b', '#8b5cf6']
+    }]
+  };
+  const diagOptions = { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c)=> `${c.raw} ms` } } } };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A]">
       <div className="px-4 py-8">
@@ -505,12 +545,24 @@ export default function AdminPanel() {
               <div className="text-xl font-bold text-white">Krzywa Intencji Amber</div>
               <div className="text-sm text-gray-300">Confidence w czasie (ostatnie {intents.length})</div>
             </div>
-            <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">
-              Odśwież
-            </button>
+            <div className="flex gap-2">
+              <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">Odśwież</button>
+              <button onClick={testAmber} disabled={diag.running} className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg">{diag.running ? 'TEST...' : 'TEST AMBER'}</button>
+            </div>
           </div>
-          <div className="h-72">
+          <div className="h-72 mb-8">
             <Line data={intentsChartData} options={intentsChartOptions} />
+          </div>
+          {/* Amber Diagnostics bars */}
+          <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-white font-semibold">Amber Diagnostics</div>
+              <div className="text-sm text-gray-400">Całkowity: {diag.durationMs} ms {diag.lastAt && `• ${new Date(diag.lastAt).toLocaleTimeString()}`}</div>
+            </div>
+            <div className="h-48">
+              <Bar data={diagData} options={diagOptions} />
+            </div>
+            <div className="text-xs text-gray-300 mt-2">NLU parse {diag.nluMs}ms | DB fetch {diag.dbMs}ms | TTS gen {diag.ttsMs}ms</div>
           </div>
         </div>
 
