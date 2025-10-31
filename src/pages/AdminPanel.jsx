@@ -153,6 +153,7 @@ export default function AdminPanel() {
   const [debugMsg, setDebugMsg] = useState("");
   const [activity, setActivity] = useState([]);
   const [bizStats, setBizStats] = useState({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
+  const [alerts, setAlerts] = useState([]);
   // Tabs
   const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control'
 
@@ -210,6 +211,7 @@ export default function AdminPanel() {
     loadTopSlow();
     loadActivity();
     loadBusiness();
+    fetchAlerts();
   }, [tokenOk, fromDate, toDate, intentFilter]);
 
   const refreshData = async () => {
@@ -255,6 +257,13 @@ export default function AdminPanel() {
         conversion: j.conversion || 0,
       });
     } catch (e) {}
+  };
+  const fetchAlerts = async () => {
+    if (!tokenOk) return setAlerts([]);
+    try {
+      const j = await adminFetch('/api/admin/trends/alerts');
+      setAlerts(j.alerts || j.data || []);
+    } catch (e) { setAlerts([]); }
   };
 
   const loadIntents = async () => {
@@ -815,7 +824,10 @@ export default function AdminPanel() {
           <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="text-xl font-bold text-white">Aktywność Ambera wg restauracji</div>
-              <button onClick={loadActivity} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+              <div className="flex gap-2">
+                <button onClick={loadActivity} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+                <button onClick={async()=>{ try { await adminFetch('/api/admin/trends/analyze', { method: 'POST' }); await Promise.all([loadActivity(), loadBusiness()]); } catch(e){} }} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded">Analizuj teraz</button>
+              </div>
             </div>
             <div className="space-y-2">
               {activity.map((r, i) => (
@@ -849,6 +861,39 @@ export default function AdminPanel() {
                 <div className="text-2xl text-white font-bold">{(bizStats.conversion * 100).toFixed(1)}%</div>
                 <div className="text-xs text-gray-500">{bizStats.interactions} interakcji</div>
               </div>
+            </div>
+          </div>
+
+          {/* Amber Alerts */}
+          <div className="p-6 bg-slate-900 rounded-2xl border border-gray-700 text-white mb-10">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">⚠️ Amber Alerts</h3>
+              <button onClick={fetchAlerts} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-gray-300">
+                    <th className="py-2 text-left">Typ</th>
+                    <th className="py-2 text-left">Poziom</th>
+                    <th className="py-2 text-left">Treść</th>
+                    <th className="py-2 text-left">Czas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(alerts||[]).map((a, i) => (
+                    <tr key={(a.id || i)} className="border-t border-gray-700">
+                      <td className="py-2">{a.type}</td>
+                      <td className="py-2">{a.severity}</td>
+                      <td className="py-2">{a.message}</td>
+                      <td className="py-2">{a.created_at ? new Date(a.created_at).toLocaleString() : '—'}</td>
+                    </tr>
+                  ))}
+                  {(!alerts || alerts.length === 0) && (
+                    <tr><td colSpan={4} className="py-3 text-gray-400">Brak alertów</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
