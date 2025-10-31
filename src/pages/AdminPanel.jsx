@@ -25,6 +25,7 @@ import { supabase } from '../lib/supabase';
 import PanelHeader from '../components/PanelHeader';
 import { CONFIG } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
+import AmberLiveMonitor from '../components/AmberLiveMonitor';
 
 ChartJS.register(
   CategoryScale,
@@ -751,6 +752,9 @@ export default function AdminPanel() {
               <Bar data={diagData} options={diagOptions} />
             </div>
             <div className="text-xs text-gray-300 mt-2">NLU parse {diag.nluMs}ms | DB fetch {diag.dbMs}ms | TTS gen {diag.ttsMs}ms</div>
+          </div>
+          <div className="mt-4">
+            <AmberLiveMonitor />
           </div>
         </div>
 
