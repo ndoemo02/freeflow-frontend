@@ -49,7 +49,7 @@ export async function getAnalyticsKPI(period: string = '7'): Promise<AnalyticsDa
     // Pobierz zamówienia z aktualnego okresu
     const { data: currentOrders, error: currentError } = await supabase
       .from('orders')
-      .select('total_cents, created_at, status')
+      .select('total_cents,total_price,created_at,status')
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString());
 
@@ -61,7 +61,7 @@ export async function getAnalyticsKPI(period: string = '7'): Promise<AnalyticsDa
     // Pobierz zamówienia z poprzedniego okresu (dla porównania)
     const { data: prevOrders, error: prevError } = await supabase
       .from('orders')
-      .select('total_cents, created_at, status')
+      .select('total_cents,total_price,created_at,status')
       .gte('created_at', prevStartDate.toISOString())
       .lte('created_at', prevEndDate.toISOString());
 
@@ -70,12 +70,18 @@ export async function getAnalyticsKPI(period: string = '7'): Promise<AnalyticsDa
     }
 
     // Oblicz metryki dla aktualnego okresu
-    const totalRevenue = currentOrders?.reduce((sum, order) => sum + (order.total_cents || 0) / 100, 0) || 0;
+    const valueOf = (o: any) => {
+      if (typeof o?.total_price === 'number') return o.total_price;
+      if (typeof o?.total_cents === 'number') return o.total_cents / 100;
+      if (typeof o?.total === 'number') return o.total;
+      return 0;
+    };
+    const totalRevenue = currentOrders?.reduce((sum, order) => sum + valueOf(order), 0) || 0;
     const totalOrders = currentOrders?.length || 0;
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     // Oblicz metryki dla poprzedniego okresu
-    const prevRevenue = prevOrders?.reduce((sum, order) => sum + (order.total_cents || 0) / 100, 0) || 0;
+    const prevRevenue = prevOrders?.reduce((sum, order) => sum + valueOf(order), 0) || 0;
     const prevOrdersCount = prevOrders?.length || 0;
     const prevAvgOrder = prevOrdersCount > 0 ? prevRevenue / prevOrdersCount : 0;
 
@@ -277,6 +283,7 @@ export async function getTopRestaurants(): Promise<TopRestaurant[]> {
       .from('orders')
       .select(`
         total_cents,
+        total_price,
         restaurant_id,
         restaurants!restaurant_id (
           name,
@@ -305,7 +312,10 @@ export async function getTopRestaurants(): Promise<TopRestaurant[]> {
             revenue: 0
           };
         }
-        restaurantRevenue[key].revenue += (order.total_cents || 0) / 100;
+        const val = typeof (order as any).total_price === 'number'
+          ? (order as any).total_price
+          : ((order as any).total_cents || 0) / 100;
+        restaurantRevenue[key].revenue += val;
       }
     });
 
