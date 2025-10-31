@@ -265,9 +265,18 @@ export default function AdminPanel() {
   const loadAnalyticsData = async (period = '7') => {
     setLoading(true);
     try {
+      const now = new Date();
+      const fromIso = toIsoSafe(fromDate) || new Date(now.getTime() - (parseInt(period) || 7) * 24 * 60 * 60 * 1000).toISOString();
+      const toIso = toIsoSafe(toDate, true) || now.toISOString();
+      console.log('📊 Zakres dat:', { from: fromIso, to: toIso });
+
+      // Przelicz na dni dla istniejących helperów
+      const ms = new Date(toIso).getTime() - new Date(fromIso).getTime();
+      const days = Math.max(1, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+
       const [kpi, orders, hourly, dishes, restaurantsTop] = await Promise.all([
-        getAnalyticsKPI(period),
-        getOrdersChartData(period),
+        getAnalyticsKPI(String(days)),
+        getOrdersChartData(String(days)),
         getHourlyDistribution(),
         getTopDishes(),
         getTopRestaurants()
@@ -279,7 +288,7 @@ export default function AdminPanel() {
       setTopDishes(dishes);
       setTopRestaurants(restaurantsTop);
     } catch (error) {
-      console.error('Error loading analytics data:', error);
+      console.error('❌ loadAnalyticsData error:', error);
     } finally {
       setLoading(false);
     }
