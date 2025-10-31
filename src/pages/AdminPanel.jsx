@@ -151,6 +151,8 @@ export default function AdminPanel() {
   const [topSlow, setTopSlow] = useState([]);
   const [debugStatus, setDebugStatus] = useState("");
   const [debugMsg, setDebugMsg] = useState("");
+  const [activity, setActivity] = useState([]);
+  const [bizStats, setBizStats] = useState({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
   // Tabs
   const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control'
 
@@ -206,10 +208,12 @@ export default function AdminPanel() {
     if (!tokenOk) return;
     loadTrends();
     loadTopSlow();
+    loadActivity();
+    loadBusiness();
   }, [tokenOk, fromDate, toDate, intentFilter]);
 
   const refreshData = async () => {
-    await Promise.all([loadIntents(), loadTrends(), loadTopSlow()]);
+    await Promise.all([loadIntents(), loadTrends(), loadTopSlow(), loadActivity(), loadBusiness()]);
   };
 
   const trendsData = {
@@ -230,6 +234,27 @@ export default function AdminPanel() {
     const json = await res.json().catch(() => ({}));
     if (!res.ok || json.ok === false) throw new Error(json.error || `HTTP ${res.status}`);
     return json;
+  };
+
+  const loadActivity = async () => {
+    if (!tokenOk) return setActivity([]);
+    try {
+      const j = await adminFetch('/api/admin/amber/restaurants-activity?days=7');
+      setActivity(j.data || []);
+    } catch (e) { setActivity([]); }
+  };
+  const loadBusiness = async () => {
+    if (!tokenOk) return setBizStats({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
+    try {
+      const j = await adminFetch('/api/admin/business/stats');
+      setBizStats({
+        total_orders: j.total_orders || 0,
+        total_revenue: j.total_revenue || 0,
+        avg_order: j.avg_order || 0,
+        interactions: j.interactions || 0,
+        conversion: j.conversion || 0,
+      });
+    } catch (e) {}
   };
 
   const loadIntents = async () => {
@@ -785,6 +810,47 @@ export default function AdminPanel() {
             {topSlow.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
           </div>
         </div>
+
+          {/* Aktywność Ambera wg restauracji */}
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-xl font-bold text-white">Aktywność Ambera wg restauracji</div>
+              <button onClick={loadActivity} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+            </div>
+            <div className="space-y-2">
+              {activity.map((r, i) => (
+                <div key={r.id + i} className="flex items-center justify-between text-white/90 border-b border-gray-700 py-2">
+                  <div>{r.name}</div>
+                  <div className="text-gray-300">{r.interactions} interakcji</div>
+                </div>
+              ))}
+              {activity.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
+            </div>
+          </div>
+
+          {/* FreeFlow Business Pulse */}
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+            <div className="text-xl font-bold text-white mb-6">FreeFlow Business Pulse</div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
+                <div className="text-sm text-gray-400">Całkowity przychód</div>
+                <div className="text-2xl text-white font-bold">{bizStats.total_revenue.toFixed(2)} zł</div>
+              </div>
+              <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
+                <div className="text-sm text-gray-400">Liczba zamówień</div>
+                <div className="text-2xl text-white font-bold">{bizStats.total_orders}</div>
+              </div>
+              <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
+                <div className="text-sm text-gray-400">Średnia wartość</div>
+                <div className="text-2xl text-white font-bold">{bizStats.avg_order.toFixed(2)} zł</div>
+              </div>
+              <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
+                <div className="text-sm text-gray-400">Konwersja</div>
+                <div className="text-2xl text-white font-bold">{(bizStats.conversion * 100).toFixed(1)}%</div>
+                <div className="text-xs text-gray-500">{bizStats.interactions} interakcji</div>
+              </div>
+            </div>
+          </div>
 
         {/* Control Deck przeniesiony do osobnego komponentu i zakładki */}
 
