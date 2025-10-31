@@ -96,6 +96,64 @@ export default function AdminPanel() {
     }
   };
 
+  // Heartbeat
+  const [hb, setHb] = useState({ status: 'unknown', last: null });
+  useEffect(() => {
+    let timer;
+    const tick = async () => {
+      try {
+        const r = await fetch('/api/health');
+        setHb({ status: r.ok ? '🟢 online' : '🔴 offline', last: new Date().toISOString() });
+      } catch {
+        setHb({ status: '🔴 offline', last: new Date().toISOString() });
+      }
+    };
+    tick();
+    timer = setInterval(tick, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Trends & Top slow intents
+  const [trends, setTrends] = useState([]);
+  const [topSlow, setTopSlow] = useState([]);
+  const loadTrends = async () => {
+    if (!tokenOk) return setTrends([]);
+    try {
+      const j = await adminFetch('/api/admin/performance/trends');
+      setTrends(j.data || []);
+    } catch (e) {
+      console.warn('trends error', e.message);
+      setTrends([]);
+    }
+  };
+  const loadTopSlow = async () => {
+    if (!tokenOk) return setTopSlow([]);
+    try {
+      const j = await adminFetch('/api/admin/performance/top-intents');
+      setTopSlow(j.data || []);
+    } catch (e) {
+      console.warn('top-intents error', e.message);
+      setTopSlow([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!tokenOk) return;
+    loadTrends();
+    loadTopSlow();
+  }, [tokenOk]);
+
+  const trendsData = {
+    labels: trends.map(t => t.day),
+    datasets: [
+      { label: 'NLU', data: trends.map(t => t.nluAvg), borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.2)', tension: 0.3 },
+      { label: 'DB', data: trends.map(t => t.dbAvg), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.2)', tension: 0.3 },
+      { label: 'TTS', data: trends.map(t => t.ttsAvg), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', tension: 0.3 },
+      { label: 'Total', data: trends.map(t => t.durAvg), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', tension: 0.3 },
+    ]
+  };
+  const trendsOptions = { responsive: true, plugins: { legend: { labels: { color: '#e5e7eb' } } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } } };
+
   const adminFetch = async (url, opts = {}) => {
     const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken, ...(opts.headers || {}) };
     const res = await fetch(url, { ...opts, headers });
@@ -543,11 +601,12 @@ export default function AdminPanel() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="text-xl font-bold text-white">Krzywa Intencji Amber</div>
-              <div className="text-sm text-gray-300">Confidence w czasie (ostatnie {intents.length})</div>
+              <div className="text-sm text-gray-300">Confidence w czasie (ostatnie {intents.length}) · <span className="ml-1">{hb.status}</span></div>
             </div>
             <div className="flex gap-2">
               <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">Odśwież</button>
               <button onClick={testAmber} disabled={diag.running} className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg">{diag.running ? 'TEST...' : 'TEST AMBER'}</button>
+              <button onClick={() => window.open(`/api/admin/intents/export?token=${encodeURIComponent(adminToken)}`)} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
             </div>
           </div>
           <div className="h-72 mb-8">
@@ -563,6 +622,34 @@ export default function AdminPanel() {
               <Bar data={diagData} options={diagOptions} />
             </div>
             <div className="text-xs text-gray-300 mt-2">NLU parse {diag.nluMs}ms | DB fetch {diag.dbMs}ms | TTS gen {diag.ttsMs}ms</div>
+          </div>
+        </div>
+
+        {/* Trendy: Średnia latencja / dzień */}
+        <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-xl font-bold text-white">Średnia latencja / dzień</div>
+            <button onClick={loadTrends} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+          </div>
+          <div className="h-72">
+            <Line data={trendsData} options={trendsOptions} />
+          </div>
+        </div>
+
+        {/* Top 5 najwolniejszych intencji */}
+        <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-xl font-bold text-white">Top 5 najwolniejszych intencji</div>
+            <button onClick={loadTopSlow} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+          </div>
+          <div className="space-y-2">
+            {topSlow.map((r, i) => (
+              <div key={r.intent + i} className="flex items-center justify-between text-white/90 border-b border-gray-700 py-2">
+                <div className="flex items-center gap-2"><span>{i===0?'🐢':i===1?'⚙️':i===2?'🐌':'⏳'}</span><span className="font-semibold">{r.intent}</span></div>
+                <div className="text-gray-300">{r.avgMs} ms</div>
+              </div>
+            ))}
+            {topSlow.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
           </div>
         </div>
 
