@@ -123,6 +123,42 @@ export default function AdminPanel() {
   // Trends & Top slow intents
   const [trends, setTrends] = useState([]);
   const [topSlow, setTopSlow] = useState([]);
+  // Amber Control Deck
+  const [cfg, setCfg] = useState({ tts_mode: 'wavenet', tts_streaming: false, cache_enabled: true, stylization: 'gpt-4o', env: 'dev' });
+  const [promptText, setPromptText] = useState('');
+  const [liveRows, setLiveRows] = useState([]);
+  const [rolling, setRolling] = useState([]);
+
+  const loadConfig = async () => {
+    if (!tokenOk) return;
+    try {
+      const j = await adminFetch('/api/admin/config');
+      setCfg(j);
+    } catch (e) { console.warn('config error', e.message); }
+  };
+  const saveConfig = async (patch) => {
+    try {
+      const next = { ...cfg, ...patch };
+      setCfg(next);
+      await adminFetch('/api/admin/config', { method: 'POST', body: JSON.stringify(patch) });
+    } catch (e) { alert('Config save failed: ' + e.message); }
+  };
+  const loadPrompt = async () => {
+    if (!tokenOk) return;
+    try { const j = await adminFetch('/api/admin/prompt'); setPromptText(j.content || ''); } catch (e) { setPromptText(''); }
+  };
+  const savePrompt = async () => {
+    try { await adminFetch('/api/admin/prompt', { method: 'POST', body: JSON.stringify({ content: promptText }) }); }
+    catch (e) { alert('Prompt save failed: ' + e.message); }
+  };
+  const loadLive = async () => {
+    if (!tokenOk) return setLiveRows([]);
+    try { const j = await adminFetch('/api/admin/live'); setLiveRows(j.data || []); setRolling((prev)=> (j.data||[]).slice(0,20).map(r=>r.durationMs)); }
+    catch (e) { setLiveRows([]); }
+  };
+  useEffect(() => { if (tokenOk) { loadConfig(); loadPrompt(); loadLive(); } }, [tokenOk]);
+  useEffect(() => { if (!tokenOk) return; const t = setInterval(loadLive, 10000); return ()=>clearInterval(t); }, [tokenOk]);
+
   const loadTrends = async () => {
     if (!tokenOk) return setTrends([]);
     try {
@@ -709,6 +745,93 @@ export default function AdminPanel() {
               </div>
             ))}
             {topSlow.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
+          </div>
+        </div>
+
+        {/* Amber Control Deck */}
+        <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-xl font-bold text-white">🔧 Amber Control Deck</div>
+            <div className="text-sm text-gray-400">Env: {cfg.env || '-'}</div>
+          </div>
+          {/* Ustawienia Systemu */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-5">
+              <div className="text-white font-semibold mb-4">Ustawienia Systemu</div>
+              <div className="space-y-3">
+                <label className="block text-sm text-gray-300">TTS mode</label>
+                <select value={cfg.tts_mode} onChange={e=>saveConfig({ tts_mode: e.target.value })} className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded">
+                  <option value="wavenet">Wavenet</option>
+                  <option value="vertex">Vertex</option>
+                  <option value="chirp">Chirp</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                </select>
+                <label className="flex items-center gap-2 text-sm text-gray-300 mt-2">
+                  <input type="checkbox" checked={!!cfg.tts_streaming} onChange={e=>saveConfig({ tts_streaming: e.target.checked })} /> Streaming
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="checkbox" checked={!!cfg.cache_enabled} onChange={e=>saveConfig({ cache_enabled: e.target.checked })} /> Cache
+                </label>
+                <label className="block text-sm text-gray-300 mt-2">Stylizacja</label>
+                <select value={cfg.stylization} onChange={e=>saveConfig({ stylization: e.target.value })} className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded">
+                  <option value="basic">basic</option>
+                  <option value="balanced">balanced</option>
+                  <option value="expressive">expressive</option>
+                  <option value="gpt-4o">gpt-4o</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Podgląd Live + Rolling avg */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-white font-semibold">Wydajność (rolling avg)</div>
+                <button onClick={loadLive} className="px-2 py-1 text-xs bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+              </div>
+              <div className="h-40">
+                <Line data={{ labels: rolling.map((_,i)=>`#${i+1}`), datasets: [{ label: 'durationMs', data: rolling, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', tension: 0.3 }] }} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } } }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Live Log */}
+          <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-5 mb-8">
+            <div className="text-white font-semibold mb-3">Podgląd Odpowiedzi (Live Log)</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-gray-300">
+                    <th className="py-2">Intent</th>
+                    <th className="py-2">Confidence</th>
+                    <th className="py-2">Duration</th>
+                    <th className="py-2">Odpowiedź</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liveRows.map((r, idx) => {
+                    const ms = r.durationMs || 0;
+                    const color = ms <= 2000 ? 'text-green-400' : ms <= 5000 ? 'text-yellow-400' : 'text-red-400';
+                    return (
+                      <tr key={idx} className="border-t border-gray-700 text-white/90">
+                        <td className="py-2">{r.intent}</td>
+                        <td className="py-2">{r.confidence != null ? r.confidence.toFixed(2) : '-'}</td>
+                        <td className={`py-2 ${color}`}>{(ms/1000).toFixed(1)}s</td>
+                        <td className="py-2">{r.replySnippet}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Prompt Editor */}
+          <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-white font-semibold">Prompt Editor (TTS stylizacja)</div>
+              <button onClick={savePrompt} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">💾 Zapisz i przeładuj</button>
+            </div>
+            <textarea value={promptText} onChange={e=>setPromptText(e.target.value)} className="w-full h-48 px-3 py-2 bg-white/10 border border-white/20 text-white rounded" placeholder="Wklej prompt..." />
           </div>
         </div>
 
