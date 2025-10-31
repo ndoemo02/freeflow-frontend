@@ -62,6 +62,13 @@ export default function AdminPanel() {
 
   // Admin API states
   const [intents, setIntents] = useState([]);
+  // Filters
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date(Date.now() - 7*24*3600*1000);
+    return d.toISOString().slice(0,10);
+  });
+  const [toDate, setToDate] = useState(() => (new Date()).toISOString().slice(0,10));
+  const [intentFilter, setIntentFilter] = useState('');
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -119,7 +126,11 @@ export default function AdminPanel() {
   const loadTrends = async () => {
     if (!tokenOk) return setTrends([]);
     try {
-      const j = await adminFetch('/api/admin/performance/trends');
+      const qs = new URLSearchParams();
+      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
+      if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+      if (intentFilter) qs.append('intent', intentFilter);
+      const j = await adminFetch(`/api/admin/performance/trends?${qs.toString()}`);
       setTrends(j.data || []);
     } catch (e) {
       console.warn('trends error', e.message);
@@ -129,7 +140,11 @@ export default function AdminPanel() {
   const loadTopSlow = async () => {
     if (!tokenOk) return setTopSlow([]);
     try {
-      const j = await adminFetch('/api/admin/performance/top-intents');
+      const qs = new URLSearchParams();
+      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
+      if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+      if (intentFilter) qs.append('intent', intentFilter);
+      const j = await adminFetch(`/api/admin/performance/top-intents?${qs.toString()}`);
       setTopSlow(j.data || []);
     } catch (e) {
       console.warn('top-intents error', e.message);
@@ -141,7 +156,11 @@ export default function AdminPanel() {
     if (!tokenOk) return;
     loadTrends();
     loadTopSlow();
-  }, [tokenOk]);
+  }, [tokenOk, fromDate, toDate, intentFilter]);
+
+  const refreshData = async () => {
+    await Promise.all([loadIntents(), loadTrends(), loadTopSlow()]);
+  };
 
   const trendsData = {
     labels: trends.map(t => t.day),
@@ -165,7 +184,16 @@ export default function AdminPanel() {
   const loadIntents = async () => {
     if (!tokenOk) return setIntents([]);
     try {
-      const j = await adminFetch('/api/admin/intents');
+      const qs = new URLSearchParams();
+      if (fromDate) qs.append('from', new Date(fromDate).toISOString());
+      if (toDate) {
+        // koniec dnia
+        const end = new Date(toDate);
+        end.setHours(23,59,59,999);
+        qs.append('to', end.toISOString());
+      }
+      if (intentFilter) qs.append('intent', intentFilter);
+      const j = await adminFetch(`/api/admin/intents?${qs.toString()}`);
       setIntents(j.data || []);
     } catch (e) {
       console.warn('intents error', e.message);
@@ -606,8 +634,39 @@ export default function AdminPanel() {
             <div className="flex gap-2">
               <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">Odśwież</button>
               <button onClick={testAmber} disabled={diag.running} className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg">{diag.running ? 'TEST...' : 'TEST AMBER'}</button>
-              <button onClick={() => window.open(`/api/admin/intents/export?token=${encodeURIComponent(adminToken)}`)} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
+              <button onClick={() => {
+                const qs = new URLSearchParams();
+                qs.append('token', adminToken);
+                if (fromDate) qs.append('from', new Date(fromDate).toISOString());
+                if (toDate) { const end = new Date(toDate); end.setHours(23,59,59,999); qs.append('to', end.toISOString()); }
+                if (intentFilter) qs.append('intent', intentFilter);
+                window.open(`/api/admin/intents/export?${qs.toString()}`);
+              }} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
             </div>
+          </div>
+          {/* Filters */}
+          <div className="flex flex-wrap items-end gap-3 mb-4">
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Od</div>
+              <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded" />
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Do</div>
+              <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded" />
+            </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Intencja</div>
+              <select value={intentFilter} onChange={e=>setIntentFilter(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded">
+                <option value="">Wszystkie</option>
+                <option value="create_order">create_order</option>
+                <option value="find_nearby">find_nearby</option>
+                <option value="confirm_order">confirm_order</option>
+                <option value="cancel_order">cancel_order</option>
+                <option value="select_restaurant">select_restaurant</option>
+                <option value="menu_request">menu_request</option>
+              </select>
+            </div>
+            <button onClick={refreshData} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded">🔄 Odśwież</button>
           </div>
           <div className="h-72 mb-8">
             <Line data={intentsChartData} options={intentsChartOptions} />
