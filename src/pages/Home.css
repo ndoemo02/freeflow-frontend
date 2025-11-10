@@ -48,6 +48,7 @@
   transform: translate(-50%, -50%);
   min-width: 400px;
   min-height: 400px;
+  transition: all 0.6s cubic-bezier(0.83, 0, 0.17, 1);
 }
 
 /* Mobile - dostosuj pozycję tła i logo */
@@ -69,6 +70,13 @@
     top: 26%; /* prawie pod headerem na dużych ekranach */
     transform: translate(-50%, -50%);
   }
+}
+
+/* Tryb immersyjny – chowamy logo elegancko */
+.freeflow.immersive .hero-stack {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% - 80px)) scale(0.7);
+  pointer-events: none;
 }
 
 /* === TOP HEADER z menu i koszykiem (bez blur) === */

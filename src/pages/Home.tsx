@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useUI } from "../state/ui"
 // @ts-ignore
 import { useCart } from "../state/CartContext"
@@ -14,10 +15,11 @@ import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 // @ts-ignore
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
 import "./Home.css"
-import { CONFIG } from "../lib/config"
+import { CONFIG, ENABLE_IMMERSIVE_MODE } from "../lib/config"
 
 export default function Home() {
   const [showTextPanel, setShowTextPanel] = useState(false)
+  const [immersive, setImmersive] = useState(false)
   const [voiceQuery, setVoiceQuery] = useState("")
   const [amberResponse, setAmberResponse] = useState("")
   const [userMessage, setUserMessage] = useState("")
@@ -76,6 +78,9 @@ export default function Home() {
   }
 
   const handleLogoClick = () => {
+    if (ENABLE_IMMERSIVE_MODE) {
+      setImmersive(true)
+    }
     // Przełącz nagrywanie głosu
     if (recording) {
       stopRecording()
@@ -328,12 +333,34 @@ export default function Home() {
   }, [finalText, voiceQuery, recording, sendToAmberBrain])
 
   return (
-    <div className="freeflow">
+    <div className={`freeflow ${immersive ? 'immersive' : ''}`}>
       {/* Stała warstwa tła wypełniająca okno (object-fit: cover) */}
       <picture>
         <source media="(max-width: 768px)" srcSet="/images/background.png" />
         <img src="/images/desk.png" alt="" className="bg" />
       </picture>
+      {/* Immersive overlay */}
+      <AnimatePresence>
+        {immersive && ENABLE_IMMERSIVE_MODE && (
+          <motion.div
+            key="immersive-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: [0.83, 0, 0.17, 1] }}
+            className="immersive-overlay"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.73)",
+              backdropFilter: "blur(28px) saturate(140%)",
+              WebkitBackdropFilter: "blur(28px) saturate(140%)",
+              zIndex: 20,
+              pointerEvents: "none"
+            }}
+          />
+        )}
+      </AnimatePresence>
       <Switch onToggle={toggleUI} amberReady={!recording} />
       {/* Header z menu i koszykiem */}
       <header className="top-header">
@@ -383,7 +410,7 @@ export default function Home() {
       </div>
 
       {/* Kafelki na dole (fixed) - ukrywają się gdy voice panel aktywny lub jest odpowiedź */}
-      <div className={`tiles ${(showTextPanel || amberResponse) ? 'hidden' : ''}`}>
+      <div className={`tiles ${((showTextPanel || amberResponse) || immersive) ? 'hidden' : ''}`}>
         <div className="tile"><img src="/icons/food.png" alt="Jedzenie" /></div>
         <div className="tile"><img src="/icons/car.png" alt="Taxi" /></div>
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>

@@ -28,3 +28,8 @@ export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 }
+
+// Feature flags
+// Używamy standardu Vite: VITE_* w .env/.env.local
+export const ENABLE_IMMERSIVE_MODE: boolean =
+  String(import.meta.env.VITE_IMMERSIVE_MODE || '').toLowerCase() === 'true';
