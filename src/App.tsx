@@ -33,6 +33,8 @@ import LogoDemo from "./pages/LogoDemo";
 // @ts-ignore
 import HomeWithNewLogo from "./pages/HomeWithNewLogo";
 // @ts-ignore
+import AmberPulsePage from "./pages/AmberPulsePage";
+// @ts-ignore
 import AuthModal from "./components/AuthModal";
 // @ts-ignore
 import MenuDrawer from "./ui/MenuDrawer";
@@ -40,6 +42,7 @@ import OrgSwitcher from "./components/OrgSwitcher";
 import TableReservations from "./components/TableReservations";
 import { useAuth } from "./state/auth";
 import { getUserRole } from "./lib/menuBuilder";
+
 
 function AppContent() {
   const authOpen = useUI((s) => s.authOpen);
@@ -69,6 +72,7 @@ function AppContent() {
             <Route path="/reservations" element={<TableReservations />} />
             <Route path="/logo-demo" element={<LogoDemo />} />
             <Route path="/home-new-logo" element={<HomeWithNewLogo />} />
+            <Route path="/amber-pulse" element={<AmberPulsePage />} />
         </Routes>
       </main>
 

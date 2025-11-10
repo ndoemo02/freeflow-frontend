@@ -1,18 +1,23 @@
 .freeflow {
   min-height: 100vh;
   width: 100%;
-  background: url('/images/desk.png') center/cover no-repeat;
+  /* usunięto tło z kontenera aby nie dublować warstwy bg */
+  background: #000;
   position: relative;
   color: white;
   overflow: hidden;
 }
 
-/* Tło jako fixed layer */
+/* Tło jako fixed layer - pełne dopasowanie dla projektora */
 .bg {
   position: fixed;
   inset: 0;
-  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* zachowuje proporcje, wypełnia viewport */
+  object-position: center center; /* wyśrodkowane */
   z-index: 1;
+  filter: brightness(0.85); /* lekkie przyciemnienie dla projektora */
 }
 
 /* Main wrapper - CSS Grid + safe-area-inset + dvh */
@@ -20,14 +25,15 @@
   display: grid;
   place-items: center;
   min-height: 100dvh; /* nie 100vh – naprawa iOS */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) 420px env(safe-area-inset-left); /* podciągnięto logo wyżej */
+  /* bez sztucznego dolnego paddingu, który wprowadzał scroll */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   position: relative;
   overflow: visible !important; /* zmienione z hidden */
   z-index: 2;
   pointer-events: none; /* dzieci muszą włączyć pointer-events */
 }
 
-/* Hero stack – TYLKO LOGO (wyśrodkowane) */
+/* Hero stack – TYLKO LOGO (wyśrodkowane, wyżej) */
 .hero-stack {
   display: flex !important;
   flex-direction: column;
@@ -35,28 +41,46 @@
   justify-content: center;
   z-index: 100; /* wysoki z-index, żeby logo było nad kafelkami */
   pointer-events: auto;
-  position: relative;
+  /* unieruchom logo względem viewportu (brak scrollowania) */
+  position: fixed;
+  left: 50%;
+  top: 24%; /* logo bliżej headera */
+  transform: translate(-50%, -50%);
   min-width: 400px;
   min-height: 400px;
 }
 
-/* Mobile - użyj background.png */
+/* Mobile - dostosuj pozycję tła i logo */
 @media (max-width: 768px) {
-  .freeflow {
-    background: url('/images/background.png') center/cover no-repeat;
+  /* NIE dodawaj background tutaj - używamy tylko <img class="bg"> */
+  .bg {
+    object-position: center 50%; /* na mobile pokaż więcej środka */
+  }
+  /* podnieś logo wyżej, aby nie zasłaniało kieliszka */
+  .hero-stack {
+    top: 28%; /* dostosowane do mniejszych ekranów */
+    transform: translate(-50%, -50%);
   }
 }
 
-/* === TOP HEADER z menu i koszykiem === */
+/* Desktop i większe ekrany – korekta pozycji logo */
+@media (min-width: 1025px) {
+  .hero-stack {
+    top: 26%; /* prawie pod headerem na dużych ekranach */
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* === TOP HEADER z menu i koszykiem (bez blur) === */
 .top-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 50; /* nad bg */
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  /* backdrop-filter: blur(10px); USUNIĘTE */
+  border-bottom: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -89,13 +113,13 @@
 
 .cart-btn, .menu-btn {
   padding: clamp(0.5rem, 1.5vw, 0.75rem);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.75rem;
   color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  backdrop-filter: blur(10px);
+  /* backdrop-filter: blur(10px); USUNIĘTE */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,11 +245,11 @@
 /* === TILES - NA DOLE (fixed) === */
 .tiles {
   position: fixed;
-  bottom: calc(16px + env(safe-area-inset-bottom)); /* nieco niżej */
+  bottom: calc(6px + env(safe-area-inset-bottom)); /* bliżej krawędzi, nie zasłania blatu */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: clamp(6px, 1.8vw, 14px); /* jeszcze bliżej siebie */
+  gap: clamp(6px, 1.6vw, 12px);
   flex-wrap: wrap;
   justify-content: center;
   z-index: 25; /* pod logo (100) */
@@ -241,8 +265,8 @@
 }
 
 .tile img {
-  width: clamp(90px, 9.5vw, 120px); /* większe kafelki */
-  height: clamp(90px, 9.5vw, 120px);
+  width: clamp(80px, 8.5vw, 110px);
+  height: clamp(80px, 8.5vw, 110px);
   border-radius: 16px;
   box-shadow: 0 0 20px rgba(255,255,255,0.05);
   transition: transform 0.3s ease, box-shadow 0.4s ease;

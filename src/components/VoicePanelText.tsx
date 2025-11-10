@@ -21,8 +21,8 @@ export default function VoicePanelText({ amberResponse = "", interimText = "", f
           <div className="darkBorderBg" />
           <div className="darkBorderBg" />
           <div className="darkBorderBg" />
-          <div className="white" />
-          <div className="border" />
+          {/* <div className="white" /> */}
+          {/* <div className="border" /> */}
           <div id="main">
             {amberResponse ? (
               <div className="amber-text">{amberResponse}</div>
@@ -46,7 +46,8 @@ export default function VoicePanelText({ amberResponse = "", interimText = "", f
 const StyledWrapper = styled.div`
   position: fixed;
   left: 50%;
-  bottom: 0;
+  /* lekko obniżone, by nie zasłaniać blatu/kieliszka */
+  bottom: calc(-6px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 60;
   width: clamp(280px, 80vw, 640px);
@@ -291,8 +292,3 @@ const StyledWrapper = styled.div`
   #main { position: relative; }
   #search-icon { position: absolute; left: 20px; top: 15px; }
 `
-
-
-
-
-

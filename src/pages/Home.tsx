@@ -7,6 +7,8 @@ import Cart from "../components/Cart"
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer"
 import VoicePanelText from "../components/VoicePanelText"
+import VoiceTextPanel from "../components/VoiceTextPanel"
+import ChatBubbles from "../components/ChatBubbles"
 import Switch from "../components/Switch"
 import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 // @ts-ignore
@@ -18,6 +20,9 @@ export default function Home() {
   const [showTextPanel, setShowTextPanel] = useState(false)
   const [voiceQuery, setVoiceQuery] = useState("")
   const [amberResponse, setAmberResponse] = useState("")
+  const [userMessage, setUserMessage] = useState("")
+  const [restaurants, setRestaurants] = useState<Array<{ id: string; name: string; cuisine_type?: string; city?: string }>>([])
+  const [menuItems, setMenuItems] = useState<Array<{ id: string; name: string; price_pln: number; category?: string }>>([])
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const openDrawer = useUI((s) => s.openDrawer)
   const { setIsOpen, addToCart } = useCart()
@@ -141,16 +146,53 @@ export default function Home() {
       const data = await response.json()
       console.log("🧠 Odpowiedź Amber:", data)
 
+      // Zapisz wiadomość użytkownika
+      setUserMessage(text)
+
       // Pokaż odpowiedź
       if (data.reply) {
         console.log("✅ Ustawiam odpowiedź Amber:", data.reply)
         setAmberResponse(data.reply)
         
-        // Ukryj odpowiedź po 8 sekundach
-        setTimeout(() => {
-          console.log("⏰ Czyszczę odpowiedź Amber")
-          setAmberResponse("")
-        }, 8000)
+        // Zapisz restauracje z odpowiedzi (bezpośrednio z data.restaurants)
+        if (data.restaurants && Array.isArray(data.restaurants) && data.restaurants.length > 0) {
+          console.log("📍 Restauracje znalezione:", data.restaurants.length)
+          setRestaurants(data.restaurants.map((r: any) => ({
+            id: r.id || '',
+            name: r.name || '',
+            cuisine_type: r.cuisine_type || '',
+            city: r.city || ''
+          })))
+        } else {
+          setRestaurants([])
+        }
+        
+        // Zapisz menu items z meta.menu lub context.last_menu
+        if (data.meta?.menu && Array.isArray(data.meta.menu) && data.meta.menu.length > 0) {
+          console.log("🍽️ Menu items znalezione:", data.meta.menu.length)
+          setMenuItems(data.meta.menu.map((item: any) => ({
+            id: item.id || item.dish_id || '',
+            name: item.name || item.dish_name || '',
+            price_pln: Number(item.price_pln || item.price || 0),
+            category: item.category || ''
+          })))
+        } else if (data.context?.last_menu && Array.isArray(data.context.last_menu) && data.context.last_menu.length > 0) {
+          console.log("🍽️ Menu items z context:", data.context.last_menu.length)
+          setMenuItems(data.context.last_menu.map((item: any) => ({
+            id: item.id || item.dish_id || '',
+            name: item.name || item.dish_name || '',
+            price_pln: Number(item.price_pln || item.price || 0),
+            category: item.category || ''
+          })))
+        } else {
+          setMenuItems([])
+        }
+        
+        // NIE ukrywaj odpowiedzi - pozostaje w chat bubbles
+        // setTimeout(() => {
+        //   console.log("⏰ Czyszczę odpowiedź Amber")
+        //   setAmberResponse("")
+        // }, 8000)
         
         // Odtwórz audio jeśli jest dostępne
         if (data.audioContent) {
@@ -244,28 +286,35 @@ export default function Home() {
       lastSentTextRef.current = trimmedFinal
       setTimeout(() => { lastSentTextRef.current = "" }, 2000)
       sendToAmberBrain(trimmedFinal)
-      // 🔥 WAŻNE: Wyczyść finalText NATYCHMIAST po wysłaniu, żeby nie wysłać ponownie
-      setFinalText("")
+      // 🔥 Przedłużony czas wyświetlania transkrypcji - wyczyść po 5 sekundach zamiast natychmiast
+      setTimeout(() => {
+        setFinalText("")
+      }, 5000)
       return
     }
 
-    // Fallback: jeśli brak finalText, ale mamy voiceQuery (np. tylko interim), wyślij to
-    if (!recording && !trimmedFinal && trimmedVoice) {
-      // 🔥 Sprawdź czy to nie jest ten sam tekst co ostatnio wysłany
-      if (trimmedVoice === lastSentTextRef.current) {
-        console.log("⏭️ Ten sam tekst już wysłany (fallback), pomijam:", trimmedVoice)
-        setVoiceQuery("")
+      // Fallback: jeśli brak finalText, ale mamy voiceQuery (np. tylko interim), wyślij to
+      if (!recording && !trimmedFinal && trimmedVoice) {
+        // 🔥 Sprawdź czy to nie jest ten sam tekst co ostatnio wysłany
+        if (trimmedVoice === lastSentTextRef.current) {
+          console.log("⏭️ Ten sam tekst już wysłany (fallback), pomijam:", trimmedVoice)
+          setVoiceQuery("")
+          return
+        }
+        
+        console.log("🛟 Fallback → wysyłam voiceQuery:", trimmedVoice)
+        lastSentTextRef.current = trimmedVoice
+        setTimeout(() => { lastSentTextRef.current = "" }, 2000)
+        sendToAmberBrain(trimmedVoice)
+        // Przedłużony czas wyświetlania transkrypcji - wyczyść po 5 sekundach
+        setTimeout(() => {
+          setVoiceQuery("")
+        }, 5000)
         return
       }
       
-      console.log("🛟 Fallback → wysyłam voiceQuery:", trimmedVoice)
-      lastSentTextRef.current = trimmedVoice
-      setTimeout(() => { lastSentTextRef.current = "" }, 2000)
-      sendToAmberBrain(trimmedVoice)
-      // wyczyść po wysłaniu, by nie wysłać ponownie
-      setVoiceQuery("")
-      return
-    }
+      // Wyczyść userMessage po czasie (opcjonalne, jeśli chcesz)
+      // setTimeout(() => setUserMessage(""), 30000) // po 30 sekundach
 
     if (trimmedFinal && recording) {
       console.log("⏸️ Czekam na zakończenie nagrywania...")
@@ -280,6 +329,11 @@ export default function Home() {
 
   return (
     <div className="freeflow">
+      {/* Stała warstwa tła wypełniająca okno (object-fit: cover) */}
+      <picture>
+        <source media="(max-width: 768px)" srcSet="/images/background.png" />
+        <img src="/images/desk.png" alt="" className="bg" />
+      </picture>
       <Switch onToggle={toggleUI} amberReady={!recording} />
       {/* Header z menu i koszykiem */}
       <header className="top-header">
@@ -335,6 +389,16 @@ export default function Home() {
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
       </div>
 
+      {/* Chat Bubbles - główny UI dla konwersacji */}
+      {(userMessage || amberResponse) && (
+        <ChatBubbles
+          userMessage={userMessage}
+          amberResponse={amberResponse}
+          restaurants={restaurants}
+          menuItems={menuItems}
+        />
+      )}
+
       {/* VoicePanelText - dolny środek (włącz gdy panel, odpowiedź lub trwa mówienie) */}
       {(showTextPanel || amberResponse || recording || interimText || finalText) && (
         <VoicePanelText
@@ -344,6 +408,9 @@ export default function Home() {
           recording={recording}
         />
       )}
+
+      {/* VoiceTextPanel - dolny pasek */}
+      <VoiceTextPanel />
 
       {/* MenuDrawer i Cart */}
       <MenuDrawer />

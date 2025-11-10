@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './auth';
 import { supabase } from '../lib/supabase';
+import { getApiUrl } from '../lib/config';
 import { useToast } from '../components/Toast';
 
 const CartContext = createContext();
@@ -189,7 +190,7 @@ export function CartProvider({ children }) {
       console.log('🛒 Restaurant object:', restaurant);
 
       // Use backend API instead of direct Supabase access
-      const response = await fetch('/api/orders', {
+      const response = await fetch(getApiUrl('/api/orders'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

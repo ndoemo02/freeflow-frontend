@@ -7,6 +7,7 @@ import { AmberLogger } from '../../lib/supabaseClient'
 import { useToast } from '../../components/Toast'
 import PanelHeader from '../../components/PanelHeader'
 import { useCart } from '../../state/CartContext'
+import { getApiUrl } from '../../lib/config'
 import Cart from '../../components/Cart'
 
 export default function CustomerPanel() {
@@ -65,7 +66,7 @@ export default function CustomerPanel() {
       let ordersData = [];
       try {
         console.log('🔍 CustomerPanel: Loading orders for user_id:', user.id);
-        const response = await fetch(`/api/orders?user_id=${user.id}`);
+        const response = await fetch(getApiUrl(`/api/orders?user_id=${user.id}`));
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -195,7 +196,7 @@ export default function CustomerPanel() {
   const cancelOrder = async (orderId) => {
     try {
       // Use backend API to cancel order
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(getApiUrl(`/api/orders/${orderId}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +212,7 @@ export default function CustomerPanel() {
       AmberLogger.log("Order cancelled:", { id: orderId });
       
       // Refresh orders via backend API
-      const ordersResponse = await fetch(`/api/orders?user_id=${user.id}`);
+      const ordersResponse = await fetch(getApiUrl(`/api/orders?user_id=${user.id}`));
       if (ordersResponse.ok) {
         const data = await ordersResponse.json();
         setOrders(data.orders || []);

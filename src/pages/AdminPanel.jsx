@@ -27,6 +27,7 @@ import { CONFIG } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
 import AmberLiveMonitor from '../components/AmberLiveMonitor';
 import FreeFunNearby from '../components/FreeFunNearby';
+import FreeFunSection from '../components/FreeFunSection';
 
 ChartJS.register(
   CategoryScale,
@@ -155,8 +156,11 @@ export default function AdminPanel() {
   const [activity, setActivity] = useState([]);
   const [bizStats, setBizStats] = useState({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
   const [alerts, setAlerts] = useState([]);
+  // Amber Learning Stats
+  const [learningStats, setLearningStats] = useState({ total: 0, latest: [], intentStats: {}, feedbackStats: { positive: 0, negative: 0, neutral: 0 } });
+  const [learningLoading, setLearningLoading] = useState(false);
   // Tabs
-  const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control'
+  const [activeTab, setActiveTab] = useState('insights'); // 'insights' | 'control' | 'learning'
 
   // Date helper that accepts YYYY-MM-DD and DD.MM.YYYY
   const toIsoSafe = (v, endOfDay = false) => {
@@ -213,6 +217,7 @@ export default function AdminPanel() {
     loadActivity();
     loadBusiness();
     fetchAlerts();
+    loadLearningStats();
   }, [tokenOk, fromDate, toDate, intentFilter]);
 
   const refreshData = async () => {
@@ -265,6 +270,25 @@ export default function AdminPanel() {
       const j = await adminFetch('/api/admin/trends/alerts');
       setAlerts(j.alerts || j.data || []);
     } catch (e) { setAlerts([]); }
+  };
+
+  const loadLearningStats = async (limit = 20) => {
+    if (!tokenOk) return;
+    setLearningLoading(true);
+    try {
+      const j = await adminFetch(`/api/admin/amber/learning-stats?limit=${limit}`);
+      setLearningStats({
+        total: j.total || 0,
+        latest: j.latest || [],
+        intentStats: j.intentStats || {},
+        feedbackStats: j.feedbackStats || { positive: 0, negative: 0, neutral: 0 }
+      });
+    } catch (e) {
+      console.warn('learning-stats error', e.message);
+      setLearningStats({ total: 0, latest: [], intentStats: {}, feedbackStats: { positive: 0, negative: 0, neutral: 0 } });
+    } finally {
+      setLearningLoading(false);
+    }
   };
 
   const loadIntents = async () => {
@@ -621,12 +645,161 @@ export default function AdminPanel() {
           <div className="mb-6">
             <div className="inline-flex rounded-lg bg-gray-900 border border-gray-700">
               <button onClick={()=>setActiveTab('insights')} className={`px-4 py-2 rounded-l-lg ${activeTab==='insights' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'}`}>Amber Insights</button>
-              <button onClick={()=>setActiveTab('control')} className={`px-4 py-2 rounded-r-lg ${activeTab==='control' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'}`}>Amber Control Deck</button>
+              <button onClick={()=>setActiveTab('control')} className={`px-4 py-2 ${activeTab==='control' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'}`}>Amber Control Deck</button>
+              <button onClick={()=>{setActiveTab('learning'); loadLearningStats();}} className={`px-4 py-2 rounded-r-lg ${activeTab==='learning' ? 'bg-purple-600 text-white' : 'text-gray-300 hover:text-white'}`}>🧠 Amber Self-Learning</button>
             </div>
           </div>
 
           {activeTab === 'control' ? (
             <AmberControlDeck adminToken={adminToken} />
+          ) : activeTab === 'learning' ? (
+            <>
+              {/* Amber Self-Learning Dashboard */}
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-3xl font-bold text-white mb-2">🧠 Amber Self-Learning</h2>
+                    <p className="text-gray-300">System uczenia maszynowego - analiza feedbacku i adaptacja intencji</p>
+                  </div>
+                  <button
+                    onClick={() => loadLearningStats()}
+                    disabled={learningLoading}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg"
+                  >
+                    {learningLoading ? 'Ładowanie...' : '🔄 Odśwież'}
+                  </button>
+                </div>
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                  <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-6 shadow-lg border border-purple-500/30">
+                    <div className="text-sm text-purple-200 mb-2">Całkowite rekordy</div>
+                    <div className="text-3xl font-bold text-white">{learningStats.total}</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-6 shadow-lg border border-green-500/30">
+                    <div className="text-sm text-green-200 mb-2">Pozytywny feedback</div>
+                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.positive}</div>
+                    <div className="text-xs text-green-200 mt-1">
+                      {learningStats.total > 0 ? ((learningStats.feedbackStats.positive / learningStats.total) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 shadow-lg border border-red-500/30">
+                    <div className="text-sm text-red-200 mb-2">Negatywny feedback</div>
+                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.negative}</div>
+                    <div className="text-xs text-red-200 mt-1">
+                      {learningStats.total > 0 ? ((learningStats.feedbackStats.negative / learningStats.total) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-gray-600 to-gray-800 rounded-2xl p-6 shadow-lg border border-gray-500/30">
+                    <div className="text-sm text-gray-200 mb-2">Neutralny feedback</div>
+                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.neutral}</div>
+                    <div className="text-xs text-gray-200 mt-1">
+                      {learningStats.total > 0 ? ((learningStats.feedbackStats.neutral / learningStats.total) * 100).toFixed(1) : 0}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feedback Distribution Chart */}
+                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+                  <div className="text-xl font-bold text-white mb-6">Rozkład Feedbacku</div>
+                  <div className="h-64">
+                    <Doughnut
+                      data={{
+                        labels: ['Pozytywny', 'Negatywny', 'Neutralny'],
+                        datasets: [{
+                          data: [
+                            learningStats.feedbackStats.positive,
+                            learningStats.feedbackStats.negative,
+                            learningStats.feedbackStats.neutral
+                          ],
+                          backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
+                          borderWidth: 0
+                        }]
+                      }}
+                      options={doughnutOptions}
+                    />
+                  </div>
+                </div>
+
+                {/* Intent Statistics */}
+                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
+                  <div className="text-xl font-bold text-white mb-6">Statystyki Intencji</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Object.entries(learningStats.intentStats || {}).map(([intent, count]) => (
+                      <div key={intent} className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
+                        <div className="text-sm text-gray-400 mb-1">{intent}</div>
+                        <div className="text-2xl font-bold text-white">{count}</div>
+                      </div>
+                    ))}
+                    {Object.keys(learningStats.intentStats || {}).length === 0 && (
+                      <div className="col-span-full text-gray-400 text-center py-8">Brak danych</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Latest Learning Records */}
+                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="text-xl font-bold text-white">Ostatnie rekordy uczenia</div>
+                    <select
+                      onChange={(e) => loadLearningStats(parseInt(e.target.value))}
+                      className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+                      defaultValue="20"
+                    >
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-gray-300 border-b border-gray-700">
+                          <th className="py-3 px-4">Intencja</th>
+                          <th className="py-3 px-4">Feedback</th>
+                          <th className="py-3 px-4">Tekst wejściowy</th>
+                          <th className="py-3 px-4">Data</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {learningStats.latest.map((record, idx) => (
+                          <tr key={idx} className="border-b border-gray-700 hover:bg-gray-900/50">
+                            <td className="py-3 px-4">
+                              <span className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded text-sm">
+                                {record.intent || 'unknown'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {record.feedback_score === 1 ? (
+                                <span className="text-green-400">✓ Pozytywny</span>
+                              ) : record.feedback_score === 0 ? (
+                                <span className="text-red-400">✗ Negatywny</span>
+                              ) : (
+                                <span className="text-gray-400">— Neutralny</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-gray-300 text-sm">
+                              {record.input_text || '—'}
+                            </td>
+                            <td className="py-3 px-4 text-gray-400 text-sm">
+                              {record.created_at ? new Date(record.created_at).toLocaleString('pl-PL') : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                        {learningStats.latest.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-gray-400">
+                              {learningLoading ? 'Ładowanie...' : 'Brak rekordów uczenia'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <>
           {/* Period Controls */}
@@ -900,6 +1073,11 @@ export default function AdminPanel() {
 
           {/* FreeFun Nearby */}
           <FreeFunNearby />
+
+          {/* FreeFun Section - Zaawansowany widok wydarzeń */}
+          <div className="mt-8">
+            <FreeFunSection />
+          </div>
 
         {/* Control Deck przeniesiony do osobnego komponentu i zakładki */}
 
