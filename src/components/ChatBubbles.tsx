@@ -189,40 +189,40 @@ function ChatBubble({ message, index }: ChatBubbleProps) {
 // Styled Components
 const StyledChatContainer = styled.div`
   position: fixed;
+  top: 80px;
   left: 0;
   right: 0;
-  bottom: 240px;
-  /* Ustaw kontener bezpośrednio POD logo, responsywnie dla różnych wysokości ekranu */
-  top: clamp(220px, 32vh, 420px);
+  bottom: calc(120px + env(safe-area-inset-bottom));
   pointer-events: none;
   z-index: 30;
-  padding: 0 clamp(1rem, 4vw, 2rem);
-  max-width: 1200px;
-  margin: 0 auto;
-  overflow: hidden;
-  
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 10px;
+
   @media (max-width: 768px) {
-    top: clamp(160px, 28vh, 320px);
-    bottom: 220px;
-    padding: 0 1rem;
+    padding: 0 14px;
   }
 `;
 
 const ChatMessages = styled.div`
+  width: min(1200px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 8px;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.25rem 0 1rem 0;
+  padding-bottom: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   
   /* Custom scrollbar */
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
   &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: transparent;
     border-radius: 10px;
   }
   &::-webkit-scrollbar-thumb {
@@ -237,10 +237,10 @@ const ChatMessages = styled.div`
 const StyledBubbleWrapper = styled(motion.div)<{ $isUser: boolean }>`
   display: flex;
   width: 100%;
-  justify-content: ${props => props.$isUser ? 'flex-start' : 'flex-end'};
+  justify-content: ${props => (props.$isUser ? 'flex-start' : 'flex-end')};
   /* Kolumna tylko dla timestampu pod dymkiem */
   flex-direction: column;
-  align-items: ${props => props.$isUser ? 'flex-start' : 'flex-end'};
+  align-items: ${props => (props.$isUser ? 'flex-start' : 'flex-end')};
   pointer-events: auto;
   /* Bąbel sam ma stałą szerokość – wrapper rozciąga się na całą szerokość,
      aby dymek był „rozciągnięty w poziomie” i wyrównany do lewej/prawej */
@@ -252,41 +252,27 @@ const StyledBubbleWrapper = styled(motion.div)<{ $isUser: boolean }>`
 `;
 
 const StyledBubble = styled.div<{ $isUser: boolean }>`
-  background: ${props => props.$isUser 
-    ? 'linear-gradient(135deg, rgba(255, 126, 0, 0.25), rgba(255, 60, 0, 0.2))'
-    : 'transparent'};
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: ${props => props.$isUser 
-    ? '24px 24px 24px 6px' 
-    : '24px 24px 6px 24px'};
-  padding: clamp(0.9rem, 1.8vw, 1.25rem) clamp(1rem, 2.4vw, 1.6rem);
-  border: ${props => props.$isUser
-    ? '1.5px solid rgba(255, 126, 0, 0.4)'
-    : '1px solid rgba(255, 255, 255, 0.4)'};
-  box-shadow: ${props => props.$isUser
-    ? '0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 30px rgba(255, 126, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-    : '0 0 50px rgba(255, 255, 255, 0.15)'};
+  background: ${props =>
+    props.$isUser
+      ? 'linear-gradient(135deg, rgba(6, 20, 33, 0.9), rgba(10, 30, 45, 0.85))'
+      : 'linear-gradient(135deg, rgba(149, 89, 255, 0.9), rgba(95, 42, 167, 0.85))'};
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: ${props => (props.$isUser ? '24px 24px 24px 6px' : '24px 24px 6px 24px')};
+  padding: clamp(0.85rem, 2vw, 1.15rem) clamp(1rem, 2vw, 1.4rem);
+  border: ${props =>
+    props.$isUser
+      ? '1px solid rgba(0, 255, 242, 0.25)'
+      : '1px solid rgba(212, 153, 255, 0.35)'};
+  box-shadow: none;
   position: relative;
   word-wrap: break-word;
   transition: all 0.3s ease;
   overflow: hidden;
-  /* Rozciągnięty, poziomy kształt – długie „bańki” */
-  width: min(1100px, 92%);
-  min-width: min(640px, 92%);
-  max-width: 92%;
+  max-width: 70%;
   
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${props => props.$isUser
-      ? '0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 40px rgba(255, 126, 0, 0.4)'
-      : '0 0 60px rgba(255, 255, 255, 0.2)'};
-  }
-
   @media (max-width: 900px) {
-    width: 96%;
-    min-width: auto;
-    max-width: 96%;
+    max-width: 85%;
   }
 `;
 
@@ -376,13 +362,16 @@ const BubbleContent = styled.div`
 `;
 
 const BubbleText = styled.div<{ $isUser: boolean }>`
-  color: ${props => props.$isUser ? '#ffffff' : '#00ff77'};
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.6;
-  font-weight: ${props => props.$isUser ? '400' : '500'};
+  color: ${props => (props.$isUser ? '#b8fffb' : '#f7ecff')};
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  line-height: 1.55;
+  font-weight: 400;
   white-space: pre-wrap;
   word-wrap: break-word;
-  text-shadow: ${props => props.$isUser ? 'none' : '0 0 10px rgba(0,255,119,0.35)'};
+  text-shadow: ${props =>
+    props.$isUser
+      ? '0 0 12px rgba(223, 173, 255, 0.35)'
+      : '0 0 12px rgba(0, 255, 255, 0.35)'};
 `;
 
 const BubbleTimestamp = styled.div`

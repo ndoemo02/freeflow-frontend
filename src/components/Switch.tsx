@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 type Props = {
@@ -9,10 +9,35 @@ type Props = {
 
 export default function Switch({ onToggle, initial = false, amberReady = true }: Props) {
   const [checked, setChecked] = useState<boolean>(initial)
+  const switchBodyRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const updateDockCenter = () => {
+      const el = switchBodyRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const center = rect.top + rect.height / 2
+      document.documentElement.style.setProperty("--voice-dock-center", `${center}px`)
+    }
+
+    updateDockCenter()
+    window.addEventListener('resize', updateDockCenter)
+    return () => window.removeEventListener('resize', updateDockCenter)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const el = switchBodyRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const center = rect.top + rect.height / 2
+    document.documentElement.style.setProperty("--voice-dock-center", `${center}px`)
+  }, [checked])
 
   return (
     <Wrapper $amberReady={amberReady}>
-      <div className="vertical-switch">
+      <div className="vertical-switch" ref={switchBodyRef}>
         <input
           type="checkbox"
           className="switch-input"
@@ -86,10 +111,6 @@ const Wrapper = styled.div<{ $amberReady: boolean }>`
   .switch-input:hover ~ .switch-knob {
     transform: scale(1.1);
     filter: brightness(1.2);
-  }
-  
-  .switch-input:checked ~ .switch-knob {
-    transform: scale(1.15);
   }
   
   /* Pasek pionowy */

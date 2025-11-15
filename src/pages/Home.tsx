@@ -8,7 +8,6 @@ import Cart from "../components/Cart"
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer"
 import VoicePanelText from "../components/VoicePanelText"
-import VoiceTextPanel from "../components/VoiceTextPanel"
 import ChatBubbles from "../components/ChatBubbles"
 import Switch from "../components/Switch"
 import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
@@ -18,7 +17,7 @@ import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE } from "../lib/config"
 
 export default function Home() {
-  const [showTextPanel, setShowTextPanel] = useState(false)
+  const [showTextPanel, setShowTextPanel] = useState(true)
   const [immersive, setImmersive] = useState(false)
   const [voiceQuery, setVoiceQuery] = useState("")
   const [amberResponse, setAmberResponse] = useState("")
@@ -361,7 +360,7 @@ export default function Home() {
           />
         )}
       </AnimatePresence>
-      <Switch onToggle={toggleUI} amberReady={!recording} />
+      <Switch onToggle={toggleUI} amberReady={!recording} initial={true} />
       {/* Header z menu i koszykiem */}
       <header className="top-header">
         <div className="header-left">
@@ -409,8 +408,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Kafelki na dole (fixed) - ukrywają się gdy voice panel aktywny lub jest odpowiedź */}
-      <div className={`tiles ${((showTextPanel || amberResponse) || immersive) ? 'hidden' : ''}`}>
+      {/* Kafelki na dole (fixed) - widoczne tylko gdy panel schowany */}
+      <div className={`tiles ${(showTextPanel || immersive) ? 'hidden' : ''}`}>
         <div className="tile"><img src="/icons/food.png" alt="Jedzenie" /></div>
         <div className="tile"><img src="/icons/car.png" alt="Taxi" /></div>
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
@@ -426,18 +425,16 @@ export default function Home() {
         />
       )}
 
-      {/* VoicePanelText - dolny środek (włącz gdy panel, odpowiedź lub trwa mówienie) */}
-      {(showTextPanel || amberResponse || recording || interimText || finalText) && (
-        <VoicePanelText
-          amberResponse={amberResponse}
-          interimText={interimText as unknown as string}
-          finalText={finalText as unknown as string}
-          recording={recording}
-        />
-      )}
+      {/* Neonowy voice panel - zsynchronizowany z przełącznikiem */}
+      <VoicePanelText
+        amberResponse={amberResponse}
+        interimText={interimText}
+        finalText={finalText}
+        recording={recording}
+        visible={showTextPanel}
+        onMicClick={handleLogoClick}
+      />
 
-      {/* VoiceTextPanel - dolny pasek */}
-      <VoiceTextPanel />
 
       {/* MenuDrawer i Cart */}
       <MenuDrawer />
