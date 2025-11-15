@@ -14,7 +14,14 @@ import { Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 export default function AmberControlDeck({ adminToken }) {
-  const [config, setConfig] = useState({ tts_mode: 'wavenet', tts_streaming: false, cache_enabled: true, stylization: 'gpt-4o', env: '-' });
+  const [config, setConfig] = useState({
+    tts_engine: 'vertex',
+    tts_voice: 'pl-PL-Wavenet-D',
+    model: 'gpt-5',
+    streaming: true,
+    cache_enabled: true,
+    env: '-',
+  });
   const [prompt, setPrompt] = useState('');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,9 +34,20 @@ export default function AmberControlDeck({ adminToken }) {
         fetch('/api/admin/config', { headers }),
         fetch('/api/admin/live', { headers })
       ]);
-      const cfg = await cfgRes.json();
+      const cfgJson = await cfgRes.json();
       const live = await liveRes.json();
-      if (cfg && cfg.ok !== false) setConfig(cfg);
+      if (cfgJson && cfgJson.ok !== false) {
+        const cfg = cfgJson.config || {};
+        setConfig(prev => ({
+          ...prev,
+          tts_engine: cfg.tts_engine?.engine || prev.tts_engine,
+          tts_voice: cfg.tts_voice?.voice || prev.tts_voice,
+          model: cfg.model?.name || prev.model,
+          streaming: cfg.streaming?.enabled ?? prev.streaming,
+          cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
+          env: cfg.env || prev.env,
+        }));
+      }
       if (live && live.ok !== false) setLogs(live.data || []);
       setLoading(false);
     } catch (e) {
@@ -39,23 +57,58 @@ export default function AmberControlDeck({ adminToken }) {
 
   const saveConfig = async (key, value) => {
     try {
-      const next = { ...config, [key]: value };
-      setConfig(next);
-      await fetch('/api/admin/config', { method: 'POST', headers, body: JSON.stringify({ [key]: value }) });
-    } catch {}
+      let payloadValue = value;
+      if (key === 'tts_engine') {
+        payloadValue = { engine: value };
+      } else if (key === 'tts_voice') {
+        payloadValue = { voice: value };
+      } else if (key === 'model') {
+        payloadValue = { name: value };
+      } else if (key === 'streaming') {
+        payloadValue = { enabled: !!value };
+      }
+
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ key, value: payloadValue }),
+      });
+      const json = await res.json();
+      if (json && json.ok !== false && json.config) {
+        const cfg = json.config;
+        setConfig(prev => ({
+          ...prev,
+          tts_engine: cfg.tts_engine?.engine || prev.tts_engine,
+          tts_voice: cfg.tts_voice?.voice || prev.tts_voice,
+          model: cfg.model?.name || prev.model,
+          streaming: cfg.streaming?.enabled ?? prev.streaming,
+          cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
+          env: cfg.env || prev.env,
+        }));
+      } else {
+        // optimistic local update as fallback
+        setConfig(prev => ({ ...prev, [key]: value }));
+      }
+    } catch {
+      setConfig(prev => ({ ...prev, [key]: value }));
+    }
   };
 
   const fetchPrompt = async () => {
     try {
       const res = await fetch('/api/admin/prompt', { headers });
       const json = await res.json();
-      setPrompt(json.content || '');
+      setPrompt(json.prompt || json.content || '');
     } catch { setPrompt(''); }
   };
 
   const savePrompt = async () => {
     try {
-      await fetch('/api/admin/prompt', { method: 'POST', headers, body: JSON.stringify({ content: prompt }) });
+      await fetch('/api/admin/prompt', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt }),
+      });
     } catch (e) {
       alert('Prompt save failed: ' + e.message);
     }
@@ -96,27 +149,24 @@ export default function AmberControlDeck({ adminToken }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
-            <label className="block text-sm text-gray-300">Tryb TTS</label>
+            <label className="block text-sm text-gray-300">Engine TTS</label>
             <select
               className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
-              value={config.tts_mode}
-              onChange={(e) => saveConfig('tts_mode', e.target.value)}
+              value={config.tts_engine}
+              onChange={(e) => saveConfig('tts_engine', e.target.value)}
             >
-              <option value="wavenet">Wavenet</option>
+              <option value="basic">Basic (Wavenet)</option>
               <option value="vertex">Vertex</option>
               <option value="chirp">Chirp</option>
-              <option value="gpt-4o">GPT-4o stylizacja</option>
             </select>
-            <label className="block text-sm text-gray-300 mt-3">Stylizacja</label>
+            <label className="block text-sm text-gray-300 mt-3">Głos TTS</label>
             <select
               className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
-              value={config.stylization}
-              onChange={(e) => saveConfig('stylization', e.target.value)}
+              value={config.tts_voice}
+              onChange={(e) => saveConfig('tts_voice', e.target.value)}
             >
-              <option value="basic">basic</option>
-              <option value="balanced">balanced</option>
-              <option value="expressive">expressive</option>
-              <option value="gpt-4o">gpt-4o</option>
+              <option value="pl-PL-Wavenet-D">pl-PL-Wavenet-D</option>
+              <option value="pl-PL-Chirp3-HD-Erinome">pl-PL-Chirp3-HD-Erinome</option>
             </select>
           </div>
           <div className="space-y-4">
@@ -126,7 +176,7 @@ export default function AmberControlDeck({ adminToken }) {
             </label>
             <label className="flex items-center justify-between text-sm text-gray-300 bg-white/5 border border-white/10 rounded px-3 py-2">
               <span>Streaming audio</span>
-              <input type="checkbox" checked={!!config.tts_streaming} onChange={(e)=>saveConfig('tts_streaming', e.target.checked)} />
+              <input type="checkbox" checked={!!config.streaming} onChange={(e)=>saveConfig('streaming', e.target.checked)} />
             </label>
           </div>
         </div>
