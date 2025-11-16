@@ -18,6 +18,9 @@ export default function AmberControlDeck({ adminToken }) {
   const [config, setConfig] = useState({
     tts_engine: 'vertex',
     tts_voice: 'pl-PL-Wavenet-D',
+    tts_tone: 'swobodny',
+    tts_pitch: 0,
+    tts_rate: 1.0,
     model: 'gpt-5',
     streaming: true,
     cache_enabled: true,
@@ -44,6 +47,9 @@ export default function AmberControlDeck({ adminToken }) {
           ...prev,
           tts_engine: cfg.tts_engine?.engine || prev.tts_engine,
           tts_voice: cfg.tts_voice?.voice || prev.tts_voice,
+          tts_tone: cfg.tts_tone || prev.tts_tone,
+          tts_pitch: typeof cfg.tts_pitch === 'number' ? cfg.tts_pitch : prev.tts_pitch,
+          tts_rate: typeof cfg.tts_rate === 'number' ? cfg.tts_rate : prev.tts_rate,
           model: cfg.model?.name || prev.model,
           streaming: cfg.streaming?.enabled ?? prev.streaming,
           cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
@@ -61,10 +67,17 @@ export default function AmberControlDeck({ adminToken }) {
   const saveConfig = async (key, value) => {
     try {
       let payloadValue = value;
+      let apiKey = key;
       if (key === 'tts_engine') {
         payloadValue = { engine: value };
       } else if (key === 'tts_voice') {
         payloadValue = { voice: value };
+      } else if (key === 'tts_tone') {
+        apiKey = 'tts_tone';
+        payloadValue = value;
+      } else if (key === 'tts_pitch' || key === 'tts_rate') {
+        apiKey = key;
+        payloadValue = Number(value);
       } else if (key === 'model') {
         payloadValue = { name: value };
       } else if (key === 'streaming') {
@@ -74,7 +87,7 @@ export default function AmberControlDeck({ adminToken }) {
       const res = await fetch(getApiUrl('/api/admin/config'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ key, value: payloadValue }),
+        body: JSON.stringify({ key: apiKey, value: payloadValue }),
       });
       const json = await res.json();
       if (json && json.ok !== false && json.config) {
@@ -83,6 +96,9 @@ export default function AmberControlDeck({ adminToken }) {
           ...prev,
           tts_engine: cfg.tts_engine?.engine || prev.tts_engine,
           tts_voice: cfg.tts_voice?.voice || prev.tts_voice,
+          tts_tone: cfg.tts_tone || prev.tts_tone,
+          tts_pitch: typeof cfg.tts_pitch === 'number' ? cfg.tts_pitch : prev.tts_pitch,
+          tts_rate: typeof cfg.tts_rate === 'number' ? cfg.tts_rate : prev.tts_rate,
           model: cfg.model?.name || prev.model,
           streaming: cfg.streaming?.enabled ?? prev.streaming,
           cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
@@ -170,6 +186,11 @@ export default function AmberControlDeck({ adminToken }) {
               onChange={(e) => saveConfig('tts_voice', e.target.value)}
             >
               <option value="pl-PL-Wavenet-D">pl-PL-Wavenet-D</option>
+              <option value="pl-PL-Wavenet-A">pl-PL-Wavenet-A</option>
+              <option value="pl-PL-Wavenet-B">pl-PL-Wavenet-B</option>
+              <option value="pl-PL-Wavenet-C">pl-PL-Wavenet-C</option>
+              <option value="pl-PL-Standard-A">pl-PL-Standard-A</option>
+              <option value="pl-PL-Standard-B">pl-PL-Standard-B</option>
               <option value="pl-PL-Chirp3-HD-Erinome">pl-PL-Chirp3-HD-Erinome</option>
             </select>
 
@@ -184,6 +205,38 @@ export default function AmberControlDeck({ adminToken }) {
             </select>
           </div>
           <div className="space-y-4">
+            <div className="space-y-2 bg-white/5 border border-white/10 rounded px-3 py-2">
+              <label className="block text-sm text-gray-300 mb-1">Ton głosu (TTS)</label>
+              <select
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+                value={config.tts_tone}
+                onChange={(e) => saveConfig('tts_tone', e.target.value)}
+              >
+                <option value="swobodny">Swobodny</option>
+                <option value="formalny">Formalny</option>
+                <option value="neutralny">Neutralny</option>
+              </select>
+              <label className="block text-xs text-gray-400 mt-2">Pitch (–10 … 10)</label>
+              <input
+                type="number"
+                min={-10}
+                max={10}
+                step={0.5}
+                className="w-full px-2 py-1 bg-white/10 border border-white/20 text-white rounded text-sm"
+                value={config.tts_pitch}
+                onChange={(e) => saveConfig('tts_pitch', e.target.value)}
+              />
+              <label className="block text-xs text-gray-400 mt-2">Tempo mówienia (0.5 … 2.0)</label>
+              <input
+                type="number"
+                min={0.5}
+                max={2}
+                step={0.05}
+                className="w-full px-2 py-1 bg-white/10 border border-white/20 text-white rounded text-sm"
+                value={config.tts_rate}
+                onChange={(e) => saveConfig('tts_rate', e.target.value)}
+              />
+            </div>
             <label className="flex items-center justify-between text-sm text-gray-300 bg-white/5 border border-white/10 rounded px-3 py-2">
               <span>Cache aktywny</span>
               <input type="checkbox" checked={!!config.cache_enabled} onChange={(e)=>saveConfig('cache_enabled', e.target.checked)} />
