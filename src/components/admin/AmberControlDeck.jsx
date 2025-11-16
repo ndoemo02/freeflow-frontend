@@ -10,6 +10,7 @@ import {
   Legend
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { getApiUrl } from '../../lib/config';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -31,8 +32,8 @@ export default function AmberControlDeck({ adminToken }) {
   const fetchData = async () => {
     try {
       const [cfgRes, liveRes] = await Promise.all([
-        fetch('/api/admin/config', { headers }),
-        fetch('/api/admin/live', { headers })
+        fetch(getApiUrl('/api/admin/config'), { headers }),
+        fetch(getApiUrl('/api/admin/live'), { headers })
       ]);
       const cfgJson = await cfgRes.json();
       const live = await liveRes.json();
@@ -68,7 +69,7 @@ export default function AmberControlDeck({ adminToken }) {
         payloadValue = { enabled: !!value };
       }
 
-      const res = await fetch('/api/admin/config', {
+      const res = await fetch(getApiUrl('/api/admin/config'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ key, value: payloadValue }),
@@ -96,7 +97,7 @@ export default function AmberControlDeck({ adminToken }) {
 
   const fetchPrompt = async () => {
     try {
-      const res = await fetch('/api/admin/prompt', { headers });
+      const res = await fetch(getApiUrl('/api/admin/prompt'), { headers });
       const json = await res.json();
       setPrompt(json.prompt || json.content || '');
     } catch { setPrompt(''); }
@@ -104,7 +105,7 @@ export default function AmberControlDeck({ adminToken }) {
 
   const savePrompt = async () => {
     try {
-      await fetch('/api/admin/prompt', {
+      await fetch(getApiUrl('/api/admin/prompt'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ prompt }),
