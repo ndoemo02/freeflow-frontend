@@ -178,6 +178,8 @@ export default function AmberControlDeck({ adminToken }) {
               <option value="basic">Basic (Wavenet)</option>
               <option value="vertex">Vertex</option>
               <option value="chirp">Chirp</option>
+              <option value="gemini-tts">Gemini 2.5 Pro TTS</option>
+              <option value="gemini-live">Gemini Live (eksperymentalnie)</option>
             </select>
             <label className="block text-sm text-gray-300 mt-3">Głos TTS</label>
             <select
@@ -192,6 +194,10 @@ export default function AmberControlDeck({ adminToken }) {
               <option value="pl-PL-Standard-A">pl-PL-Standard-A</option>
               <option value="pl-PL-Standard-B">pl-PL-Standard-B</option>
               <option value="pl-PL-Chirp3-HD-Erinome">pl-PL-Chirp3-HD-Erinome</option>
+              <option value="zephyr">Gemini: Zephyr (Female)</option>
+              <option value="achernar">Gemini: Achernar (Female)</option>
+              <option value="aoede">Gemini: Aoede (Female)</option>
+              <option value="erinome">Gemini: Erinome (Female)</option>
             </select>
 
             <label className="block text-sm text-gray-300 mt-3">Styl językowy</label>
