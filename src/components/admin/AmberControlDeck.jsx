@@ -21,6 +21,7 @@ export default function AmberControlDeck({ adminToken }) {
     model: 'gpt-5',
     streaming: true,
     cache_enabled: true,
+    speech_style: 'standard',
     env: '-',
   });
   const [prompt, setPrompt] = useState('');
@@ -46,6 +47,7 @@ export default function AmberControlDeck({ adminToken }) {
           model: cfg.model?.name || prev.model,
           streaming: cfg.streaming?.enabled ?? prev.streaming,
           cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
+          speech_style: cfg.speech_style || prev.speech_style,
           env: cfg.env || prev.env,
         }));
       }
@@ -84,6 +86,7 @@ export default function AmberControlDeck({ adminToken }) {
           model: cfg.model?.name || prev.model,
           streaming: cfg.streaming?.enabled ?? prev.streaming,
           cache_enabled: cfg.cache_enabled ?? prev.cache_enabled,
+          speech_style: cfg.speech_style || prev.speech_style,
           env: cfg.env || prev.env,
         }));
       } else {
@@ -168,6 +171,16 @@ export default function AmberControlDeck({ adminToken }) {
             >
               <option value="pl-PL-Wavenet-D">pl-PL-Wavenet-D</option>
               <option value="pl-PL-Chirp3-HD-Erinome">pl-PL-Chirp3-HD-Erinome</option>
+            </select>
+
+            <label className="block text-sm text-gray-300 mt-3">Styl językowy</label>
+            <select
+              className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+              value={config.speech_style}
+              onChange={(e) => saveConfig('speech_style', e.target.value)}
+            >
+              <option value="standard">Standardowy polski</option>
+              <option value="silesian">Śląska gwara (gōdka)</option>
             </select>
           </div>
           <div className="space-y-4">
