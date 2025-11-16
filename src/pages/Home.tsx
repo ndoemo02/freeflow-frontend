@@ -245,6 +245,16 @@ export default function Home() {
     }
   }, [sessionId, coords.lat, coords.lng])
 
+  const handleManualSubmit = useCallback(
+    (text: string) => {
+      const trimmed = (text || "").trim()
+      if (!trimmed) return
+      console.log("⌨️ Manual submit from VoicePanelText:", trimmed)
+      sendToAmberBrain(trimmed)
+    },
+    [sendToAmberBrain]
+  )
+
   // Odtwarzanie audio z base64
   const playAudioFromBase64 = useCallback((base64Audio: string) => {
     // 🔥 Zapobiegnij podwójnemu odtwarzaniu
@@ -433,6 +443,7 @@ export default function Home() {
         recording={recording}
         visible={showTextPanel}
         onMicClick={handleLogoClick}
+        onSubmitText={handleManualSubmit}
       />
 
 

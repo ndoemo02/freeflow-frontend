@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, KeyboardEvent } from "react"
 import styled, { keyframes, css } from "styled-components"
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   recording?: boolean
   visible?: boolean
   onMicClick?: () => void
+  onSubmitText?: (value: string) => void
 }
 
 export default function VoicePanelText({
@@ -17,18 +18,38 @@ export default function VoicePanelText({
   recording = false,
   visible = false,
   onMicClick,
+  onSubmitText,
 }: Props) {
   const trimmedFinal = finalText?.trim() ?? ""
   const trimmedInterim = interimText?.trim() ?? ""
   const displayText = amberResponse || trimmedFinal || trimmedInterim || "Transkrypcja..."
   const isActive = visible
+  const [manualText, setManualText] = useState("")
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      const value = manualText.trim()
+      if (!value) return
+      onSubmitText?.(value)
+      setManualText("")
+    }
+  }
 
   return (
     <BarShell>
       <BarSurface $active={isActive}>
         <Glow />
         <Pill>
-          <PillText aria-live="polite">{displayText}</PillText>
+          <PillText aria-live="polite">
+            <TextInput
+              type="text"
+              value={manualText}
+              onChange={(e) => setManualText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={displayText}
+            />
+          </PillText>
           <MicIcon
             type="button"
             onClick={onMicClick}
@@ -57,7 +78,7 @@ const BarShell = styled.div`
 `
 
 const BarSurface = styled.div<{ $active: boolean }>`
-  width: min(420px, 90vw);
+  width: min(420px, 80vw);
   position: relative;
   pointer-events: ${props => (props.$active ? "auto" : "none")};
   opacity: ${props => (props.$active ? 1 : 0)};
@@ -65,18 +86,27 @@ const BarSurface = styled.div<{ $active: boolean }>`
   transition: opacity 0.35s ease, transform 0.55s cubic-bezier(0.19, 1, 0.22, 1);
 
   @media (max-width: 520px) {
-    width: min(500px, 92vw);
+    width: min(360px, 92vw);
   }
+`
+
+const glowShift = keyframes`
+  0% { opacity: 0.55; transform: translateY(0); filter: blur(12px); }
+  50% { opacity: 0.95; transform: translateY(-4px); filter: blur(18px); }
+  100% { opacity: 0.55; transform: translateY(0); filter: blur(12px); }
 `
 
 const Glow = styled.div`
   position: absolute;
   inset: -18px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(0, 255, 213, 0.55), transparent 70%);
-  filter: blur(12px);
-  opacity: 0.85;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.7), transparent 60%),
+    radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.7), transparent 65%);
+  filter: blur(14px);
+  opacity: 0.8;
   pointer-events: none;
+  animation: ${glowShift} 3s ease-in-out infinite;
 `
 
 const Pill = styled.div`
@@ -100,6 +130,25 @@ const PillText = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`
+
+const TextInput = styled.input`
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+
+  &::placeholder {
+    color: rgba(148, 163, 184, 0.9);
+  }
+
+  @media (max-width: 520px) {
+    font-size: 0.9rem;
+  }
 `
 
 const micPulse = keyframes`
