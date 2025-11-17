@@ -13,6 +13,7 @@
     "log": "node -e \"import('./dev-tools/patchLogger.js').then(m => m.logCursorPatch('Manual log', process.argv[1]))\""
   },
   "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
     "@headlessui/react": "^2.2.9",
     "@supabase/supabase-js": "^2.58.0",
     "@types/styled-components": "^5.1.34",

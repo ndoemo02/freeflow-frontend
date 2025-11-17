@@ -27,6 +27,7 @@ export default function ChatBubbles({
 }: ChatBubblesProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const lastMessageRef = React.useRef<string | null>(null);
 
   // Scroll do ostatniej wiadomości
   const scrollToBottom = () => {
@@ -46,7 +47,11 @@ export default function ChatBubbles({
         isUser: true,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, newMessage]);
+      setMessages(prev => {
+        if (lastMessageRef.current === newMessage.text) return prev;
+        lastMessageRef.current = newMessage.text;
+        return [...prev, newMessage];
+      });
     }
   }, [userMessage]);
 
@@ -61,7 +66,11 @@ export default function ChatBubbles({
         restaurants: restaurants,
         menuItems: menuItems,
       };
-      setMessages(prev => [...prev, newMessage]);
+      setMessages(prev => {
+        if (lastMessageRef.current === newMessage.text) return prev;
+        lastMessageRef.current = newMessage.text;
+        return [...prev, newMessage];
+      });
     }
   }, [amberResponse, restaurants, menuItems]);
 
@@ -71,7 +80,7 @@ export default function ChatBubbles({
         <AnimatePresence initial={false}>
           {messages.map((message, index) => (
             <ChatBubble
-              key={message.id}
+              key={`${message.id}-${index}`}
               message={message}
               index={index}
             />
@@ -189,19 +198,23 @@ function ChatBubble({ message, index }: ChatBubbleProps) {
 // Styled Components
 const StyledChatContainer = styled.div`
   position: fixed;
-  top: 80px;
-  left: 0;
-  right: 0;
-  bottom: calc(120px + env(safe-area-inset-bottom));
+  top: clamp(104px, 12vh, 132px);
+  bottom: calc(148px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 32px;
   pointer-events: none;
   z-index: 30;
   display: flex;
   justify-content: center;
-  width: 100%;
-  padding: 0 10px;
+  overflow: hidden;
 
   @media (max-width: 768px) {
-    padding: 0 14px;
+    top: 112px;
+    bottom: calc(164px + env(safe-area-inset-bottom));
+    padding: 0 20px;
   }
 `;
 
@@ -269,10 +282,10 @@ const StyledBubble = styled.div<{ $isUser: boolean }>`
   word-wrap: break-word;
   transition: all 0.3s ease;
   overflow: hidden;
-  max-width: 70%;
+  max-width: 62%;
   
   @media (max-width: 900px) {
-    max-width: 85%;
+    max-width: 78%;
   }
 `;
 

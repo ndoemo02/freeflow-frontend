@@ -8,6 +8,19 @@
   overflow: hidden;
 }
 
+/* Strona Home – bezpieczne odstępy od krawędzi i headera */
+.home-page {
+  box-sizing: border-box;
+  padding: 88px 32px 32px;
+}
+
+/* Wrapper dla chatu – ogranicza szerokość i dystans od krawędzi */
+.chat-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 32px 32px;
+}
+
 /* Tło jako fixed layer - pełne dopasowanie dla projektora */
 .bg {
   position: fixed;

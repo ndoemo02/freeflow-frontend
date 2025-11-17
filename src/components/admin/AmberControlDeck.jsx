@@ -161,6 +161,35 @@ export default function AmberControlDeck({ adminToken }) {
 
   return (
     <div className="space-y-8">
+      {/* Problemy z intencjami (fallback/niska pewność) */}
+      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-white font-semibold">🧪 Problemy do przejrzenia</div>
+          <button onClick={fetchData} className="px-2 py-1 text-xs bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+        </div>
+        <div className="overflow-y-auto max-h-60">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-gray-300 border-b border-gray-700">
+                <th className="py-2">Intent</th>
+                <th className="py-2">Conf.</th>
+                <th className="py-2">Fallback</th>
+                <th className="py-2">Odpowiedź</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(logs || []).filter(l => (l?.fallback === true) || ((l?.confidence ?? 1) < 0.6)).map((l, i) => (
+                <tr key={`p-${i}`} className="border-t border-gray-700 text-white/90">
+                  <td className="py-2">{l.intent}</td>
+                  <td className="py-2">{l.confidence != null ? Number(l.confidence).toFixed(2) : '-'}</td>
+                  <td className="py-2">{String(!!l.fallback)}</td>
+                  <td className="py-2 truncate max-w-[28ch]">{l.replySnippet}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {/* Ustawienia Systemu */}
       <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
         <div className="flex items-center justify-between mb-4">

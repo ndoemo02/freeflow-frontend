@@ -342,7 +342,7 @@ export default function Home() {
   }, [finalText, voiceQuery, recording, sendToAmberBrain])
 
   return (
-    <div className={`freeflow ${immersive ? 'immersive' : ''}`}>
+    <div className={`home-page freeflow ${immersive ? 'immersive' : ''}`}>
       {/* Stała warstwa tła wypełniająca okno (object-fit: cover) */}
       <picture>
         <source media="(max-width: 768px)" srcSet="/images/background.png" />
@@ -425,26 +425,29 @@ export default function Home() {
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
       </div>
 
-      {/* Chat Bubbles - główny UI dla konwersacji */}
-      {(userMessage || amberResponse) && (
-        <ChatBubbles
-          userMessage={userMessage}
-          amberResponse={amberResponse}
-          restaurants={restaurants}
-          menuItems={menuItems}
-        />
-      )}
+      {/* Chat wrapper - ogranicza szerokość i dodaje bezpieczne paddingi */}
+      <div className="chat-wrapper">
+        {/* Chat Bubbles - główny UI dla konwersacji */}
+        {(userMessage || amberResponse) && (
+          <ChatBubbles
+            userMessage={userMessage}
+            amberResponse={amberResponse}
+            restaurants={restaurants}
+            menuItems={menuItems}
+          />
+        )}
 
-      {/* Neonowy voice panel - zsynchronizowany z przełącznikiem */}
-      <VoicePanelText
-        amberResponse={amberResponse}
-        interimText={interimText}
-        finalText={finalText}
-        recording={recording}
-        visible={showTextPanel}
-        onMicClick={handleLogoClick}
-        onSubmitText={handleManualSubmit}
-      />
+        {/* Neonowy voice panel - zsynchronizowany z przełącznikiem */}
+        <VoicePanelText
+          amberResponse={amberResponse}
+          interimText={interimText}
+          finalText={finalText}
+          recording={recording}
+          visible={showTextPanel}
+          onMicClick={handleLogoClick}
+          onSubmitText={handleManualSubmit}
+        />
+      </div>
 
 
       {/* MenuDrawer i Cart */}
