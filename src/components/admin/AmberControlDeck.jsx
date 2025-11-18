@@ -30,17 +30,22 @@ export default function AmberControlDeck({ adminToken }) {
   const [prompt, setPrompt] = useState('');
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aliases, setAliases] = useState({});
+  const [aliasForm, setAliasForm] = useState({ alias: '', canonical: '' });
+  const [aliasSaving, setAliasSaving] = useState(false);
 
   const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken };
 
   const fetchData = async () => {
     try {
-      const [cfgRes, liveRes] = await Promise.all([
+      const [cfgRes, liveRes, aliasRes] = await Promise.all([
         fetch(getApiUrl('/api/admin/config'), { headers }),
-        fetch(getApiUrl('/api/admin/live'), { headers })
+        fetch(getApiUrl('/api/admin/live'), { headers }),
+        fetch(getApiUrl('/api/admin/aliases'), { headers })
       ]);
       const cfgJson = await cfgRes.json();
       const live = await liveRes.json();
+      const aliasJson = await aliasRes.json().catch(() => ({ ok: false }));
       if (cfgJson && cfgJson.ok !== false) {
         const cfg = cfgJson.config || {};
         setConfig(prev => ({
@@ -58,6 +63,7 @@ export default function AmberControlDeck({ adminToken }) {
         }));
       }
       if (live && live.ok !== false) setLogs(live.data || []);
+      if (aliasJson && aliasJson.ok !== false) setAliases(aliasJson.aliases || {});
       setLoading(false);
     } catch (e) {
       setLoading(false);
@@ -158,6 +164,34 @@ export default function AmberControlDeck({ adminToken }) {
   const rollingOptions = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } } };
 
   if (loading) return <div className="text-center text-gray-400">Ładowanie panelu…</div>;
+
+  const aliasEntries = Object.entries(aliases || {});
+
+  const handleAliasSubmit = async () => {
+    if (!aliasForm.alias.trim() || !aliasForm.canonical.trim()) return;
+    setAliasSaving(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/aliases'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          alias: aliasForm.alias.trim(),
+          canonical: aliasForm.canonical.trim()
+        })
+      });
+      const json = await res.json();
+      if (json && json.ok !== false) {
+        setAliases(json.aliases || {});
+        setAliasForm({ alias: '', canonical: '' });
+      } else {
+        alert(json?.error || 'Alias save failed');
+      }
+    } catch (e) {
+      alert('Alias save failed: ' + e.message);
+    } finally {
+      setAliasSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -280,6 +314,41 @@ export default function AmberControlDeck({ adminToken }) {
               <span>Streaming audio</span>
               <input type="checkbox" checked={!!config.streaming} onChange={(e)=>saveConfig('streaming', e.target.checked)} />
             </label>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <div className="text-white font-semibold mb-2">➕ Dodaj alias restauracji</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white"
+                placeholder="Alias (np. rezydencja)"
+                value={aliasForm.alias}
+                onChange={(e)=>setAliasForm(prev=>({ ...prev, alias: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white"
+                placeholder="Pełna nazwa (np. Rezydencja Luxury Hotel)"
+                value={aliasForm.canonical}
+                onChange={(e)=>setAliasForm(prev=>({ ...prev, canonical: e.target.value }))}
+              />
+              <button
+                onClick={handleAliasSubmit}
+                disabled={aliasSaving}
+                className="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white"
+              >
+                {aliasSaving ? 'Zapisywanie…' : 'Zapisz alias'}
+              </button>
+            </div>
+            <div className="mt-4 text-sm text-gray-300 space-y-1 max-h-32 overflow-y-auto">
+              {aliasEntries.length === 0 && <div className="text-gray-500">Brak aliasów</div>}
+              {aliasEntries.map(([alias, canonical]) => (
+                <div key={alias} className="flex justify-between gap-3 border-b border-white/5 pb-1">
+                  <span className="text-white">{alias}</span>
+                  <span className="text-gray-400 text-right truncate">
+                    {Array.isArray(canonical) ? canonical.join(', ') : canonical}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
