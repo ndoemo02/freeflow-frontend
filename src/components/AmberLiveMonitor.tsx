@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CONFIG } from '../lib/config';
+import { getApiUrl } from '../lib/config';
 
 type LiveEvent = {
   intent?: string;
@@ -15,7 +15,7 @@ export default function AmberLiveMonitor() {
 
   useEffect(() => {
     try {
-      const es = new EventSource(`${CONFIG.BACKEND_URL}/api/amber/live`);
+      const es = new EventSource(getApiUrl('/api/amber/live'));
       es.onmessage = (e) => {
         try { setEvent(JSON.parse(e.data || '{}')); } catch {}
       };

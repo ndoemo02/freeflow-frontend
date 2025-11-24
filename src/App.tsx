@@ -58,21 +58,21 @@ function AppContent() {
       <main className="relative">
         <Routes>
           <Route path="/" element={<Home />} />
-            <Route path="/panel/customer" element={<CustomerPanel />} />
-            <Route path="/panel/business" element={<BusinessPanel />} />
-            <Route path="/panel/business-v2" element={<BusinessPanelV2 />} />
-            <Route path="/panel/taxi" element={<TaxiPanel />} />
-            <Route path="/panel/restaurant" element={<BusinessPanel />} />
-            <Route path="/panel/hotel" element={<BusinessPanel />} />
+          <Route path="/panel/customer" element={<CustomerPanel />} />
+          <Route path="/panel/business" element={<BusinessPanel />} />
+          <Route path="/panel/business-v2" element={<BusinessPanelV2 />} />
+          <Route path="/panel/taxi" element={<TaxiPanel />} />
+          <Route path="/panel/restaurant" element={<BusinessPanel />} />
+          <Route path="/panel/hotel" element={<BusinessPanel />} />
           <Route path="/cart" element={<CartPage />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/business/register" element={<RegisterBusiness />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/reservations" element={<TableReservations />} />
-            <Route path="/logo-demo" element={<LogoDemo />} />
-            <Route path="/home-new-logo" element={<HomeWithNewLogo />} />
-            <Route path="/amber-pulse" element={<AmberPulsePage />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/business/register" element={<RegisterBusiness />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/reservations" element={<TableReservations />} />
+          <Route path="/logo-demo" element={<LogoDemo />} />
+          <Route path="/home-new-logo" element={<HomeWithNewLogo />} />
+          <Route path="/amber-pulse" element={<AmberPulsePage />} />
         </Routes>
       </main>
 
@@ -86,12 +86,16 @@ function AppContent() {
   );
 }
 
+import { ThemeProvider } from "./state/ThemeContext";
+
 export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
         <CartProvider>
-          <AppContent />
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
         </CartProvider>
       </ToastProvider>
     </AuthProvider>

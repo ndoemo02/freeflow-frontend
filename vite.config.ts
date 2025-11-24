@@ -4,8 +4,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
     port: 5173,
     strictPort: true, // 💡 nie zmienia portu automatycznie (lepsza stabilność)
+    allowedHosts: true, // 🔓 Akceptuje wszystkie hosty (wygodne dla Cloudflare tunnel w dev)
     proxy: {
       '/api': {
         target: 'http://localhost:3000', // 🔗 backend Express

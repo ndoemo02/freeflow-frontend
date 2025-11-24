@@ -21,12 +21,17 @@
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.24",
     "gsap": "^3.13.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.545.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.9.3",
+    "socket.io-client": "^4.7.2",
     "styled-components": "^6.1.19",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

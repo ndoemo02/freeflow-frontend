@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useUI } from "../state/ui"
 import { useAuth } from "../state/auth"
 
+import { getUserRole } from "../lib/menuBuilder"
+
 export default function MenuDrawer() {
   const isOpen = useUI((s) => s.drawerOpen)
   const close = useUI((s) => s.closeDrawer)
@@ -13,7 +15,7 @@ export default function MenuDrawer() {
   const [expandedSections, setExpandedSections] = useState({})
 
   // Określ rolę użytkownika
-  const userRole = user?.role || 'user'
+  const userRole = getUserRole(user)
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && isOpen && close()
@@ -44,14 +46,12 @@ export default function MenuDrawer() {
     };
 
     return (
-      <motion.li 
+      <motion.li
         whileHover={{ x: 4 }}
         whileTap={{ scale: 0.98 }}
-        className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer ${
-          isSubItem ? 'ml-6 text-sm' : 'text-base'
-        } ${
-          isDanger ? 'text-red-400 hover:bg-red-500/20' : 'text-white hover:bg-white/10'
-        }`}
+        className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer ${isSubItem ? 'ml-6 text-sm' : 'text-base'
+          } ${isDanger ? 'text-red-400 hover:bg-red-500/20' : 'text-white hover:bg-white/10'
+          }`}
         onClick={handleClick}
       >
         <span className="text-lg">{icon}</span>
@@ -109,7 +109,7 @@ export default function MenuDrawer() {
             transition={{ duration: 0.3 }}
             onClick={close}
           />
-          
+
           {/* Menu Panel */}
           <motion.aside
             role="dialog"
@@ -129,7 +129,7 @@ export default function MenuDrawer() {
                 </div>
                 <h2 className="text-white font-bold text-lg bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent">FreeFlow</h2>
               </div>
-              <button 
+              <button
                 onClick={close}
                 className="w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/20 text-white/70 hover:text-white hover:bg-black/60 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-white/10"
                 aria-label="Zamknij menu"
@@ -147,14 +147,14 @@ export default function MenuDrawer() {
                 <MenuItem icon="🏠" text="Główne" onClick={close} />
                 <MenuItem icon="🍽️" text="Odkrywaj Jedzenie" route="/restaurants" />
                 <MenuItem icon="📅" text="Rezerwacje Stolików" route="/reservations" />
-                
+
                 {/* Separator */}
                 <div className="my-4 h-px bg-white/20"></div>
 
                 {/* Panele */}
-                <ExpandableSection 
-                  title="Panele" 
-                  icon="📂" 
+                <ExpandableSection
+                  title="Panele"
+                  icon="📂"
                   isExpanded={expandedSections['Panele']}
                 >
                   <MenuItem icon="🙍" text="Panel Klienta" route="/panel/customer" isSubItem requiresAuth />
@@ -164,22 +164,22 @@ export default function MenuDrawer() {
                 </ExpandableSection>
 
                 {/* Moja Aktywność */}
-                <ExpandableSection 
-                  title="Moja Aktywność" 
-                  icon="📊" 
+                <ExpandableSection
+                  title="Moja Aktywność"
+                  icon="📊"
                   isExpanded={expandedSections['Moja Aktywność']}
                 >
-                  <MenuItem icon="🛒" text="Koszyk" onClick={() => {/* TODO: otwórz koszyk */}} isSubItem />
+                  <MenuItem icon="🛒" text="Koszyk" onClick={() => {/* TODO: otwórz koszyk */ }} isSubItem />
                   <MenuItem icon="📜" text="Historia" route="/order-history" isSubItem />
                   <MenuItem icon="❤️" text="Ulubione" route="/favorites" isSubItem />
                   <MenuItem icon="🚕" text="Moje Taksówki" route="/my-taxis" isSubItem />
                   <MenuItem icon="🏨" text="Moje Hotele" route="/my-hotels" isSubItem />
                 </ExpandableSection>
-                
+
                 {/* Ustawienia i Pomoc */}
-                <ExpandableSection 
-                  title="Ustawienia i Pomoc" 
-                  icon="⚙️" 
+                <ExpandableSection
+                  title="Ustawienia i Pomoc"
+                  icon="⚙️"
                   isExpanded={expandedSections['Ustawienia i Pomoc']}
                 >
                   <MenuItem icon="👤" text="Profil" route="/profile" isSubItem />
@@ -188,10 +188,10 @@ export default function MenuDrawer() {
                   <MenuItem icon="❓" text="FAQ" route="/faq" isSubItem />
                   <MenuItem icon="📞" text="Kontakt" route="/contact" isSubItem />
                 </ExpandableSection>
-                
+
                 {/* Separator */}
                 <div className="my-4 h-px bg-white/20"></div>
-                
+
                 {/* User Info */}
                 <div className="p-4 rounded-xl bg-black/30 backdrop-blur-xl border border-white/20">
                   <div className="flex items-center gap-3">
@@ -202,7 +202,7 @@ export default function MenuDrawer() {
                     </div>
                     <div className="flex-1">
                       <p className="text-white font-semibold text-sm">
-                        {user?.email || 'Gość' }
+                        {user?.email || 'Gość'}
                       </p>
                       <p className="text-white/60 text-xs">
                         {user?.id ? (userRole === 'admin' ? 'Administrator' : userRole === 'business' ? 'Właściciel' : 'Użytkownik') : 'Niezalogowany'}
@@ -210,27 +210,27 @@ export default function MenuDrawer() {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Separator */}
                 <div className="my-4 h-px bg-white/20"></div>
-                
+
                 {/* Zarządzanie - tylko dla admin/business */}
                 {(userRole === 'admin' || userRole === 'business') && (
-                  <ExpandableSection 
-                    title="Zarządzanie" 
-                    icon="🔧" 
+                  <ExpandableSection
+                    title="Zarządzanie"
+                    icon="🔧"
                     isExpanded={expandedSections['Zarządzanie']}
                   >
                     <MenuItem icon="📈" text="Panel Biznesowy" route="/business-panel" isSubItem />
                     <MenuItem icon="🔑" text="Panel Admina" route="/admin-panel" isSubItem />
                   </ExpandableSection>
                 )}
-                
+
                 {/* Labs - tylko dla admin */}
                 {userRole === 'admin' && (
-                  <ExpandableSection 
-                    title="Labs (DEV)" 
-                    icon="🚀" 
+                  <ExpandableSection
+                    title="Labs (DEV)"
+                    icon="🚀"
                     isExpanded={expandedSections['Labs (DEV)']}
                   >
                     <MenuItem icon="🧪" text="Testy API" route="/dev/api-tests" isSubItem />
@@ -240,7 +240,7 @@ export default function MenuDrawer() {
                     <MenuItem icon="📝" text="Logs" route="/dev/logs" isSubItem />
                   </ExpandableSection>
                 )}
-                
+
                 {/* Auth action */}
                 {user?.id ? (
                   <MenuItem icon="🚪" text="Wyloguj się" onClick={() => { signOut(); close(); }} isDanger />

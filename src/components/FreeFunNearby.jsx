@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CONFIG } from '../lib/config';
+import { getApiUrl } from '../lib/config';
 
 export default function FreeFunNearby() {
   const [city, setCity] = useState('');
@@ -11,7 +11,7 @@ export default function FreeFunNearby() {
     setLoading(true); setErr('');
     try {
       const qs = city ? `?city=${encodeURIComponent(city)}` : '';
-      const res = await fetch(`${CONFIG.BACKEND_URL}/api/freefun/list${qs}`);
+      const res = await fetch(getApiUrl(`/api/freefun/list${qs}`));
       const j = await res.json();
       if (!res.ok || j.ok === false) throw new Error(j.error || `HTTP ${res.status}`);
       setEvents(j.data || []);

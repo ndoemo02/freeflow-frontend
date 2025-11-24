@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { useState, useEffect, useRef } from "react"
-import { CONFIG } from "../lib/config"
+import { getApiUrl } from "../lib/config"
 
 export default function AmberPulse({ sessionId = "session_test_001" }) {
   const [messages, setMessages] = useState([])
@@ -21,7 +21,7 @@ export default function AmberPulse({ sessionId = "session_test_001" }) {
     setMessages((m) => [...m, { from: "user", text }])
 
     try {
-      const apiUrl = `${CONFIG.BACKEND_URL}/api/brain`
+      const apiUrl = getApiUrl('/api/brain')
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

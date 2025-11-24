@@ -41,3 +41,6 @@ export default function MinimalVoicePanel({ mode = 'idle', energy = 0 }) {
 
 
 
+
+
+

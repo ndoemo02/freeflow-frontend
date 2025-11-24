@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { CONFIG } from "../lib/config"
+import { getApiUrl } from "../lib/config"
 
 export default function FreeFunSection() {
   const [city, setCity] = useState("")
@@ -50,7 +50,7 @@ export default function FreeFunSection() {
       const query = new URLSearchParams()
       if (city) query.append("city", city)
       
-      const apiUrl = `${CONFIG.BACKEND_URL}/api/freefun/list?${query.toString()}`
+      const apiUrl = getApiUrl(`/api/freefun/list?${query.toString()}`)
       const res = await fetch(apiUrl)
       const data = await res.json()
       

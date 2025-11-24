@@ -2,6 +2,10 @@ const detectBackend = () => {
   // Lokalnie kieruj na port 3000 jeśli brak env
   if (typeof window !== 'undefined') {
     const h = window.location.hostname;
+    // Jeśli jesteśmy na Cloudflare tunnel, używaj względnych ścieżek (Vite proxy)
+    if (h.includes('trycloudflare.com')) {
+      return ''; // Pusty string = względne ścieżki, używa Vite proxy
+    }
     if (h === 'localhost' || h === '127.0.0.1') {
       return 'http://localhost:3000';
     }
@@ -24,9 +28,25 @@ export const CONFIG = {
 
 // Funkcja do budowania URL API
 export function getApiUrl(path: string): string {
-  const baseUrl = CONFIG.BACKEND_URL;
+  // Sprawdź aktualny hostname (dla Cloudflare tunnel)
+  let baseUrl = CONFIG.BACKEND_URL;
+  
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    // Jeśli jesteśmy na Cloudflare tunnel, używaj względnych ścieżek (Vite proxy)
+    if (h.includes('trycloudflare.com')) {
+      baseUrl = ''; // Pusty string = względne ścieżki, używa Vite proxy
+    }
+  }
+  
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${cleanPath}`;
+  const url = `${baseUrl}${cleanPath}`;
+  
+  if (CONFIG.DEBUG) {
+    console.log('🔗 getApiUrl:', { hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A', baseUrl, path, finalUrl: url });
+  }
+  
+  return url;
 }
 
 // Feature flags
