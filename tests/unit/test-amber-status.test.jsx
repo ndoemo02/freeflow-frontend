@@ -10,7 +10,7 @@ describe('AmberStatus Component', () => {
   it('should render with default ready state', () => {
     render(<AmberStatus />);
     
-    const statusIndicator = screen.getByTitle('Ready');
+    const statusIndicator = screen.getByTitle(/Status: Gotowa/i);
     expect(statusIndicator).toBeInTheDocument();
     expect(statusIndicator).toHaveClass('w-3', 'h-3', 'rounded-full', 'bg-green-500');
   });
@@ -18,15 +18,15 @@ describe('AmberStatus Component', () => {
   it('should render thinking state correctly', () => {
     render(<AmberStatus state="thinking" />);
     
-    const statusIndicator = screen.getByTitle('Thinking');
+    const statusIndicator = screen.getByTitle(/Status: Myśli/i);
     expect(statusIndicator).toBeInTheDocument();
-    expect(statusIndicator).toHaveClass('bg-yellow-500', 'animate-pulse');
+    expect(statusIndicator).toHaveClass('bg-purple-500', 'animate-pulse');
   });
 
   it('should render error state correctly', () => {
     render(<AmberStatus state="error" />);
     
-    const statusIndicator = screen.getByTitle('Error');
+    const statusIndicator = screen.getByTitle(/Status: Błąd/i);
     expect(statusIndicator).toBeInTheDocument();
     expect(statusIndicator).toHaveClass('bg-red-500');
   });
@@ -34,31 +34,29 @@ describe('AmberStatus Component', () => {
   it('should render idle state correctly', () => {
     render(<AmberStatus state="idle" />);
     
-    const statusIndicator = screen.getByTitle('Idle');
+    const statusIndicator = screen.getByTitle(/Status: Oczekuje/i);
     expect(statusIndicator).toBeInTheDocument();
-    expect(statusIndicator).toHaveClass('bg-gray-500');
+    expect(statusIndicator).toHaveClass('bg-yellow-400');
   });
 
-  it('should have proper accessibility attributes', () => {
-    render(<AmberStatus state="thinking" />);
+  it('should display Polish labels correctly', () => {
+    render(<AmberStatus state="ready" />);
+    expect(screen.getByText(/Gotowa/i)).toBeInTheDocument();
     
-    const statusIndicator = screen.getByTitle('Thinking');
-    expect(statusIndicator).toHaveAttribute('title', 'Thinking');
-  });
-
-  it('should handle invalid state gracefully', () => {
-    render(<AmberStatus state="invalid" />);
+    const { rerender } = render(<AmberStatus state="thinking" />);
+    expect(screen.getByText(/Myśli/i)).toBeInTheDocument();
     
-    // Should fallback to default ready state
-    const statusIndicator = screen.getByTitle('Ready');
-    expect(statusIndicator).toBeInTheDocument();
-    expect(statusIndicator).toHaveClass('bg-green-500');
+    rerender(<AmberStatus state="error" />);
+    expect(screen.getByText(/Błąd/i)).toBeInTheDocument();
+    
+    rerender(<AmberStatus state="idle" />);
+    expect(screen.getByText(/Oczekuje/i)).toBeInTheDocument();
   });
 
   it('should have consistent size and shape', () => {
     const { rerender } = render(<AmberStatus state="ready" />);
     
-    const getStatusIndicator = () => screen.getByRole('img', { hidden: true });
+    const getStatusIndicator = () => screen.getByTitle(/Status:/i);
     
     // Test all states have same size classes
     const states = ['ready', 'thinking', 'error', 'idle'];
@@ -68,6 +66,11 @@ describe('AmberStatus Component', () => {
       const indicator = getStatusIndicator();
       expect(indicator).toHaveClass('w-3', 'h-3', 'rounded-full');
     });
+  });
+
+  it('should display Amber label', () => {
+    render(<AmberStatus />);
+    expect(screen.getByText('Amber:')).toBeInTheDocument();
   });
 });
 

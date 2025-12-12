@@ -1,164 +1,133 @@
 import React, { useRef } from 'react';
-import { motion } from 'framer-motion';
-import styled from 'styled-components';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ResultCarouselProps {
-    items: any[];
-    type: 'restaurant' | 'menu';
-    onItemClick?: (item: any) => void;
+  items: any[];
+  type: 'restaurant' | 'menu';
+  onItemClick?: (item: any) => void;
 }
 
 export default function ResultCarousel({ items, type, onItemClick }: ResultCarouselProps) {
-    const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-    if (!items || items.length === 0) return null;
+  // If no items, don't render anything
+  if (!items || items.length === 0) return null;
 
-    return (
-        <CarouselContainer
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-        >
-            <ScrollTrack ref={scrollRef}>
-                {items.map((item, index) => (
-                    <CardWrapper
-                        key={item.id || index}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 + index * 0.05 }}
-                        onClick={() => onItemClick?.(item)}
-                    >
-                        <GlassCard $type={type}>
-                            {type === 'restaurant' ? (
-                                <>
-                                    <CardIcon>🍽️</CardIcon>
-                                    <CardContent>
-                                        <CardTitle>{item.name}</CardTitle>
-                                        <CardSubtitle>{item.cuisine_type || 'Restauracja'}</CardSubtitle>
-                                        <CardMeta>{item.city || 'W pobliżu'}</CardMeta>
-                                    </CardContent>
-                                </>
-                            ) : (
-                                <>
-                                    <CardIcon>🍕</CardIcon>
-                                    <CardContent>
-                                        <CardTitle>{item.name}</CardTitle>
-                                        <CardPrice>{Number(item.price_pln).toFixed(2)} zł</CardPrice>
-                                        <CardMeta>{item.category || 'Danie'}</CardMeta>
-                                    </CardContent>
-                                </>
-                            )}
-                        </GlassCard>
-                    </CardWrapper>
-                ))}
-            </ScrollTrack>
-        </CarouselContainer>
-    );
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ delay: 0.2, duration: 0.4 }}
+      className="w-full mt-4 overflow-hidden relative z-10"
+    >
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto pb-8 pt-2 px-1 snap-x snap-mandatory 
+                         scrollbar-hide mask-gradient"
+        style={{
+          // Gradient mask for fading edges
+          maskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)',
+        }}
+      >
+        <AnimatePresence>
+          {items.map((item, index) => (
+            <motion.div
+              key={item.id || index}
+              className="flex-none snap-center w-[260px] md:w-[280px] cursor-pointer group"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                transition: {
+                  delay: index * 0.1,
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 20
+                }
+              }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.3 } }}
+              onClick={() => onItemClick?.(item)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className={`
+                                h-full flex flex-col justify-between overflow-hidden relative
+                                rounded-[32px] backdrop-blur-2xl bg-[#0F0F16]/80 border border-white/10 
+                                transition-all duration-300 shadow-xl
+                                ${type === 'restaurant'
+                  ? 'hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] hover:border-cyan-500/30'
+                  : 'hover:shadow-[0_0_30px_rgba(255,0,170,0.2)] hover:border-fuchsia-500/30'}
+                            `}>
+                {/* Top Image Area (Placeholder Gradient) */}
+                <div className={`
+                                    h-40 w-full relative p-4 flex flex-col justify-between
+                                    bg-gradient-to-br 
+                                    ${type === 'restaurant' ? 'from-cyan-900/40 via-[#0a0a1a] to-[#0a0a1a]' : 'from-fuchsia-900/40 via-[#0a0a1a] to-[#0a0a1a]'}
+                                `}>
+                  {/* Rating Badge */}
+                  <div className="self-end px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1">
+                    <span className="text-yellow-400 text-xs">★</span>
+                    <span className="text-white text-xs font-bold">4.8</span>
+                  </div>
+
+                  {/* Icon if no image */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                    <span className="text-6xl filter blur-sm">
+                      {type === 'restaurant' ? '🍽️' : '🍕'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content Content */}
+                <div className="p-5 pt-2 flex flex-col flex-1 gap-2">
+                  {/* Category / Subtitle */}
+                  <div className={`text-[10px] font-bold tracking-wider uppercase
+                                        ${type === 'restaurant' ? 'text-cyan-400' : 'text-fuchsia-400'}
+                                    `}>
+                    {type === 'restaurant' ? (item.cuisine_type || 'RESTAURACJA') : (item.category || 'DANIE')}
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-white font-bold text-lg leading-tight line-clamp-2">
+                    {item.name}
+                  </h3>
+
+                  {/* Description (Mock) */}
+                  <p className="text-white/50 text-xs line-clamp-2 mb-2">
+                    {item.description || "Autentyczne smaki i wyjątkowa atmosfera w sercu miasta."}
+                  </p>
+
+                  {/* Meta Row */}
+                  <div className="flex items-center gap-3 text-white/40 text-[10px] mb-3 mt-auto">
+                    <div className="flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      <span>{item.distance || "1.2 km"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span>{item.delivery_time || "15-25 min"}</span>
+                    </div>
+                  </div>
+
+                  {/* Select Button */}
+                  <button className={`
+                                        w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02] active:scale-95
+                                        ${type === 'restaurant'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30'
+                      : 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-lg shadow-fuchsia-900/30'}
+                                    `}>
+                    Wybierz
+                    <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
 }
-
-// Styled Components
-
-const CarouselContainer = styled(motion.div)`
-  width: 100%;
-  margin-top: 12px;
-  overflow: hidden;
-  /* Ensure it doesn't break layout */
-  position: relative;
-  z-index: 10;
-`;
-
-const ScrollTrack = styled.div`
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 4px 4px 16px 4px; /* Bottom padding for shadow/hover space */
-  scroll-snap-type: x mandatory;
-  
-  /* Hide scrollbar */
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Mask fade on edges */
-  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-`;
-
-const CardWrapper = styled(motion.div)`
-  flex: 0 0 auto;
-  scroll-snap-align: center;
-  width: 200px;
-  cursor: pointer;
-`;
-
-const GlassCard = styled.div<{ $type: 'restaurant' | 'menu' }>`
-  background: rgba(20, 20, 30, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 16px;
-  padding: 16px;
-  height: 100%;
-  min-height: 110px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  
-  border: 1px solid ${props => props.$type === 'restaurant'
-        ? 'rgba(0, 240, 255, 0.15)'
-        : 'rgba(255, 0, 170, 0.15)'};
-    
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-
-  &:hover {
-    transform: translateY(-4px) scale(1.02);
-    background: rgba(30, 30, 45, 0.7);
-    border-color: ${props => props.$type === 'restaurant'
-        ? 'rgba(0, 240, 255, 0.4)'
-        : 'rgba(255, 0, 170, 0.4)'};
-    box-shadow: ${props => props.$type === 'restaurant'
-        ? '0 8px 25px rgba(0, 240, 255, 0.15)'
-        : '0 8px 25px rgba(255, 0, 170, 0.15)'};
-  }
-`;
-
-const CardIcon = styled.div`
-  font-size: 24px;
-  margin-bottom: 8px;
-  filter: drop-shadow(0 0 8px rgba(255,255,255,0.3));
-`;
-
-const CardContent = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const CardTitle = styled.div`
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.3;
-  margin-bottom: 4px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-`;
-
-const CardSubtitle = styled.div`
-  color: rgba(0, 240, 255, 0.8);
-  font-size: 12px;
-  font-weight: 500;
-`;
-
-const CardPrice = styled.div`
-  color: #ff00aa;
-  font-weight: 600;
-  font-size: 14px;
-`;
-
-const CardMeta = styled.div`
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 11px;
-  margin-top: 2px;
-`;

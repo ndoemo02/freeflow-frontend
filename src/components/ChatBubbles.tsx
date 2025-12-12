@@ -1,7 +1,6 @@
-// components/ChatBubbles.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import styled from 'styled-components';
+import ResultCarousel from './ResultCarousel';
 
 interface ChatMessage {
   id: string;
@@ -31,24 +30,10 @@ export default function ChatBubbles({
   onMenuItemSelect
 }: ChatBubblesProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const lastMessageRef = React.useRef<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageRef = useRef<string | null>(null);
 
-  // 🔍 DEBUG: Log incoming props
-  useEffect(() => {
-    console.log("🔍 ChatBubbles received props:", {
-      hasUserMessage: !!userMessage,
-      hasAmberResponse: !!amberResponse,
-      hasRestaurants: !!restaurants,
-      restaurantsLength: restaurants?.length || 0,
-      hasMenuItems: !!menuItems,
-      menuItemsLength: menuItems?.length || 0,
-      restaurants,
-      menuItems
-    });
-  }, [userMessage, amberResponse, restaurants, menuItems]);
-
-  // Scroll do ostatniej wiadomości
+  // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -57,7 +42,7 @@ export default function ChatBubbles({
     scrollToBottom();
   }, [messages]);
 
-  // Dodaj wiadomość użytkownika
+  // Add user message
   useEffect(() => {
     if (userMessage?.trim()) {
       const newMessage: ChatMessage = {
@@ -74,7 +59,7 @@ export default function ChatBubbles({
     }
   }, [userMessage]);
 
-  // Dodaj odpowiedź Amber
+  // Add Amber response
   useEffect(() => {
     if (amberResponse?.trim()) {
       const newMessage: ChatMessage = {
@@ -89,18 +74,15 @@ export default function ChatBubbles({
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
 
-        // Check if it's the same message content
+        // Check for duplicates or updates
         if (lastMsg && lastMsg.text === newMessage.text && !lastMsg.isUser) {
-          // Check if we gained restaurants or menu items that were previously missing
           const gainedRestaurants = (!lastMsg.restaurants?.length && newMessage.restaurants?.length);
           const gainedMenu = (!lastMsg.menuItems?.length && newMessage.menuItems?.length);
 
           if (gainedRestaurants || gainedMenu) {
-            console.log("🔄 Updating last message with new data (restaurants/menu)");
-            // Replace the last message with the new one (enriched)
+            // Update existing message with new data
             return [...prev.slice(0, -1), newMessage];
           }
-          // Otherwise, it's just a duplicate text, ignore
           return prev;
         }
 
@@ -111,8 +93,10 @@ export default function ChatBubbles({
   }, [amberResponse, restaurants, menuItems]);
 
   return (
-    <StyledChatContainer>
-      <ChatMessages>
+    <div className="fixed top-[100px] bottom-[120px] left-0 right-0 md:left-1/2 md:-translate-x-1/2 
+                    w-full max-w-[1000px] px-4 md:px-6 pointer-events-none z-30 flex justify-center">
+      <div className="w-full h-full overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-4
+                      scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <AnimatePresence initial={false}>
           {messages.map((message, index) => (
             <ChatBubble
@@ -124,9 +108,9 @@ export default function ChatBubbles({
             />
           ))}
         </AnimatePresence>
-        <div ref={messagesEndRef} />
-      </ChatMessages>
-    </StyledChatContainer>
+        <div ref={messagesEndRef} className="h-4" />
+      </div>
+    </div>
   );
 }
 
@@ -137,215 +121,55 @@ interface ChatBubbleProps {
   onMenuItemSelect?: (item: any) => void;
 }
 
-import ResultCarousel from './ResultCarousel';
-
 function ChatBubble({ message, index, onRestaurantSelect, onMenuItemSelect }: ChatBubbleProps) {
   const isUser = message.isUser;
-  // Fallback for different property names from backend
   const restaurants = message.locationRestaurants || message.restaurants;
   const menuItems = message.menuItems || (message as any).menu || [];
-
   const hasRestaurants = Array.isArray(restaurants) && restaurants.length > 0;
   const hasMenu = Array.isArray(menuItems) && menuItems.length > 0;
 
   return (
-    <StyledBubbleWrapper
-      $isUser={isUser}
+    <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-      transition={{
-        type: "spring",
-        stiffness: 400,
-        damping: 30,
-        delay: index * 0.05
-      }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className={`flex w-full flex-col pointer-events-auto ${isUser ? 'items-end' : 'items-start'}`}
     >
-      <StyledBubble $isUser={isUser}>
-        <BubbleContent>
-          {message.text && (
-            <BubbleText $isUser={isUser}>
-              {message.text}
-            </BubbleText>
-          )}
-        </BubbleContent>
-      </StyledBubble>
+      {/* Text Bubble */}
+      <div className={`
+        relative max-w-[85%] md:max-w-[70%] p-4 md:p-5 backdrop-blur-xl transition-all duration-300
+        ${isUser
+          ? 'bg-white text-black rounded-2xl rounded-tr-sm shadow-lg shadow-black/5'
+          : 'bg-[#1a1a2e]/90 text-white rounded-2xl rounded-tl-sm border border-white/10 shadow-lg'}
+      `}>
+        {message.text && (
+          <div className="text-base leading-relaxed whitespace-pre-wrap font-medium">
+            {message.text}
+          </div>
+        )}
+      </div>
 
-      {/* Render ResultCarousel INSIDE the bubble wrapper but outside the text bubble */}
+      {/* Cards (Carousel) - Rendered distinctly from the bubble */}
       {hasRestaurants && (
-        <ResultCarousel
-          items={restaurants}
-          type="restaurant"
-          onItemClick={(restaurant) => {
-            console.log('🍽️ Restaurant selected:', restaurant);
-            onRestaurantSelect?.(restaurant);
-          }}
-        />
+        <div className="w-full mt-2 pl-2">
+          <ResultCarousel
+            items={restaurants}
+            type="restaurant"
+            onItemClick={(restaurant) => onRestaurantSelect?.(restaurant)}
+          />
+        </div>
       )}
 
       {!isUser && hasMenu && (
-        <ResultCarousel
-          items={menuItems}
-          type="menu"
-          onItemClick={(item) => {
-            console.log('🍕 Menu item selected:', item);
-            onMenuItemSelect?.(item);
-          }}
-        />
+        <div className="w-full mt-2 pl-2">
+          <ResultCarousel
+            items={menuItems}
+            type="menu"
+            onItemClick={(item) => onMenuItemSelect?.(item)}
+          />
+        </div>
       )}
-
-      <BubbleTimestamp>
-        {message.timestamp.toLocaleTimeString('pl-PL', {
-          hour: '2-digit',
-          minute: '2-digit'
-        })}
-      </BubbleTimestamp>
-    </StyledBubbleWrapper>
+    </motion.div>
   );
 }
-
-// Styled Components
-const StyledChatContainer = styled.div`
-  position: fixed;
-  top: clamp(100px, 12vh, 130px);
-  bottom: calc(140px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 1000px;
-  padding: 0 24px;
-  pointer-events: none;
-  z-index: 30;
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
-`;
-
-const ChatMessages = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 2rem;
-  
-  /* Hide scrollbar but allow scrolling */
-  scrollbar-width: none; 
-  &::-webkit-scrollbar {
-    display: none;
-  }
-`;
-
-const StyledBubbleWrapper = styled(motion.div) <{ $isUser: boolean }>`
-  display: flex;
-  width: 100%;
-  justify-content: ${props => (props.$isUser ? 'flex-end' : 'flex-start')};
-  flex-direction: column;
-  align-items: ${props => (props.$isUser ? 'flex-end' : 'flex-start')};
-  pointer-events: auto;
-`;
-
-const StyledBubble = styled.div<{ $isUser: boolean }>`
-  background: ${props => props.$isUser
-    ? 'rgba(0, 20, 40, 0.6)'
-    : 'rgba(20, 0, 40, 0.6)'};
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  
-  border-radius: ${props => props.$isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};
-  padding: 16px 20px;
-  
-  border: 1px solid ${props => props.$isUser
-    ? 'rgba(0, 240, 255, 0.15)'
-    : 'rgba(255, 0, 170, 0.15)'};
-    
-  box-shadow: ${props => props.$isUser
-    ? '0 0 15px rgba(0, 240, 255, 0.05), inset 0 0 20px rgba(0, 240, 255, 0.02)'
-    : '0 0 15px rgba(255, 0, 170, 0.05), inset 0 0 20px rgba(255, 0, 170, 0.02)'};
-    
-  position: relative;
-  max-width: 75%;
-  transition: all 0.3s ease;
-
-  /* Neon glow on hover */
-  &:hover {
-    border-color: ${props => props.$isUser
-    ? 'rgba(0, 240, 255, 0.3)'
-    : 'rgba(255, 0, 170, 0.3)'};
-    box-shadow: ${props => props.$isUser
-    ? '0 0 20px rgba(0, 240, 255, 0.1)'
-    : '0 0 20px rgba(255, 0, 170, 0.1)'};
-  }
-
-  @media (max-width: 768px) {
-    max-width: 85%;
-  }
-`;
-
-const BubbleContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const BubbleText = styled.div<{ $isUser: boolean }>`
-  color: ${props => props.$isUser ? '#e0faff' : '#ffe0f5'};
-  font-size: 16px;
-  line-height: 1.5;
-  font-weight: 400;
-  white-space: pre-wrap;
-  text-shadow: 0 0 2px rgba(0,0,0,0.5);
-`;
-
-const BubbleTimestamp = styled.div`
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
-  margin-top: 6px;
-  padding: 0 4px;
-`;
-
-// Lista restauracji
-const RestaurantsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-`;
-
-const RestaurantItem = styled.div`
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 0, 170, 0.3);
-    transform: translateX(4px);
-  }
-`;
-
-const RestaurantName = styled.div`
-  color: #ff00aa;
-  font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 2px;
-  text-shadow: 0 0 10px rgba(255, 0, 170, 0.3);
-`;
-
-const RestaurantCuisine = styled.div`
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-`;
-
-const RestaurantCity = styled.div`
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
-`;
-

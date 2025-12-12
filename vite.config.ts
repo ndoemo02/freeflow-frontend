@@ -20,4 +20,21 @@ export default defineConfig({
   preview: {
     port: 4173, // 🔮 opcjonalnie, do build preview
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./setupTests.ts'],
+    include: ['tests/**/*.{test,spec}.{js,jsx,ts,tsx}', 'src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'tests/',
+        '*.config.*',
+        'dist/',
+        '**/*.d.ts',
+      ],
+    },
+  },
 });

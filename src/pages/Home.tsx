@@ -401,6 +401,14 @@ export default function Home() {
         <source media="(max-width: 768px)" srcSet="/images/background.png" />
         <img src="/images/desk.png" alt="" className="bg" />
       </picture>
+      <span className="flow">Flow</span>
+
+      {/* Active Conversation Blur Overlay */}
+      <div
+        className={`absolute inset-0 z-0 transition-all duration-700 pointer-events-none
+          ${(isProcessing || (amberResponse && amberResponse.length > 0)) ? "backdrop-blur-xl bg-black/20" : "backdrop-blur-0 bg-transparent"}
+        `}
+      />
       {/* Immersive overlay */}
       <AnimatePresence>
         {immersive && ENABLE_IMMERSIVE_MODE && (

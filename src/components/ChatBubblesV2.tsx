@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import ResultCarouselV2 from './ResultCarouselV2';
 
@@ -7,10 +6,10 @@ interface ChatMessage {
     id: string;
     text: string;
     isUser: boolean;
-    timestamp: number;
-    restaurants?: any[];
-    menuItems?: any[];
-    locationRestaurants?: any[]; // Fallback
+    timestamp: Date;
+    restaurants?: Array<{ id: string; name: string; cuisine_type?: string; city?: string }>;
+    locationRestaurants?: Array<{ id: string; name: string; cuisine_type?: string; city?: string }>;
+    menuItems?: Array<{ id: string; name: string; price_pln: number; category?: string }>;
 }
 
 interface ChatBubblesV2Props {
@@ -34,167 +33,143 @@ export default function ChatBubblesV2({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const lastMessageRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        // Handle User Message
-        if (userMessage && userMessage !== lastMessageRef.current) {
-            const newMessage: ChatMessage = {
-                id: Date.now().toString(),
-                text: userMessage,
-                isUser: true,
-                timestamp: Date.now()
-            };
-            setMessages(prev => [...prev, newMessage]);
-            lastMessageRef.current = userMessage;
-        }
-
-        // Handle Amber Response
-        if (amberResponse) {
-            setMessages(prev => {
-                const lastMsg = prev[prev.length - 1];
-                const isUpdate = lastMsg && !lastMsg.isUser && lastMsg.text === amberResponse;
-
-                // Check if we gained new data
-                const hasNewData = (restaurants && restaurants.length > 0 && (!lastMsg?.restaurants || lastMsg.restaurants.length === 0)) ||
-                    (menuItems && menuItems.length > 0 && (!lastMsg?.menuItems || lastMsg.menuItems.length === 0));
-
-                if (isUpdate && !hasNewData) return prev;
-
-                if (isUpdate && hasNewData) {
-                    // Update existing message with new data
-                    const updated = [...prev];
-                    updated[updated.length - 1] = {
-                        ...lastMsg,
-                        restaurants: restaurants,
-                        menuItems: menuItems,
-                        locationRestaurants: restaurants
-                    };
-                    return updated;
-                }
-
-                // New message from Amber
-                if (!isUpdate) {
-                    return [...prev, {
-                        id: Date.now().toString(),
-                        text: amberResponse,
-                        isUser: false,
-                        timestamp: Date.now(),
-                        restaurants: restaurants,
-                        menuItems: menuItems,
-                        locationRestaurants: restaurants
-                    }];
-                }
-                return prev;
-            });
-        }
-    }, [userMessage, amberResponse, restaurants, menuItems]);
-
-    useEffect(() => {
+    // Scroll to bottom
+    const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
     }, [messages]);
 
+    // Add user message
+    useEffect(() => {
+        if (userMessage?.trim()) {
+            const newMessage: ChatMessage = {
+                id: `user-${Date.now()}`,
+                text: userMessage,
+                isUser: true,
+                timestamp: new Date(),
+            };
+            setMessages(prev => {
+                if (lastMessageRef.current === newMessage.text) return prev;
+                lastMessageRef.current = newMessage.text;
+                return [...prev, newMessage];
+            });
+        }
+    }, [userMessage]);
+
+    // Add Amber response
+    useEffect(() => {
+        if (amberResponse?.trim()) {
+            const newMessage: ChatMessage = {
+                id: `amber-${Date.now()}`,
+                text: amberResponse,
+                isUser: false,
+                timestamp: new Date(),
+                restaurants: restaurants,
+                locationRestaurants: restaurants,
+                menuItems: menuItems,
+            };
+            setMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+
+                // Check for duplicates or updates
+                if (lastMsg && lastMsg.text === newMessage.text && !lastMsg.isUser) {
+                    const gainedRestaurants = (!lastMsg.restaurants?.length && newMessage.restaurants?.length);
+                    const gainedMenu = (!lastMsg.menuItems?.length && newMessage.menuItems?.length);
+
+                    if (gainedRestaurants || gainedMenu) {
+                        // Update existing message with new data
+                        return [...prev.slice(0, -1), newMessage];
+                    }
+                    return prev;
+                }
+
+                lastMessageRef.current = newMessage.text;
+                return [...prev, newMessage];
+            });
+        }
+    }, [amberResponse, restaurants, menuItems]);
+
     return (
-        <Container>
-            <AnimatePresence initial={false}>
-                {messages.map((msg, index) => (
-                    <MessageWrapper key={msg.id} $isUser={msg.isUser}>
-                        <Bubble
-                            $isUser={msg.isUser}
-                            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            {msg.text}
-                        </Bubble>
-
-                        {/* Render Carousels if data exists */}
-                        {!msg.isUser && (msg.restaurants || msg.locationRestaurants) && (msg.restaurants || msg.locationRestaurants)!.length > 0 && (
-                            <CarouselContainer
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                            >
-                                <ResultCarouselV2
-                                    items={msg.restaurants || msg.locationRestaurants || []}
-                                    type="restaurant"
-                                    onItemClick={onRestaurantSelect}
-                                />
-                            </CarouselContainer>
-                        )}
-
-                        {!msg.isUser && msg.menuItems && msg.menuItems.length > 0 && (
-                            <CarouselContainer
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                            >
-                                <ResultCarouselV2
-                                    items={msg.menuItems}
-                                    type="menu"
-                                    onItemClick={onMenuItemSelect}
-                                />
-                            </CarouselContainer>
-                        )}
-                    </MessageWrapper>
-                ))}
-            </AnimatePresence>
-            <div ref={messagesEndRef} />
-        </Container>
+        <div className="fixed top-[100px] bottom-[120px] left-0 right-0 md:left-1/2 md:-translate-x-1/2 
+                    w-full max-w-[1000px] px-4 md:px-6 pointer-events-none z-30 flex justify-center">
+            <div className="w-full h-full overflow-y-auto overflow-x-hidden flex flex-col gap-6 pb-4
+                      scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <AnimatePresence initial={false}>
+                    {messages.map((message, index) => (
+                        <ChatBubble
+                            key={`${message.id}-${index}`}
+                            message={message}
+                            index={index}
+                            onRestaurantSelect={onRestaurantSelect}
+                            onMenuItemSelect={onMenuItemSelect}
+                        />
+                    ))}
+                </AnimatePresence>
+                <div ref={messagesEndRef} className="h-4" />
+            </div>
+        </div>
     );
 }
 
-// Styled Components
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding: 20px;
-  padding-bottom: 120px; /* Space for VoiceCommandCenter */
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  overflow-y: auto;
-  max-height: 80vh;
-  
-  /* Hide scrollbar */
-  &::-webkit-scrollbar { display: none; }
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-`;
+interface ChatBubbleProps {
+    message: ChatMessage;
+    index: number;
+    onRestaurantSelect?: (restaurant: any) => void;
+    onMenuItemSelect?: (item: any) => void;
+}
 
-const MessageWrapper = styled.div<{ $isUser: boolean }>`
-  display: flex;
-  flex-direction: column;
-  align-items: ${props => props.$isUser ? 'flex-end' : 'flex-start'};
-  width: 100%;
-`;
+function ChatBubble({ message, index, onRestaurantSelect, onMenuItemSelect }: ChatBubbleProps) {
+    const isUser = message.isUser;
+    const restaurants = message.locationRestaurants || message.restaurants;
+    const menuItems = message.menuItems || (message as any).menu || [];
+    const hasRestaurants = Array.isArray(restaurants) && restaurants.length > 0;
+    const hasMenu = Array.isArray(menuItems) && menuItems.length > 0;
 
-const Bubble = styled(motion.div) <{ $isUser: boolean }>`
-  max-width: 80%;
-  padding: 15px 20px;
-  border-radius: 20px;
-  font-size: 1rem;
-  line-height: 1.5;
-  color: white;
-  
-  /* Glassmorphism */
-  background: ${props => props.$isUser
-        ? 'linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(0, 100, 255, 0.2))'
-        : 'rgba(20, 20, 30, 0.6)'};
-  
-  backdrop-filter: blur(10px);
-  border: 1px solid ${props => props.$isUser
-        ? 'rgba(0, 243, 255, 0.3)'
-        : 'rgba(255, 255, 255, 0.1)'};
-    
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  
-  ${props => props.$isUser ? `
-    border-bottom-right-radius: 5px;
-  ` : `
-    border-bottom-left-radius: 5px;
-  `}
-`;
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className={`flex w-full flex-col pointer-events-auto ${isUser ? 'items-end' : 'items-start'}`}
+        >
+            {/* Text Bubble */}
+            <div className={`
+        relative max-w-[85%] md:max-w-[70%] p-4 md:p-5 backdrop-blur-xl transition-all duration-300
+        ${isUser
+                    ? 'bg-white text-black rounded-2xl rounded-tr-sm shadow-lg shadow-black/5'
+                    : 'bg-[#1a1a2e]/90 text-white rounded-2xl rounded-tl-sm border border-white/10 shadow-lg'}
+      `}>
+                {message.text && (
+                    <div className="text-base leading-relaxed whitespace-pre-wrap font-medium">
+                        {message.text}
+                    </div>
+                )}
+            </div>
 
-const CarouselContainer = styled(motion.div)`
-  width: 100%;
-  margin-top: 10px;
-  overflow: hidden;
-`;
+            {/* Cards (Carousel) - Rendered distinctly from the bubble */}
+            {hasRestaurants && (
+                <div className="w-full mt-2 pl-2">
+                    <ResultCarouselV2
+                        items={restaurants}
+                        type="restaurant"
+                        onItemClick={(restaurant) => onRestaurantSelect?.(restaurant)}
+                    />
+                </div>
+            )}
+
+            {!isUser && hasMenu && (
+                <div className="w-full mt-2 pl-2">
+                    <ResultCarouselV2
+                        items={menuItems}
+                        type="menu"
+                        onItemClick={(item) => onMenuItemSelect?.(item)}
+                    />
+                </div>
+            )}
+        </motion.div>
+    );
+}

@@ -28,7 +28,6 @@ export default function LogoFreeFlow() {
   return (
     <Logo>
       <span className="free">Free</span>
-      <span className="flow">Flow</span>
     </Logo>
   );
 }

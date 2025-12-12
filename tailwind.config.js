@@ -71,6 +71,7 @@ export default {
       },
       boxShadow: {
         // FreeFlow Shadows
+        neon: "0 0 20px rgba(0,255,255,0.4), 0 0 40px rgba(140,0,255,0.3)",
         'neon-orange': '0 0 20px rgba(249, 115, 22, 0.5)',
         'neon-purple': '0 0 20px rgba(168, 85, 247, 0.5)',
         'neon-blue': '0 0 20px rgba(59, 130, 246, 0.5)',
@@ -84,11 +85,16 @@ export default {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-slow': 'bounce 2s infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
+        'floatIn': 'floatIn 0.35s ease-out forwards',
       },
       keyframes: {
         glow: {
           '0%': { boxShadow: '0 0 5px rgba(249, 115, 22, 0.5)' },
           '100%': { boxShadow: '0 0 20px rgba(249, 115, 22, 0.8)' },
+        },
+        floatIn: {
+          '0%': { opacity: '0', transform: 'translateY(20px) scale(0.95)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
       },
     },

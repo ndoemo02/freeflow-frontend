@@ -1,226 +1,181 @@
-import React, { useEffect, useRef } from 'react';
-import styled from 'styled-components';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 interface VoiceCommandCenterV2Props {
-    recording: boolean;
-    isProcessing: boolean;
-    isSpeaking: boolean;
-    interimText: string;
-    finalText: string;
-    onMicClick: () => void;
-    onTextSubmit: (text: string) => void;
+  amberResponse?: string;
+  interimText?: string;
+  finalText?: string;
+  recording?: boolean;
+  visible?: boolean;
+  onMicClick?: () => void;
+  onTextSubmit?: (value: string) => void;
+  onSubmitText?: (value: string) => void; // Fallback
+  isSpeaking?: boolean;
+  isProcessing?: boolean;
 }
 
 export default function VoiceCommandCenterV2({
-    recording,
-    isProcessing,
-    isSpeaking,
-    interimText,
-    finalText,
-    onMicClick,
-    onTextSubmit
+  amberResponse = "",
+  interimText = "",
+  finalText = "",
+  recording = false,
+  visible = true,
+  onMicClick,
+  onTextSubmit,
+  onSubmitText,
+  isSpeaking = false,
+  isProcessing = false,
 }: VoiceCommandCenterV2Props) {
-    const [inputValue, setInputValue] = React.useState("");
-    const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (inputValue.trim()) {
-            onTextSubmit(inputValue);
-            setInputValue("");
-        }
-    };
+  // Handle both prop names
+  const handleSubmitText = onTextSubmit || onSubmitText;
 
-    // Orb animation state
-    const orbState = recording ? 'listening' : isProcessing ? 'processing' : isSpeaking ? 'speaking' : 'idle';
+  // Determine current state
+  const currentState = recording
+    ? 'listening'
+    : isProcessing
+      ? 'processing'
+      : isSpeaking
+        ? 'speaking'
+        : 'idle';
 
-    return (
-        <Container>
-            {/* Holographic Orb */}
-            <OrbContainer onClick={onMicClick}>
-                <Orb $state={orbState} />
-                <OrbRing $state={orbState} />
-                <OrbCore $state={orbState}>
-                    {recording ? '🎤' : isProcessing ? '⚡' : isSpeaking ? '🔊' : '🎙️'}
-                </OrbCore>
-            </OrbContainer>
+  // Update input placeholder or value based on voice input
+  useEffect(() => {
+    if (finalText) {
+      setInputValue(finalText);
+    }
+  }, [finalText]);
 
-            {/* Text Input Area */}
-            <InputContainer>
-                <GlassInput
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder={recording ? "Słucham..." : "Napisz wiadomość..."}
-                    disabled={recording || isProcessing}
-                />
-                <SendButton onClick={handleSubmit} disabled={!inputValue.trim()}>
-                    ➤
-                </SendButton>
-            </InputContainer>
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      handleSubmitText?.(inputValue);
+      setInputValue("");
+    }
+  };
 
-            {/* Live Transcript Overlay */}
-            <AnimatePresence>
-                {(interimText || finalText) && (
-                    <TranscriptOverlay
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                    >
-                        {interimText || finalText}
-                    </TranscriptOverlay>
+  const handleSubmit = () => {
+    if (inputValue.trim()) {
+      handleSubmitText?.(inputValue);
+      setInputValue("");
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ y: 100, opacity: 0, x: "-50%" }}
+          animate={{ y: 0, opacity: 1, x: "-50%" }}
+          exit={{ y: 100, opacity: 0, x: "-50%" }}
+          transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          className="fixed bottom-6 left-1/2 w-[92%] max-w-lg flex items-center gap-2 
+                     rounded-full backdrop-blur-xl bg-[#0F0F16]/90 border border-white/10 
+                     shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] p-2 z-50 transform-gpu"
+        >
+          {/* Mic Orb */}
+          <div onClick={onMicClick} className="relative w-12 h-12 flex items-center justify-center flex-shrink-0 cursor-pointer group ml-1">
+            {/* Orb Body */}
+            <motion.div
+              animate={currentState}
+              variants={orbVariants}
+              className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center 
+                                     bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20 z-10"
+            >
+              <AnimatePresence mode="wait">
+                {currentState === 'idle' && (
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
                 )}
-            </AnimatePresence>
-        </Container>
-    );
+
+                {currentState === 'listening' && (
+                  <motion.div
+                    key="listening"
+                    className="flex items-center gap-[2px] h-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {[...Array(4)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{
+                          height: [4, 16, 4],
+                          backgroundColor: ['#fff', '#22d3ee', '#fff']
+                        }}
+                        transition={{
+                          duration: 0.6,
+                          repeat: Infinity,
+                          delay: i * 0.1,
+                          ease: "easeInOut"
+                        }}
+                        className="w-1 rounded-full bg-white"
+                      />
+                    ))}
+                  </motion.div>
+                )}
+
+                {currentState === 'processing' && (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </div>
+
+          {/* Input Area */}
+          <div className="flex-1 relative h-10 transition-all duration-300 flex items-center">
+            <input
+              ref={inputRef}
+              value={inputValue || interimText}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={currentState === 'listening' ? "Słucham..." : "Napisz wiadomość..."}
+              className={`w-full h-full bg-transparent border-none text-white font-sans text-[15px] px-2 outline-none 
+                                       placeholder:text-white/30`}
+            />
+          </div>
+
+          {/* Send Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={!inputValue.trim()}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 
+                                 disabled:opacity-20 disabled:cursor-not-allowed transition-colors mr-1"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" />
+            </svg>
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
-// Styled Components
-const Container = styled.div`
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 600px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  z-index: 100;
-`;
-
-const OrbContainer = styled.div`
-  position: relative;
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-
-  &:hover {
-    transform: scale(1.05);
+// Animation Variants
+const orbVariants: Variants = {
+  idle: {
+    scale: 1,
+    transition: { duration: 0.2 }
+  },
+  listening: {
+    scale: 1.1,
+    boxShadow: "0 0 20px rgba(0, 240, 255, 0.4)",
+    transition: { duration: 0.2 }
+  },
+  processing: {
+    scale: 0.95,
+    transition: { duration: 0.2 }
+  },
+  speaking: {
+    scale: [1, 1.1, 1],
+    boxShadow: ["0 0 10px rgba(0, 240, 255, 0.3)", "0 0 20px rgba(255, 0, 170, 0.4)", "0 0 10px rgba(0, 240, 255, 0.3)"],
+    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
   }
-`;
-
-const Orb = styled.div<{ $state: string }>`
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: ${props => {
-        switch (props.$state) {
-            case 'listening': return 'radial-gradient(circle, #ff0055, #550011)';
-            case 'processing': return 'radial-gradient(circle, #bc13fe, #4a0066)';
-            case 'speaking': return 'radial-gradient(circle, #00f3ff, #004455)';
-            default: return 'radial-gradient(circle, #222, #000)';
-        }
-    }};
-  box-shadow: 0 0 20px ${props => {
-        switch (props.$state) {
-            case 'listening': return '#ff0055';
-            case 'processing': return '#bc13fe';
-            case 'speaking': return '#00f3ff';
-            default: return 'rgba(255, 255, 255, 0.1)';
-        }
-    }};
-  animation: ${props => props.$state !== 'idle' ? 'orb-pulse 2s infinite' : 'none'};
-  transition: all 0.5s ease;
-`;
-
-const OrbRing = styled.div<{ $state: string }>`
-  position: absolute;
-  width: 120%;
-  height: 120%;
-  border-radius: 50%;
-  border: 2px solid ${props => {
-        switch (props.$state) {
-            case 'listening': return '#ff0055';
-            case 'processing': return '#bc13fe';
-            case 'speaking': return '#00f3ff';
-            default: return 'rgba(255, 255, 255, 0.2)';
-        }
-    }};
-  opacity: 0.5;
-  animation: spin 10s linear infinite;
-
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const OrbCore = styled.div<{ $state: string }>`
-  z-index: 2;
-  font-size: 2rem;
-  color: white;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-`;
-
-const InputContainer = styled.div`
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  background: rgba(20, 20, 30, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 40px;
-  padding: 5px 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-`;
-
-const GlassInput = styled.input`
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: white;
-  padding: 15px 20px;
-  font-size: 1rem;
-  font-family: 'Inter', sans-serif;
-  
-  &:focus {
-    outline: none;
-  }
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-`;
-
-const SendButton = styled.button`
-  background: transparent;
-  border: none;
-  color: var(--neon-primary, #00f3ff);
-  font-size: 1.5rem;
-  padding: 10px;
-  cursor: pointer;
-  transition: transform 0.2s;
-
-  &:hover:not(:disabled) {
-    transform: scale(1.1);
-    text-shadow: 0 0 10px var(--neon-primary, #00f3ff);
-  }
-
-  &:disabled {
-    color: rgba(255, 255, 255, 0.2);
-    cursor: default;
-  }
-`;
-
-const TranscriptOverlay = styled(motion.div)`
-  position: absolute;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  padding: 10px 20px;
-  border-radius: 20px;
-  color: white;
-  font-size: 1.1rem;
-  white-space: nowrap;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-`;
+};
