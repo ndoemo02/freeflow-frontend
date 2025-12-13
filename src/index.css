@@ -4,6 +4,123 @@
 
 html, body, #root { height: 100%; }
 
+/* --- Admin Panel Design System --- */
+:root {
+  --bg0: #070A12;
+  --bg1: #0B1222;
+  --fg0: #EAF0FF;
+  --muted: #9AA7C2;
+  --border: rgba(255, 255, 255, 0.10);
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass2: rgba(255, 255, 255, 0.09);
+  --shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+  --neon: #5B7CFF;
+  --neon2: #38BDF8;
+  --good: #22C55E;
+  --warn: #F59E0B;
+  --bad: #EF4444;
+}
+
+html:not(.dark) {
+  --bg0: #F6F8FF;
+  --bg1: #EEF2FF;
+  --fg0: #0A1020;
+  --muted: #54607A;
+  --border: rgba(10, 16, 32, 0.12);
+  --glass: rgba(255, 255, 255, 0.65);
+  --glass2: rgba(255, 255, 255, 0.78);
+  --shadow: 0 14px 30px rgba(10, 16, 32, 0.10);
+  --neon: #2F5BFF;
+  --neon2: #0891B2;
+}
+
+body.admin-theme {
+  color: var(--fg0);
+  background:
+    radial-gradient(1100px 700px at 20% 10%, rgba(91, 124, 255, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 85% 20%, rgba(56, 189, 248, 0.16), transparent 55%),
+    radial-gradient(700px 500px at 55% 85%, rgba(139, 92, 246, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+  min-height: 100vh;
+}
+
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  mix-blend-mode: overlay;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(75% 60% at 50% 25%, black 30%, transparent 70%);
+  z-index: 0;
+}
+
+html:not(.dark) .grid-overlay {
+  opacity: 0.25;
+  mix-blend-mode: multiply;
+}
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-strong {
+  background: var(--glass2);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.neon-ring {
+  box-shadow:
+    0 0 0 1px rgba(91, 124, 255, 0.25),
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    0 0 26px rgba(91, 124, 255, 0.10);
+}
+
+html:not(.dark) .neon-ring {
+  box-shadow:
+    0 0 0 1px rgba(47, 91, 255, 0.18),
+    0 16px 30px rgba(10, 16, 32, 0.10),
+    0 0 20px rgba(47, 91, 255, 0.10);
+}
+
+.fade-in {
+  animation: fadeIn 0.35s ease-out both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(91, 124, 255, 0.25), 0 0 0 4px rgba(91, 124, 255, 0.18);
+}
+
+.tiny-scroll::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.tiny-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+.tiny-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* --- Minimal Voice Panel (electric border + cursor) --- */
 .ff-gsap-demo body { /* no-op to prevent global override */ }
 

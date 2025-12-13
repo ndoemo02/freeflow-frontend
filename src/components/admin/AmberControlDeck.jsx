@@ -163,7 +163,7 @@ export default function AmberControlDeck({ adminToken }) {
   };
   const rollingOptions = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } } };
 
-  if (loading) return <div className="text-center text-gray-400">Ładowanie panelu…</div>;
+  if (loading) return <div className="text-center text-[var(--muted)] animate-pulse">Ładowanie panelu…</div>;
 
   const aliasEntries = Object.entries(aliases || {});
 
@@ -193,48 +193,63 @@ export default function AmberControlDeck({ adminToken }) {
     }
   };
 
+  const InputClass = "w-full px-3 py-2 bg-[rgba(0,0,0,0.3)] border border-[var(--border)] text-[var(--fg0)] rounded-lg text-sm focus:border-[var(--neon)] outline-none";
+  const SelectClass = "w-full px-3 py-2 bg-[rgba(0,0,0,0.3)] border border-[var(--border)] text-[var(--fg0)] rounded-lg text-sm focus:border-[var(--neon)] outline-none cursor-pointer";
+  const CardClass = "glass-strong rounded-xl p-6 border border-[var(--border)]";
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Problemy z intencjami (fallback/niska pewność) */}
-      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+      <div className={CardClass}>
         <div className="flex items-center justify-between mb-3">
-          <div className="text-white font-semibold">🧪 Problemy do przejrzenia</div>
-          <button onClick={fetchData} className="px-2 py-1 text-xs bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+          <div className="text-[var(--fg0)] font-semibold flex items-center gap-2">
+            <span className="flex size-6 rounded-full bg-red-400/20 text-red-400 items-center justify-center text-xs">!</span>
+            Problemy do przejrzenia
+          </div>
+          <button onClick={fetchData} className="px-2 py-1 text-xs glass border border-[var(--border)] text-[var(--muted)] rounded hover:bg-white/5 transition-colors">Odśwież</button>
         </div>
-        <div className="overflow-y-auto max-h-60">
+        <div className="overflow-y-auto max-h-60 tiny-scroll">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-gray-300 border-b border-gray-700">
+            <thead className="text-[11px] text-[var(--muted)] uppercase tracking-wider sticky top-0 bg-[var(--glass-strong)] backdrop-blur-sm z-10 pb-2">
+              <tr className="border-b border-[var(--border)]">
                 <th className="py-2">Intent</th>
                 <th className="py-2">Conf.</th>
                 <th className="py-2">Fallback</th>
                 <th className="py-2">Odpowiedź</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-[12px] text-[var(--fg0)]">
               {(logs || []).filter(l => (l?.fallback === true) || ((l?.confidence ?? 1) < 0.6)).map((l, i) => (
-                <tr key={`p-${i}`} className="border-t border-gray-700 text-white/90">
-                  <td className="py-2">{l.intent}</td>
+                <tr key={`p-${i}`} className="border-t border-[var(--border)] text-[var(--fg0)]/90 hover:bg-white/5">
+                  <td className="py-2 font-mono text-[var(--neon)]">{l.intent}</td>
                   <td className="py-2">{l.confidence != null ? Number(l.confidence).toFixed(2) : '-'}</td>
-                  <td className="py-2">{String(!!l.fallback)}</td>
-                  <td className="py-2 truncate max-w-[28ch]">{l.replySnippet}</td>
+                  <td className="py-2">{l.fallback ? <span className="text-[var(--bad)] text-[10px] px-1.5 py-0.5 rounded border border-[var(--bad)]/30">TAK</span> : <span className="text-[var(--muted)]">-</span>}</td>
+                  <td className="py-2 truncate max-w-[28ch] opacity-80">{l.replySnippet}</td>
                 </tr>
               ))}
+              {(logs || []).filter(l => (l?.fallback === true) || ((l?.confidence ?? 1) < 0.6)).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-[var(--muted)] italic">Wszystko wygląda dobrze. Brak problematycznych intencji.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
       {/* Ustawienia Systemu */}
-      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+      <div className={CardClass}>
         <div className="flex items-center justify-between mb-4">
-          <div className="text-white font-semibold text-lg">⚙️ Ustawienia Systemu</div>
-          <div className="text-sm text-gray-400">Env: {config.env || '-'}</div>
+          <div className="text-[var(--fg0)] font-semibold text-lg flex items-center gap-2">
+            <span className="text-xl">⚙️</span> Ustawienia Systemu
+          </div>
+          <div className="text-sm text-[var(--muted)] font-mono px-2 py-1 rounded bg-black/20 border border-[var(--border)]">Env: {config.env || '-'}</div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
-            <label className="block text-sm text-gray-300">Engine TTS</label>
+            <label className="block text-xs uppercase tracking-widest text-[var(--muted)] mb-1">Engine TTS</label>
             <select
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+              className={SelectClass}
               value={config.tts_engine}
               onChange={(e) => saveConfig('tts_engine', e.target.value)}
             >
@@ -244,9 +259,10 @@ export default function AmberControlDeck({ adminToken }) {
               <option value="gemini-tts">Gemini 2.5 Pro TTS</option>
               <option value="gemini-live">Gemini Live (eksperymentalnie)</option>
             </select>
-            <label className="block text-sm text-gray-300 mt-3">Głos TTS</label>
+
+            <label className="block text-xs uppercase tracking-widest text-[var(--muted)] mt-4 mb-1">Głos TTS</label>
             <select
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+              className={SelectClass}
               value={config.tts_voice}
               onChange={(e) => saveConfig('tts_voice', e.target.value)}
             >
@@ -263,9 +279,9 @@ export default function AmberControlDeck({ adminToken }) {
               <option value="erinome">Gemini: Erinome (Female)</option>
             </select>
 
-            <label className="block text-sm text-gray-300 mt-3">Styl językowy</label>
+            <label className="block text-xs uppercase tracking-widest text-[var(--muted)] mt-4 mb-1">Styl językowy</label>
             <select
-              className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+              className={SelectClass}
               value={config.speech_style}
               onChange={(e) => saveConfig('speech_style', e.target.value)}
             >
@@ -273,11 +289,12 @@ export default function AmberControlDeck({ adminToken }) {
               <option value="silesian">Śląska gwara (gōdka)</option>
             </select>
           </div>
+
           <div className="space-y-4">
-            <div className="space-y-2 bg-white/5 border border-white/10 rounded px-3 py-2">
-              <label className="block text-sm text-gray-300 mb-1">Ton głosu (TTS)</label>
+            <div className="space-y-2 bg-[rgba(0,0,0,0.2)] border border-[var(--border)] rounded-lg px-3 py-3">
+              <label className="block text-xs uppercase tracking-widest text-[var(--muted)] mb-1">Ton głosu (TTS)</label>
               <select
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+                className={SelectClass}
                 value={config.tts_tone}
                 onChange={(e) => saveConfig('tts_tone', e.target.value)}
               >
@@ -285,65 +302,72 @@ export default function AmberControlDeck({ adminToken }) {
                 <option value="formalny">Formalny</option>
                 <option value="neutralny">Neutralny</option>
               </select>
-              <label className="block text-xs text-gray-400 mt-2">Pitch (–10 … 10)</label>
+
+              <label className="block text-xs text-[var(--muted)] mt-3">Pitch (–10 … 10)</label>
               <input
                 type="number"
                 min={-10}
                 max={10}
                 step={0.5}
-                className="w-full px-2 py-1 bg-white/10 border border-white/20 text-white rounded text-sm"
+                className={InputClass}
                 value={config.tts_pitch}
                 onChange={(e) => saveConfig('tts_pitch', e.target.value)}
               />
-              <label className="block text-xs text-gray-400 mt-2">Tempo mówienia (0.5 … 2.0)</label>
+              <label className="block text-xs text-[var(--muted)] mt-3">Tempo mówienia (0.5 … 2.0)</label>
               <input
                 type="number"
                 min={0.5}
                 max={2}
                 step={0.05}
-                className="w-full px-2 py-1 bg-white/10 border border-white/20 text-white rounded text-sm"
+                className={InputClass}
                 value={config.tts_rate}
                 onChange={(e) => saveConfig('tts_rate', e.target.value)}
               />
             </div>
-            <label className="flex items-center justify-between text-sm text-gray-300 bg-white/5 border border-white/10 rounded px-3 py-2">
-              <span>Cache aktywny</span>
-              <input type="checkbox" checked={!!config.cache_enabled} onChange={(e)=>saveConfig('cache_enabled', e.target.checked)} />
-            </label>
-            <label className="flex items-center justify-between text-sm text-gray-300 bg-white/5 border border-white/10 rounded px-3 py-2">
-              <span>Streaming audio</span>
-              <input type="checkbox" checked={!!config.streaming} onChange={(e)=>saveConfig('streaming', e.target.checked)} />
-            </label>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center justify-between text-sm text-[var(--fg0)] bg-[rgba(0,0,0,0.2)] border border-[var(--border)] rounded-lg px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors">
+                <span>Cache aktywny</span>
+                <input type="checkbox" checked={!!config.cache_enabled} onChange={(e) => saveConfig('cache_enabled', e.target.checked)} className="accent-[var(--neon)]" />
+              </label>
+              <label className="flex items-center justify-between text-sm text-[var(--fg0)] bg-[rgba(0,0,0,0.2)] border border-[var(--border)] rounded-lg px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors">
+                <span>Streaming audio</span>
+                <input type="checkbox" checked={!!config.streaming} onChange={(e) => saveConfig('streaming', e.target.checked)} className="accent-[var(--neon)]" />
+              </label>
+            </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <div className="text-white font-semibold mb-2">➕ Dodaj alias restauracji</div>
+
+          <div className="mt-4 pt-4 border-t border-[var(--border)] md:col-span-2">
+            <div className="text-[var(--fg0)] font-semibold mb-3 flex items-center gap-2">
+              <span className="text-lg">➕</span> Dodaj alias restauracji
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
-                className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white"
+                className={InputClass}
                 placeholder="Alias (np. rezydencja)"
                 value={aliasForm.alias}
-                onChange={(e)=>setAliasForm(prev=>({ ...prev, alias: e.target.value }))}
+                onChange={(e) => setAliasForm(prev => ({ ...prev, alias: e.target.value }))}
               />
               <input
-                className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white"
+                className={InputClass}
                 placeholder="Pełna nazwa (np. Rezydencja Luxury Hotel)"
                 value={aliasForm.canonical}
-                onChange={(e)=>setAliasForm(prev=>({ ...prev, canonical: e.target.value }))}
+                onChange={(e) => setAliasForm(prev => ({ ...prev, canonical: e.target.value }))}
               />
               <button
                 onClick={handleAliasSubmit}
                 disabled={aliasSaving}
-                className="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white"
+                className="px-3 py-2 rounded-lg bg-[var(--neon)] text-white hover:brightness-110 disabled:opacity-50 font-medium transition-all shadow-[0_0_15px_rgba(91,124,255,0.3)]"
               >
                 {aliasSaving ? 'Zapisywanie…' : 'Zapisz alias'}
               </button>
             </div>
-            <div className="mt-4 text-sm text-gray-300 space-y-1 max-h-32 overflow-y-auto">
-              {aliasEntries.length === 0 && <div className="text-gray-500">Brak aliasów</div>}
+            <div className="mt-4 text-sm space-y-1 max-h-32 overflow-y-auto tiny-scroll bg-[rgba(0,0,0,0.2)] rounded-lg p-2 border border-[var(--border)]">
+              {aliasEntries.length === 0 && <div className="text-[var(--muted)] text-center p-2">Brak zdefiniowanych aliasów</div>}
               {aliasEntries.map(([alias, canonical]) => (
-                <div key={alias} className="flex justify-between gap-3 border-b border-white/5 pb-1">
-                  <span className="text-white">{alias}</span>
-                  <span className="text-gray-400 text-right truncate">
+                <div key={alias} className="flex justify-between gap-3 border-b border-[var(--border)] last:border-0 pb-1 mb-1">
+                  <span className="text-[var(--fg0)] font-medium">{alias}</span>
+                  <span className="text-[var(--muted)] text-right truncate">
                     {Array.isArray(canonical) ? canonical.join(', ') : canonical}
                   </span>
                 </div>
@@ -355,28 +379,28 @@ export default function AmberControlDeck({ adminToken }) {
 
       {/* Live log + Rolling */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
-          <div className="text-white font-semibold mb-3">📡 Ostatnie interakcje Amber</div>
-          <div className="overflow-y-auto max-h-80">
+        <div className={CardClass}>
+          <div className="text-[var(--fg0)] font-semibold mb-3">📡 Ostatnie interakcje Amber</div>
+          <div className="overflow-y-auto max-h-80 tiny-scroll">
             <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-gray-300 border-b border-gray-700">
-                  <th className="py-2">Intent</th>
+              <thead className="sticky top-0 bg-[var(--glass-strong)] backdrop-blur-sm z-10">
+                <tr className="text-[11px] text-[var(--muted)] border-b border-[var(--border)]">
+                  <th className="py-2 pl-2">Intent</th>
                   <th className="py-2">Confidence</th>
                   <th className="py-2">Czas</th>
-                  <th className="py-2">Odpowiedź</th>
+                  <th className="py-2 pr-2">Odpowiedź</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="text-[12px]">
                 {logs.map((l, i) => {
                   const ms = l.durationMs || 0;
-                  const color = ms <= 2000 ? 'text-green-400' : ms <= 5000 ? 'text-yellow-400' : 'text-red-400';
+                  const color = ms <= 2000 ? 'text-[var(--good)]' : ms <= 5000 ? 'text-[var(--warn)]' : 'text-[var(--bad)]';
                   return (
-                    <tr key={i} className="border-t border-gray-700 text-white/90">
-                      <td className="py-2">{l.intent}</td>
+                    <tr key={i} className="border-t border-[var(--border)] text-[var(--fg0)]/90 hover:bg-white/5 transition-colors">
+                      <td className="py-2 pl-2 font-mono text-[var(--neon)]">{l.intent}</td>
                       <td className="py-2">{l.confidence != null ? Number(l.confidence).toFixed(2) : '-'}</td>
-                      <td className={`py-2 ${color}`}>{(ms/1000).toFixed(1)}s</td>
-                      <td className="py-2 truncate max-w-[24ch]">{l.replySnippet}</td>
+                      <td className={`py-2 ${color}`}>{(ms / 1000).toFixed(1)}s</td>
+                      <td className="py-2 pr-2 truncate max-w-[24ch] opacity-80">{l.replySnippet}</td>
                     </tr>
                   );
                 })}
@@ -384,38 +408,30 @@ export default function AmberControlDeck({ adminToken }) {
             </table>
           </div>
         </div>
-        <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+        <div className={CardClass}>
           <div className="flex items-center justify-between mb-3">
-            <div className="text-white font-semibold">📈 Wydajność (ostatnie 20)</div>
-            <button onClick={fetchData} className="px-2 py-1 text-xs bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+            <div className="text-[var(--fg0)] font-semibold">📈 Wydajność (ostatnie 20)</div>
+            <button onClick={fetchData} className="px-2 py-1 text-xs glass border border-[var(--border)] text-[var(--muted)] rounded hover:bg-white/5">Odśwież</button>
           </div>
-          <div className="h-48">
+          <div className="h-48 relative min-h-0">
             <Line data={rollingData} options={rollingOptions} />
           </div>
         </div>
       </div>
 
       {/* Prompt editor */}
-      <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+      <div className={CardClass}>
         <div className="flex items-center justify-between mb-3">
-          <div className="text-white font-semibold">🪄 Prompt stylizacji GPT-4o</div>
-          <button onClick={savePrompt} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">💾 Zapisz prompt</button>
+          <div className="text-[var(--fg0)] font-semibold">🪄 Prompt stylizacji GPT-4o</div>
+          <button onClick={savePrompt} className="px-3 py-2 bg-[var(--neon)] hover:brightness-110 text-white rounded-lg font-medium shadow-[0_0_15px_rgba(91,124,255,0.3)]">💾 Zapisz prompt</button>
         </div>
         <textarea
           value={prompt}
-          onChange={(e)=>setPrompt(e.target.value)}
-          className="w-full h-40 px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
+          onChange={(e) => setPrompt(e.target.value)}
+          className="w-full h-40 px-3 py-2 bg-[rgba(0,0,0,0.3)] border border-[var(--border)] text-[var(--fg0)] rounded-lg text-sm focus:border-[var(--neon)] outline-none font-mono"
           placeholder="Wklej prompt..."
         />
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-

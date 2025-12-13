@@ -32,8 +32,7 @@ import AdminPanel from "./pages/AdminPanel";
 import LogoDemo from "./pages/LogoDemo";
 // @ts-ignore
 import HomeWithNewLogo from "./pages/HomeWithNewLogo";
-// @ts-ignore
-import AmberPulsePage from "./pages/AmberPulsePage";
+
 // @ts-ignore
 import AuthModal from "./components/AuthModal";
 // @ts-ignore
@@ -72,7 +71,7 @@ function AppContent() {
           <Route path="/reservations" element={<TableReservations />} />
           <Route path="/logo-demo" element={<LogoDemo />} />
           <Route path="/home-new-logo" element={<HomeWithNewLogo />} />
-          <Route path="/amber-pulse" element={<AmberPulsePage />} />
+
         </Routes>
       </main>
 

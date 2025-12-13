@@ -9,7 +9,6 @@ import Cart from "../components/Cart"
 import { useTheme } from '../state/ThemeContext';
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer"
-import VoiceCommandCenter from "../components/VoiceCommandCenter"
 import ChatBubbles from "../components/ChatBubbles"
 import VoiceCommandCenterV2 from '../components/VoiceCommandCenterV2';
 import ChatBubblesV2 from '../components/ChatBubblesV2';
@@ -19,24 +18,37 @@ import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
 import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE, getApiUrl } from "../lib/config"
+import { LLMContract, PresentationStep } from "../lib/llmContract"
+import { renderFromLLM, UIController } from "../lib/renderEngine"
+import PresentationContainer from "../components/PresentationContainer"
+import { speakTts } from "../lib/ttsClient"
 
 export default function Home() {
   const { theme } = useTheme();
+
+  // UI State from Zustand
+  const {
+    mode, setMode,
+    setPresentationItems,
+    setHighlightedCardId,
+    clearPresentation
+  } = useUI();
+
   const [showTextPanel, setShowTextPanel] = useState(true);
-  const [messages, setMessages] = useState<any[]>([])
   const [immersive, setImmersive] = useState(false)
   const [voiceQuery, setVoiceQuery] = useState("")
-  const [amberResponse, setAmberResponse] = useState("")
-  const [amberData, setAmberData] = useState<any>(null)
+  const [amberResponse, setAmberResponse] = useState("") // Just text for bubbles
   const [userMessage, setUserMessage] = useState("")
-  const [restaurants, setRestaurants] = useState<Array<{ id: string; name: string; cuisine_type?: string; city?: string }>>([])
-  const [menuItems, setMenuItems] = useState<Array<{ id: string; name: string; price_pln: number; category?: string }>>([])
+
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+
   const openDrawer = useUI((s) => s.openDrawer)
   const { setIsOpen, addToCart } = useCart()
 
-  // 🔥 Przechowuj sessionId w localStorage aby nie gubić kontekstu
+  // Audio Ref to stop playback
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [sessionId] = useState(() => {
     const stored = localStorage.getItem("amber-session-id")
     if (stored) return stored
@@ -45,44 +57,25 @@ export default function Home() {
     return newId
   })
 
-  // 🔥 Ref do zapobiegania wielokrotnemu wysyłaniu tego samego tekstu
   const lastMessageRef = useRef("")
   const [isSending, setIsSending] = useState(false);
 
-  // 📍 Geolokalizacja użytkownika (opcjonalna)
-  // 🇵🇱 FALLBACK: Jeśli geolocation nie działa lub zwraca współrzędne poza Polską, użyj Warszawy
   const WARSAW_COORDS = { lat: 52.2297, lng: 21.0122 };
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>(WARSAW_COORDS);
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      console.log('📍 Geolocation not available, using Warsaw fallback');
-      return;
-    }
-
+    if (!('geolocation' in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        // Sprawdź czy współrzędne są w Polsce (lat: 49-55, lng: 14-25)
         const isInPoland = latitude >= 49 && latitude <= 55 && longitude >= 14 && longitude <= 25;
-
-        if (isInPoland) {
-          console.log('📍 Using real geolocation:', latitude, longitude);
-          setCoords({ lat: latitude, lng: longitude });
-        } else {
-          console.log('📍 Coordinates outside Poland, using Warsaw fallback:', latitude, longitude);
-          setCoords(WARSAW_COORDS);
-        }
+        if (isInPoland) setCoords({ lat: latitude, lng: longitude });
       },
-      (error) => {
-        console.log('📍 Geolocation error, using Warsaw fallback:', error.message);
-        setCoords(WARSAW_COORDS);
-      },
+      (err) => console.log('📍 Geolocation error:', err.message),
       { enableHighAccuracy: true, maximumAge: 30000, timeout: 8000 }
     );
   }, [])
 
-  // Hook do rozpoznawania mowy
   const {
     recording,
     interimText,
@@ -91,30 +84,17 @@ export default function Home() {
     startRecording,
     stopRecording,
   } = useSpeechRecognition({
-    onTranscriptChange: (transcript: string) => {
-      console.log("Transkrypcja:", transcript)
-      setVoiceQuery(transcript)
-    },
+    onTranscriptChange: (transcript: string) => setVoiceQuery(transcript),
   })
 
-  const toggleUI = (checked: boolean) => {
-    setShowTextPanel(checked)
-    // Kafelki ukrywają się automatycznie przez klasę CSS .hidden
-  }
+  const toggleUI = (checked: boolean) => setShowTextPanel(checked)
 
   const handleLogoClick = () => {
-    if (ENABLE_IMMERSIVE_MODE) {
-      setImmersive(true)
-    }
-    // Przełącz nagrywanie głosu
+    if (ENABLE_IMMERSIVE_MODE) setImmersive(true)
     if (recording) {
       stopRecording()
-      console.log("⏹️ Zatrzymano nagrywanie")
-      console.log("📝 Aktualna transkrypcja:", voiceQuery)
     } else {
       startRecording()
-      console.log("▶️ Rozpoczęto nagrywanie")
-      // Automatycznie pokaż panel tekstowy podczas nagrywania
       if (!showTextPanel) {
         setShowTextPanel(true)
         toggleUI(true)
@@ -122,420 +102,269 @@ export default function Home() {
     }
   }
 
-  // Wysyłanie do Amber Brain API
+  // 🧠 UI Controller Implementation
+  const uiController = useCallback((): UIController => ({
+    setUIMode: (m) => setMode(m),
+
+    playTTS: async (text: string) => {
+      setIsPlayingAudio(true);
+      try {
+        // 🔊 Wymuś żeński głos (Wavenet-A) - zapobiega fallbackowi na "Microsoft Paul"
+        const audio = await speakTts(text, { voiceName: 'pl-PL-Wavenet-A' });
+        currentAudioRef.current = audio;
+        // Wait for end
+        if (!audio.paused || !audio.ended) {
+          await new Promise<void>(resolve => {
+            audio.onended = () => resolve();
+            audio.onerror = () => resolve(); // Fail grace
+          });
+        }
+      } catch (e) {
+        console.error("TTS Output Error:", e);
+      } finally {
+        setIsPlayingAudio(false);
+        currentAudioRef.current = null;
+      }
+    },
+
+    stopAllTTS: () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      setIsPlayingAudio(false);
+    },
+
+    highlightCard: (cardId) => setHighlightedCardId(cardId),
+    unhighlightCard: () => setHighlightedCardId(null),
+    scrollToCard: (cardId) => setHighlightedCardId(cardId), // Highlight handles scroll via effect
+    clearHighlights: () => setHighlightedCardId(null),
+
+    lockUserInput: () => setIsProcessing(true), // Or specific lock state
+    unlockUserInput: () => setIsProcessing(false),
+    openMicrophone: () => {
+      if (!recording) startRecording();
+    }
+  }), [setMode, setHighlightedCardId, recording, startRecording, setIsProcessing]);
+
+
   const sendToAmberBrain = useCallback(async (text: string) => {
     if (isSending) return
     if (text.trim() === lastMessageRef.current) return
     lastMessageRef.current = text.trim()
+
     setIsSending(true)
     setUserMessage(text)
+    // Clear previous presentation on new request
+    // clearPresentation(); // Optional: RenderEngine will clear it anyway
 
     try {
-      // Jeśli user pyta o "w pobliżu" i nie mamy współrzędnych – spróbuj pobrać on-demand
-      const needsGeo = /w pobliżu|w poblizu|blisko|gdzie moge zjesc|gdzie mogę zjeść|gdzie zjesc|gdzie zjeść/i.test(text)
-      let finalLat = coords.lat
-      let finalLng = coords.lng
-      if (needsGeo && (finalLat == null || finalLng == null) && 'geolocation' in navigator) {
-        console.log('📍 On-demand geolocation...')
-        try {
-          const position: GeolocationPosition = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              maximumAge: 20000,
-              timeout: 8000,
-            })
-          })
-          finalLat = position.coords.latitude
-          finalLng = position.coords.longitude
-          setCoords({ lat: finalLat, lng: finalLng })
-        } catch (e) {
-          console.warn('⚠️ Geolocation on-demand failed:', e)
-        }
-      }
-
       const apiUrl = getApiUrl('/api/brain')
-      console.log("📡 Wysyłam do Amber Brain:", text)
-      console.log("🌐 URL:", apiUrl)
-      console.log("📦 Body:", { text, sessionId, includeTTS: true, lat: finalLat, lng: finalLng })
-      console.log("🔑 Using sessionId:", sessionId)
-
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: text,
-          sessionId: sessionId, // 🔥 Użyj persystentnego sessionId
-          lat: finalLat ?? undefined,
-          lng: finalLng ?? undefined,
-          includeTTS: true, // Włącz TTS
+          sessionId: sessionId,
+          lat: coords.lat,
+          lng: coords.lng,
+          includeTTS: false, // We handle TTS via renderEngine now for granularity? Or mixed?
+          // If we want audioContent from backend, set true. 
+          // But renderEngine synthesizes steps. Let's keep false to force local TTS control 
+          // OR true if we want the "voice_intro" to be pre-generated.
+          // Let's set FALSE and rely on speakTts client-side for "Amber prowadzi" step-by-step
         }),
       })
 
-      setIsProcessing(true)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      console.log("🧠 Amber Data:", data);
 
-      console.log("📥 Response status:", response.status, response.statusText)
+      setAmberResponse(data.reply || "");
 
-      if (!response.ok) {
-        setIsProcessing(false)
-        const errorText = await response.text()
-        console.error("❌ Response error:", errorText)
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      // 🛠️ Construct LLM Contract from Backend Data (Legacy Adapter)
+      // If backend sends flat lists, we convert to presentation sequence
+      let ui_mode = 'standard_chat';
+      let items: any[] = [];
+      let sequence: PresentationStep[] = [];
+
+      // Detect Mode
+      if (data.restaurants && data.restaurants.length > 0) {
+        ui_mode = 'restaurant_presentation';
+        items = data.restaurants;
+      } else if (data.menuItems && data.menuItems.length > 0) {
+        ui_mode = 'menu_presentation';
+        items = data.menuItems;
+      } else if (data.meta?.cart) {
+        ui_mode = 'cart_summary';
+        items = data.meta.cart.items;
       }
 
-      const data = await response.json()
-      setIsProcessing(false)
-      console.log("🧠 Odpowiedź Amber:", data)
-      setAmberData(data)
+      // Populate Presentation items in Store
+      setPresentationItems(items);
 
-      // Zapisz wiadomość użytkownika
-      // Zapisz wiadomość użytkownika
-      // setUserMessage(text) - moved to start of function
-
-      // Pokaż odpowiedź
-      if (data.reply) {
-        console.log("✅ Ustawiam odpowiedź Amber:", data.reply)
-        setAmberResponse(data.reply)
-
-        // 📦 Restaurants & menu (support both new and legacy backend shapes)
-        console.log("🔍 Backend response data:", {
-          hasLocationRestaurants: !!data.locationRestaurants,
-          locationRestaurantsLength: data.locationRestaurants?.length,
-          hasRestaurants: !!data.restaurants,
-          restaurantsLength: data.restaurants?.length,
-          hasContextRestaurants: !!data.context?.last_restaurants_list,
-          contextRestaurantsLength: data.context?.last_restaurants_list?.length,
-          hasMenuItems: !!data.menuItems,
-          hasMenu: !!data.menu,
-          hasContextMenu: !!data.context?.last_menu
-        });
-
-        const restaurants =
-          // preferred: explicit fields from backend (future proof)
-          (Array.isArray(data.locationRestaurants) && data.locationRestaurants.length > 0
-            ? data.locationRestaurants
-            : null) ||
-          (Array.isArray(data.restaurants) && data.restaurants.length > 0
-            ? data.restaurants
-            : null) ||
-          // legacy: stored only in session context
-          (data.context?.last_restaurants_list &&
-            Array.isArray(data.context.last_restaurants_list) &&
-            data.context.last_restaurants_list.length > 0
-            ? data.context.last_restaurants_list
-            : null)
-
-        const menuItems =
-          // preferred: explicit menuItems from backend
-          (Array.isArray(data.menuItems) && data.menuItems.length > 0
-            ? data.menuItems
-            : null) ||
-          // legacy: stored only in session context
-          (data.context?.last_menu &&
-            Array.isArray(data.context.last_menu) &&
-            data.context.last_menu.length > 0
-            ? data.context.last_menu
-            : null)
-
-        console.log("✅ Extracted data:", {
-          restaurantsCount: restaurants?.length || 0,
-          menuItemsCount: menuItems?.length || 0,
-          restaurants: restaurants,
-          menuItems: menuItems
-        });
-
-        setRestaurants(restaurants)
-        setMenuItems(menuItems)
-
-        // NIE ukrywaj odpowiedzi - pozostaje w chat bubbles
-        // setTimeout(() => {
-        //   console.log("⏰ Czyszczę odpowiedź Amber")
-        //   setAmberResponse("")
-        // }, 8000)
-
-        // Odtwórz audio jeśli jest dostępne
-        if (data.audioContent) {
-          console.log("🎵 Wywołuję playAudioFromBase64...")
-          playAudioFromBase64(data.audioContent)
-          console.log("🎵 playAudioFromBase64 wywołane")
-        } else {
-          console.log("⚠️ Brak audioContent w odpowiedzi")
+      // ✂️ UX Refinement: Force intro only if Presentation Mode
+      let cleanReply = data.reply || "";
+      if (items.length > 0 && (ui_mode === 'restaurant_presentation' || ui_mode === 'menu_presentation')) {
+        // Attempt to extract just the intro sentence (ends with colon, or split by newline)
+        // Look for X found: or X results:
+        const splitByLine = cleanReply.split('\n');
+        if (splitByLine.length > 0) {
+          let firstLine = splitByLine[0].trim();
+          if (firstLine.length < 5 && splitByLine.length > 1) firstLine = splitByLine[1].trim(); // skip empty/short first line
+          cleanReply = firstLine;
         }
-        // 🔄 Jeśli backend dodał do koszyka po stronie sesji – zsynchronizuj z lokalnym CartContext
-        try {
-          const meta = (data as any)?.meta
-          if (meta?.addedToCart && Array.isArray(meta?.cart?.items)) {
-            for (const it of meta.cart.items) {
-              const item = {
-                id: it.id,
-                name: it.name,
-                price: Number(it.price_pln ?? it.price ?? 0),
-                quantity: Number(it.qty || it.quantity || 1),
-              }
-              const restaurantData = { id: it.restaurant_id, name: it.restaurant_name }
-              addToCart(item as any, restaurantData as any)
-            }
-            setIsOpen(true)
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to sync meta.cart to local CartContext:', e)
+        // Fallback cleanup
+        if (cleanReply.length > 120) {
+          const dotIndex = cleanReply.indexOf('.');
+          if (dotIndex > 10 && dotIndex < 120) cleanReply = cleanReply.substring(0, dotIndex + 1);
+          else cleanReply = cleanReply.substring(0, 100) + "...";
         }
-        // Dodatkowo: jeśli UI myśli, że wciąż nagrywa, wymuś reset
-        try {
-          // nic — stan recording kontroluje hook; tu tylko safety net do logów
-          console.log("🏁 Amber reply received — recording:", recording)
-        } catch { }
-      } else {
-        console.warn("⚠️ Brak reply w odpowiedzi Amber")
+        // Ensure it ends nicely
+        if (!cleanReply.endsWith(':') && !cleanReply.endsWith('.') && !cleanReply.endsWith('?')) cleanReply += ":";
       }
+
+      setAmberResponse(cleanReply);
+
+      // Build Sequence if not provided
+      // Use smart narration if available, otherwise generic
+      if (items.length > 0) {
+        sequence = items.map((item: any, idx: number) => ({
+          step_index: idx,
+          card_id: item.id,
+          tts_narrative: `${item.name}. ${item.cuisine_type || item.category || ''}.` // Basic narration
+        }));
+      }
+
+      const contract: LLMContract = {
+        ui_mode: ui_mode as any,
+        voice_intro: cleanReply, // Use CLEAN reply for intro to avoid reading the whole list twice!
+        presentation_sequence: sequence,
+        closing_question: data.meta?.decision?.shouldAskClarification ? "Co wybierasz?" : undefined,
+        expect_selection: !data.meta?.decision?.shouldAskClarification // Open mic if we expect selection
+      };
+
+      // 🎬 EXECUTE ENGINE
+      // This is async and detached
+      renderFromLLM(contract, uiController());
+
     } catch (error) {
-      console.error("❌ Błąd komunikacji z Amber:", error)
-      const errorMsg = error instanceof Error ? error.message : 'Nieznany błąd'
-      console.error("📝 Szczegóły błędu:", errorMsg)
-      setAmberResponse(`Błąd: ${errorMsg}`)
-      setTimeout(() => setAmberResponse(""), 5000)
+      console.error("Communication Error:", error);
+      setAmberResponse("Błąd komunikacji.");
     } finally {
       setIsSending(false)
-      // 🔄 Pozwól na kolejną identyczną komendę
-      // lastMessageRef.current = "" // Zostawiamy, żeby nie wysyłać tego samego w pętli
     }
-  }, [sessionId, coords.lat, coords.lng, isSending])
+  }, [sessionId, coords, isSending, uiController, setPresentationItems, recording, renderFromLLM])
 
-  const handleManualSubmit = useCallback(
-    (text: string) => {
-      const trimmed = (text || "").trim()
-      if (!trimmed) return
-      console.log("⌨️ Manual submit from VoicePanelText:", trimmed)
-      sendToAmberBrain(trimmed)
-    },
-    [sendToAmberBrain]
-  )
+  const handleManualSubmit = useCallback((text: string) => {
+    const trimmed = (text || "").trim()
+    if (!trimmed) return
+    sendToAmberBrain(trimmed)
+  }, [sendToAmberBrain])
 
-  const handleRestaurantSelect = useCallback(
-    (restaurant: any) => {
-      console.log("🍽️ Restaurant selected:", restaurant)
-      // Znajdź indeks restauracji w liście
-      const index = restaurants?.findIndex(r => r.id === restaurant.id) ?? -1;
-      if (index !== -1) {
-        // Wyślij numer (1-based) który backend rozumie
-        const number = index + 1;
-        console.log(`📍 Sending restaurant number: ${number}`);
-        sendToAmberBrain(String(number));
-      } else {
-        // Fallback - wyślij nazwę
-        console.warn("⚠️ Restaurant not found in list, sending name");
-        sendToAmberBrain(restaurant.name);
-      }
-    },
-    [sendToAmberBrain, restaurants]
-  )
+  const handleCardSelect = useCallback((item: any) => {
+    console.log("👉 Card Selected:", item);
 
-  const handleMenuItemSelect = useCallback(
-    (item: any) => {
-      console.log("🍕 Menu item selected:", item)
-      // Wyślij np. "Dodaj [nazwa dania]"
-      sendToAmberBrain(`Dodaj ${item.name}`)
-    },
-    [sendToAmberBrain]
-  )
+    // 1. Stop Audio immediately
+    const ui = uiController();
+    ui.stopAllTTS();
 
-  // Odtwarzanie audio z base64
-  const playAudioFromBase64 = useCallback((base64Audio: string) => {
-    // 🔥 Zapobiegnij podwójnemu odtwarzaniu
-    if (isPlayingAudio) {
-      console.log("⏭️ Audio już jest odtwarzane, pomijam")
-      return
-    }
+    // 2. Clear Presentation State to remove UI overlap
+    setPresentationItems([]);
+    setMode('idle'); // or standard_chat
+    setHighlightedCardId(null);
 
-    try {
-      setIsPlayingAudio(true)
-      const audio = new Audio(`data:audio/mpeg;base64,${base64Audio}`)
-      audio.onended = () => {
-        console.log("✅ Audio zakończone")
-        setIsPlayingAudio(false)
-      }
-      audio.onerror = () => {
-        console.error("❌ Błąd odtwarzania audio")
-        setIsPlayingAudio(false)
-      }
-      audio.play()
-      console.log("🔊 Odtwarzam odpowiedź Amber")
-    } catch (error) {
-      console.error("❌ Błąd odtwarzania audio:", error)
-      setIsPlayingAudio(false)
-    }
-  }, [isPlayingAudio])
+    // 3. Send selection to Brain
+    handleManualSubmit(item.name);
+  }, [handleManualSubmit, uiController, setPresentationItems, setMode, setHighlightedCardId]);
 
-  // Efekt do automatycznego wysyłania transkrypcji do Amber Brain
-  // ---------------------- FIXED MESSAGE SENDING LOGIC --------------------------
+  // Speech Recognition Auto-Send
   useEffect(() => {
     const trimmedFinal = finalText?.trim();
-    const trimmedVoice = voiceQuery?.trim();
-
-    // 1) If we have final ASR text → send immediately
-    if (!recording && trimmedFinal) {
-      if (trimmedFinal !== lastMessageRef.current) {
-        console.log("📨 Sending FINAL:", trimmedFinal)
-        sendToAmberBrain(trimmedFinal);
-        // Wyczyść finalText po wysłaniu aby uniknąć ponownego wysyłania
-        setFinalText("");
-      }
-      return;
+    if (!recording && trimmedFinal && trimmedFinal !== lastMessageRef.current) {
+      sendToAmberBrain(trimmedFinal);
+      setFinalText("");
     }
-
-    // 2) If no final but we have fallback voice text
-    if (!recording && !trimmedFinal && trimmedVoice) {
-      if (trimmedVoice !== lastMessageRef.current) {
-        console.log("📨 Sending VOICE fallback:", trimmedVoice);
-        sendToAmberBrain(trimmedVoice);
-        // Wyczyść voiceQuery po wysłaniu
-        setVoiceQuery("");
-      }
-    }
-  }, [finalText, voiceQuery, recording, sendToAmberBrain, setFinalText]);
-  // ---------------------- END FIX ----------------------------------------------
+  }, [finalText, recording, sendToAmberBrain, setFinalText]);
 
   return (
     <div className={`home-page freeflow ${immersive ? 'immersive' : ''}`}>
-      {/* Stała warstwa tła wypełniająca okno (object-fit: cover) */}
       <picture>
         <source media="(max-width: 768px)" srcSet="/images/background.png" />
         <img src="/images/desk.png" alt="" className="bg" />
       </picture>
       <span className="flow">Flow</span>
 
-      {/* Active Conversation Blur Overlay */}
-      <div
-        className={`absolute inset-0 z-0 transition-all duration-700 pointer-events-none
-          ${(isProcessing || (amberResponse && amberResponse.length > 0)) ? "backdrop-blur-xl bg-black/20" : "backdrop-blur-0 bg-transparent"}
-        `}
-      />
-      {/* Immersive overlay */}
-      <AnimatePresence>
-        {immersive && ENABLE_IMMERSIVE_MODE && (
-          <motion.div
-            key="immersive-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: [0.83, 0, 0.17, 1] }}
-            className="immersive-overlay"
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.73)",
-              backdropFilter: "blur(28px) saturate(140%)",
-              WebkitBackdropFilter: "blur(28px) saturate(140%)",
-              zIndex: 20,
-              pointerEvents: "none"
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <div className={`fixed inset-0 z-40 transition-all duration-700 pointer-events-none ${(isProcessing || recording) ? "backdrop-blur-xl bg-black/40 opacity-100" : "backdrop-blur-0 bg-transparent opacity-0"}`} />
+
       <Switch onToggle={toggleUI} amberReady={!recording} initial={true} />
-      {/* Header z menu i koszykiem */}
+
       <header className="top-header">
         <div className="header-left">
           <LogoFreeFlow />
           <p>Voice to order — Złóż zamówienie<br />Restauracja, taxi albo hotel?</p>
         </div>
-
         <div className="header-right">
-          {/* Koszyk */}
-          <button
-            onClick={() => setIsOpen(true)}
-            className="cart-btn"
-            title="Koszyk"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-            </svg>
+          <button onClick={() => setIsOpen(true)} className="cart-btn" title="Koszyk">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" /></svg>
           </button>
-
-          {/* Menu */}
-          <button
-            onClick={openDrawer}
-            className="menu-btn"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+          <button onClick={openDrawer} className="menu-btn">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
         </div>
       </header>
 
-      {/* Main wrapper - TYLKO LOGO wyśrodkowane */}
       <div className="main-wrapper">
         <div className="hero-stack">
           <div className="logo-container" onClick={handleLogoClick}>
-            <img
-              src="/images/Freeflowlogo.png"
-              alt="FreeFlow"
-              className={`logo ${recording ? 'recording' : ''}`}
-              style={{
-                filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none'
-              }}
-            />
+            <img src="/images/Freeflowlogo.png" alt="FreeFlow" className={`logo ${recording ? 'recording' : ''}`} style={{ filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none' }} />
           </div>
         </div>
       </div>
 
-      {/* Kafelki na dole (fixed) - widoczne tylko gdy panel schowany */}
       <div className={`tiles ${(showTextPanel || immersive) ? 'hidden' : ''}`}>
         <div className="tile"><img src="/icons/food.png" alt="Jedzenie" /></div>
         <div className="tile"><img src="/icons/car.png" alt="Taxi" /></div>
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
       </div>
 
-      {/* Chat wrapper - ogranicza szerokość i dodaje bezpieczne paddingi */}
       <div className="chat-wrapper">
-        {/* Chat Bubbles Area */}
+        {/* Only render text bubbles here, removed card lists */}
         {theme === 'v2' ? (
           <ChatBubblesV2
             userMessage={userMessage}
             amberResponse={amberResponse}
-            restaurants={restaurants}
-            menuItems={menuItems}
-            onRestaurantSelect={handleRestaurantSelect}
-            onMenuItemSelect={handleMenuItemSelect}
+            restaurants={[]} // 🚫 Hidden from bubbles
+            menuItems={[]}   // 🚫 Hidden from bubbles
+            onRestaurantSelect={() => { }}
+            onMenuItemSelect={() => { }}
           />
         ) : (
           <ChatBubbles
             userMessage={userMessage}
             amberResponse={amberResponse}
-            restaurants={restaurants}
-            menuItems={menuItems}
-            onRestaurantSelect={handleRestaurantSelect}
-            onMenuItemSelect={handleMenuItemSelect}
+            restaurants={[]}
+            menuItems={[]}
+            onRestaurantSelect={() => { }}
+            onMenuItemSelect={() => { }}
           />
         )}
 
-        {/* Voice Command Center */}
-        {theme === 'v2' ? (
-          <VoiceCommandCenterV2
-            recording={recording}
-            isProcessing={isSending}
-            isSpeaking={isPlayingAudio}
-            interimText={interimText}
-            finalText={finalText || voiceQuery}
-            onMicClick={handleLogoClick}
-            onTextSubmit={handleManualSubmit}
-          />
-        ) : (
-          <VoiceCommandCenter
-            recording={recording}
-            isProcessing={isSending}
-            isSpeaking={isPlayingAudio}
-            interimText={interimText}
-            finalText={finalText || voiceQuery}
-            onMicClick={handleLogoClick}
-            onSubmitText={handleManualSubmit}
-            visible={showTextPanel}
-          />
-        )}
+        <VoiceCommandCenterV2
+          recording={recording}
+          isProcessing={isSending}
+          isSpeaking={isPlayingAudio}
+          interimText={interimText}
+          finalText={finalText || voiceQuery}
+          onMicClick={handleLogoClick}
+          onTextSubmit={handleManualSubmit}
+          isPresenting={mode === 'restaurant_presentation' || mode === 'menu_presentation'}
+        />
       </div>
 
+      {/* 🚀 PRESENTATION LAYER */}
+      <PresentationContainer onSelect={handleCardSelect} />
 
-      {/* MenuDrawer i Cart */}
       <MenuDrawer />
       <Cart />
     </div>

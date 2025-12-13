@@ -26,16 +26,7 @@ import PanelHeader from '../components/PanelHeader';
 import { CONFIG, getApiUrl } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
 import AmberLiveMonitor from '../components/AmberLiveMonitor';
-import FreeFunNearby from '../components/FreeFunNearby';
 import FreeFunSection from '../components/FreeFunSection';
-// Galaxy UI Components
-import GalaxyBackground from '../components/galaxy/GalaxyBackground';
-import KPICard from '../components/galaxy/KPICard';
-import GlassCard from '../components/galaxy/GlassCard';
-import GalaxyChart from '../components/galaxy/GalaxyChart';
-import AmberDiagnostics from '../components/galaxy/AmberDiagnostics';
-import AlertsList from '../components/galaxy/AlertsList';
-import TopList from '../components/galaxy/TopList';
 
 ChartJS.register(
   CategoryScale,
@@ -162,11 +153,15 @@ export default function AdminPanel() {
   // Trends & Top slow intents
   const [trends, setTrends] = useState([]);
   const [topSlow, setTopSlow] = useState([]);
-  const [debugStatus, setDebugStatus] = useState("");
-  const [debugMsg, setDebugMsg] = useState("");
   const [activity, setActivity] = useState([]);
   const [bizStats, setBizStats] = useState({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
   const [alerts, setAlerts] = useState([]);
+
+  // Debug state (retained)
+  const [debugStatus, setDebugStatus] = useState("");
+  const [debugMsg, setDebugMsg] = useState("");
+
+
   // Amber Learning Stats
   const [learningStats, setLearningStats] = useState({ total: 0, latest: [], intentStats: {}, feedbackStats: { positive: 0, negative: 0, neutral: 0 } });
   const [learningLoading, setLearningLoading] = useState(false);
@@ -356,6 +351,32 @@ export default function AdminPanel() {
     }
   };
 
+  // Dark Mode Toggle
+  const [darkMode, setDarkMode] = useState(true);
+
+  useEffect(() => {
+    // Initial check or default to dark
+    if (localStorage.getItem('admin-theme') === 'light') {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('admin-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('admin-theme', 'light');
+    }
+  };
+
   // Funkcja do ładowania wszystkich danych
   const loadAnalyticsData = async (period = '7') => {
     setLoading(true);
@@ -522,15 +543,15 @@ export default function AdminPanel() {
     datasets: [{
       label: 'Liczba zamówień',
       data: ordersChart.values,
-      borderColor: '#667eea',
-      backgroundColor: 'rgba(102, 126, 234, 0.1)',
-      borderWidth: 3,
+      borderColor: '#38BDF8', // neon2
+      backgroundColor: 'rgba(56,189,248,0.1)',
+      borderWidth: 2,
       fill: true,
-      tension: 0.4,
-      pointBackgroundColor: '#667eea',
+      tension: 0.3,
+      pointBackgroundColor: '#38BDF8',
       pointBorderColor: '#ffffff',
-      pointBorderWidth: 3,
-      pointRadius: 6
+      pointBorderWidth: 2,
+      pointRadius: 4
     }]
   } : {
     labels: ['Ładowanie...'],
@@ -542,7 +563,7 @@ export default function AdminPanel() {
     labels: hourlyChart.labels,
     datasets: [{
       data: hourlyChart.values,
-      backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#e2e8f0'],
+      backgroundColor: ['#5B7CFF', '#38BDF8', '#8B5CF6', '#22C55E'],
       borderWidth: 0
     }]
   } : {
@@ -554,17 +575,25 @@ export default function AdminPanel() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false }
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(10,16,32,.95)',
+        titleColor: '#EAF0FF',
+        bodyColor: '#EAF0FF',
+        borderColor: 'rgba(255,255,255,.1)',
+        borderWidth: 1,
+        padding: 10
+      }
     },
     scales: {
       y: {
         beginAtZero: true,
-        grid: { color: '#374151' },
-        ticks: { color: '#9CA3AF' }
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: '#9CA3AF', font: { size: 11 } }
       },
       x: {
         grid: { display: false },
-        ticks: { color: '#9CA3AF' }
+        ticks: { color: '#9CA3AF', font: { size: 11 } }
       }
     },
     elements: {
@@ -577,11 +606,12 @@ export default function AdminPanel() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom',
+        position: 'right',
         labels: {
           usePointStyle: true,
           padding: 20,
-          color: '#9CA3AF'
+          color: '#9CA3AF',
+          font: { size: 11 }
         }
       },
       tooltip: { enabled: true }
@@ -633,939 +663,541 @@ export default function AdminPanel() {
   // Loading state UI
   if (loading && !analyticsData) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden">
-        <GalaxyBackground />
-        <div className="relative w-24 h-24">
-          <div className="absolute inset-0 border-4 border-purple-500/30 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-t-cyan-400 rounded-full animate-spin"></div>
-          <div className="absolute inset-4 border-4 border-t-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+      <div className="h-screen w-full flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'var(--bg0)' }}>
+        <div className="grid-overlay"></div>
+        <div className="relative w-24 h-24 z-10">
+          <div className="absolute inset-0 border-4 border-[var(--border)] rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-t-[var(--neon)] rounded-full animate-spin"></div>
         </div>
-        <h2 className="mt-8 text-xl font-space tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 animate-pulse">
-          INITIALIZING AMBER...
+        <h2 className="mt-8 text-xl tracking-widest text-[var(--fg0)] animate-pulse z-10">
+          INITIALIZING...
         </h2>
       </div>
     );
   }
 
-  // Tabs configuration
-  const TABS = [
-    { id: 'insights', label: 'Insights', icon: 'ChartLineUp' },
-    { id: 'control', label: 'Control Deck', icon: 'Faders' },
-    { id: 'amber', label: 'Amber AI', icon: 'Robot' },
-    { id: 'learning', label: 'Learning', icon: 'Brain' },
-    { id: 'ui-config', label: 'UI Config', icon: 'Gear' },
-  ];
-
-  const toKebabCase = (str) => str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: 'var(--space-black)' }}>
-      <GalaxyBackground />
-      <div className="relative z-10 px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Galaxy Header */}
-          <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.4)]">
-                <i className="ph ph-planet text-2xl text-white"></i>
+    <div className="min-h-screen font-sans selection:bg-[rgba(91,124,255,.25)] selection:text-[var(--fg0)]" style={{ background: 'var(--bg0)' }}>
+      {/* Dynamic Background */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        background: `
+          radial-gradient(1100px 700px at 20% 10%, rgba(91,124,255,.12), transparent 60%),
+          radial-gradient(900px 600px at 85% 20%, rgba(56,189,248,.10), transparent 55%),
+          radial-gradient(700px 500px at 55% 85%, rgba(139,92,246,.08), transparent 60%),
+          linear-gradient(180deg, var(--bg0), var(--bg1))
+        `
+      }}></div>
+      <div className="grid-overlay"></div>
+
+      <div className="relative max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+
+        {/* --- Top Header --- */}
+        <header className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-10 rounded-xl glass neon-ring flex items-center justify-center text-[var(--neon)]">
+              {/* Logo / Icon */}
+              <svg className="size-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <h1 className="text-[16px] sm:text-lg font-semibold tracking-tight truncate text-[var(--fg0)]">Panel Administratora</h1>
+                <span className="text-[11px] px-2 py-0.5 rounded-full glass border border-[var(--border)] text-[var(--muted)]">v2.0</span>
+                <span className="hidden sm:inline text-[11px] text-[var(--muted)]">{new Date().toLocaleTimeString()}</span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold font-space tracking-tight text-white">
-                  FreeFlow <span className="text-purple-400">Admin</span>
-                </h1>
-                <p className="text-xs text-gray-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                  System Operational
-                </p>
+              <p className="text-[12px] text-[var(--muted)] leading-4 truncate">FreeFlow System • {accounts.length} users • {restaurants.length} restaurants</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Global Controls */}
+            <div className="hidden md:flex items-center gap-2 glass rounded-xl px-2 py-1 border border-[var(--border)]">
+              <span className="text-[11px] text-[var(--muted)]">Okres</span>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="bg-transparent text-[12px] font-medium focus-ring rounded-lg px-2 py-1 text-[var(--fg0)] outline-none cursor-pointer"
+              >
+                <option value="7 dni">7 dni</option>
+                <option value="30 dni">30 dni</option>
+                <option value="90 dni">90 dni</option>
+              </select>
+            </div>
+
+            <button
+              onClick={refreshData}
+              disabled={loading}
+              className="glass rounded-xl px-3 py-2 text-[12px] font-medium border border-[var(--border)] hover:neon-ring transition-shadow focus-ring text-[var(--fg0)]"
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className={loading ? "animate-spin" : ""}>↻</span>
+                <span className="hidden sm:inline">Odśwież</span>
+              </span>
+            </button>
+
+            <button
+              onClick={toggleDarkMode}
+              className="glass rounded-xl px-3 py-2 text-[12px] font-medium border border-[var(--border)] hover:neon-ring transition-shadow focus-ring text-[var(--fg0)]"
+            >
+              {darkMode ? '🌙 Dark' : '☀️ Light'}
+            </button>
+
+            <button
+              onClick={() => setTheme(theme === 'v2' ? 'v1' : 'v2')}
+              className="glass rounded-xl px-3 py-2 text-[12px] font-medium border border-[var(--border)] hover:neon-ring transition-shadow focus-ring text-[var(--fg0)]"
+            >
+              {theme === 'v2' ? '🔮 Modern' : '🏛️ Classic'}
+            </button>
+          </div>
+        </header>
+
+        {/* --- KPI Grid --- */}
+        <section className="mt-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+
+            {/* KPI 1 Revenue */}
+            <div className="glass rounded-xl px-4 py-3 border border-[var(--border)] hover:neon-ring transition-shadow fade-in">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-lg glass-strong flex items-center justify-center border border-[var(--border)] text-[#22c55e]">
+                    $
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-[var(--muted)]">Przychód Total</div>
+                    <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
+                      {analyticsData?.totalRevenue?.toLocaleString('pl-PL') || '0'} zł
+                    </div>
+                  </div>
+                </div>
+                {analyticsData?.revenueChange !== undefined && (
+                  <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full border border-[var(--border)] glass ${analyticsData.revenueChange >= 0 ? 'text-[var(--good)]' : 'text-[var(--bad)]'}`}>
+                    {analyticsData.revenueChange > 0 ? '+' : ''}{analyticsData.revenueChange}%
+                  </div>
+                )}
               </div>
             </div>
-            {/* Search & User */}
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
-                <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input
-                  type="text"
-                  placeholder="Ask Amber..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-cyan-500/50 focus:bg-white/10 focus:outline-none text-sm text-white placeholder-gray-500 transition-all"
-                />
+
+            {/* KPI 2 Intent Confidence (replacing Latency for visual variance) */}
+            <div className="glass rounded-xl px-4 py-3 border border-[var(--border)] hover:neon-ring transition-shadow fade-in" style={{ animationDelay: '50ms' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-lg glass-strong flex items-center justify-center border border-[var(--border)] text-[var(--neon)]">
+                    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93L7.76 7.76M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-[var(--muted)]">Interwencje AI</div>
+                    <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
+                      {((1 - (learningStats.feedbackStats.negative / (learningStats.total || 1))) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-[var(--muted)]">Efficiency</div>
               </div>
-              <button className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/50 transition-all">
-                <i className="ph ph-bell text-gray-300"></i>
-              </button>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 p-[2px]">
-                <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center overflow-hidden">
-                  <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="User" className="w-full h-full" />
+            </div>
+
+            {/* KPI 3 Orders */}
+            <div className="glass rounded-xl px-4 py-3 border border-[var(--border)] hover:neon-ring transition-shadow fade-in" style={{ animationDelay: '100ms' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-lg glass-strong flex items-center justify-center border border-[var(--border)] text-[var(--neon2)]">
+                    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-[var(--muted)]">Zamówienia</div>
+                    <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
+                      {analyticsData?.totalOrders || 0}
+                    </div>
+                  </div>
+                </div>
+                {analyticsData?.ordersChange !== undefined && (
+                  <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full border border-[var(--border)] glass ${analyticsData.ordersChange >= 0 ? 'text-[var(--good)]' : 'text-[var(--bad)]'}`}>
+                    {analyticsData.ordersChange > 0 ? '+' : ''}{analyticsData.ordersChange}%
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* KPI 4 Avg Order */}
+            <div className="glass rounded-xl px-4 py-3 border border-[var(--border)] hover:neon-ring transition-shadow fade-in" style={{ animationDelay: '150ms' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-lg glass-strong flex items-center justify-center border border-[var(--border)] text-purple-400">
+                    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-[var(--muted)]">Śr. Zamówienie</div>
+                    <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
+                      {analyticsData?.averageOrderValue?.toFixed(2) || '0.00'} zł
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </header>
 
-          {/* Admin Token Input */}
-          <div className="flex items-center gap-3 mb-6">
-            <input
-              value={adminToken}
-              onChange={(e) => saveToken(e.target.value)}
-              placeholder="x-admin-token"
-              className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white w-80 focus:border-cyan-500/50 focus:outline-none"
-            />
-            <span className={`text-sm ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
-              {tokenOk ? 'Połączono jako Admin ✅' : 'Brak tokenu ❌'}
-            </span>
+            {/* KPI 5 System Status */}
+            <div className="glass rounded-xl px-4 py-3 border border-[var(--border)] hover:neon-ring transition-shadow fade-in" style={{ animationDelay: '200ms' }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className={`size-9 rounded-lg glass-strong flex items-center justify-center border border-[var(--border)] ${hb.status.includes('online') ? 'text-[var(--good)]' : 'text-[var(--bad)]'}`}>
+                    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-[var(--muted)]">System Status</div>
+                    <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
+                      {hb.status === 'unknown' ? 'Checking...' : hb.status.includes('online') ? 'Online' : 'Offline'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-[var(--muted)]">{diag.durationMs}ms lat.</div>
+              </div>
+            </div>
+
           </div>
+        </section>
 
-          {/* Admin token */}
-          <div className="flex items-center gap-3 mb-6">
-            <input
-              value={adminToken}
-              onChange={(e) => saveToken(e.target.value)}
-              placeholder="x-admin-token"
-              className="px-3 py-2 rounded bg-white/10 border border-white/20 text-white w-80"
-            />
-            <span className={`text-sm ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
-              {tokenOk ? 'Połączono jako Admin ✅' : 'Brak tokenu ❌'}
-            </span>
-          </div>
-
-          {/* Galaxy Tabs */}
-          <nav className="mb-8 overflow-x-auto">
-            <div className="glass-panel inline-flex p-1.5 rounded-xl">
-              {TABS.map(tab => (
+        {/* --- Tabs --- */}
+        <section className="mb-4">
+          <div className="glass rounded-xl border border-[var(--border)] px-2 py-2 flex items-center justify-between gap-2 overflow-x-auto">
+            <div className="flex items-center gap-1">
+              {[
+                { id: 'insights', label: 'Dashboard' },
+                { id: 'control', label: 'Live Control' },
+                { id: 'learning', label: 'Brain / Learning' },
+                { id: 'alerts', label: 'System Alerts' },
+                { id: 'config', label: 'Konfiguracja Menu' },
+                { id: 'events', label: 'Wydarzenia' }
+              ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    if (tab.id === 'learning') loadLearningStats();
-                  }}
-                  className={`relative px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
-                    activeTab === tab.id
-                      ? 'text-white shadow-[0_0_20px_rgba(139,92,246,0.3)]'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 text-[12px] font-medium rounded-lg border transition-all whitespace-nowrap
+                      ${activeTab === tab.id
+                      ? 'bg-[rgba(255,255,255,.08)] border-[var(--border)] text-[var(--fg0)] shadow-[0_0_10px_rgba(91,124,255,0.1)]'
+                      : 'border-transparent text-[var(--muted)] hover:bg-[rgba(255,255,255,.04)] hover:text-[var(--fg0)]'
+                    }`}
                 >
-                  {activeTab === tab.id && (
-                    <span className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-lg opacity-80 -z-10"></span>
-                  )}
-                  <i className={`ph ph-${toKebabCase(tab.icon)} text-lg`}></i>
                   {tab.label}
                 </button>
               ))}
             </div>
-          </nav>
-
-          {activeTab === 'ui-config' ? (
-            <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
-              <h2 className="text-3xl font-bold text-white mb-6">🎨 UI Configuration</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
-                  <h3 className="text-xl font-semibold text-white mb-4">Theme Version</h3>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => setTheme('v1')}
-                      className={`flex-1 py-4 px-6 rounded-lg border-2 transition-all ${theme === 'v1'
-                          ? 'border-blue-500 bg-blue-500/20 text-white shadow-[0_0_20px_rgba(59,130,246,0.3)]'
-                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
-                        }`}
-                    >
-                      <div className="text-2xl mb-2">🏛️</div>
-                      <div className="font-bold">Classic (v1)</div>
-                      <div className="text-sm opacity-70">Standardowy interfejs</div>
-                    </button>
-
-                    <button
-                      onClick={() => setTheme('v2')}
-                      className={`flex-1 py-4 px-6 rounded-lg border-2 transition-all ${theme === 'v2'
-                          ? 'border-cyan-500 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]'
-                          : 'border-gray-700 text-gray-400 hover:border-gray-600'
-                        }`}
-                    >
-                      <div className="text-2xl mb-2">🔮</div>
-                      <div className="font-bold">Ultra Modern (v2)</div>
-                      <div className="text-sm opacity-70">Holographic / Neon / Glass</div>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700">
-                  <h3 className="text-xl font-semibold text-white mb-4">Preview</h3>
-                  <div className={`w-full h-40 rounded-lg flex items-center justify-center border ${theme === 'v2'
-                      ? 'border-cyan-500/50 bg-black shadow-[inset_0_0_30px_rgba(6,182,212,0.2)]'
-                      : 'border-gray-600 bg-gray-800'
-                    }`}>
-                    {theme === 'v2' ? (
-                      <div className="text-center">
-                        <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-cyan-500 shadow-[0_0_20px_#06b6d4] animate-pulse"></div>
-                        <span className="text-cyan-400 font-mono text-sm">SYSTEM ONLINE</span>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-500"></div>
-                        <span className="text-gray-300">System Online</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+            <div className="hidden md:flex items-center px-3 border-l border-[var(--border)] text-[11px] text-[var(--muted)]">
+              Admin Mode
             </div>
-          ) : activeTab === 'control' ? (
-            <AmberControlDeck adminToken={adminToken} />
-          ) : activeTab === 'learning' ? (
-            <>
-              {/* Amber Self-Learning Dashboard */}
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
+          </div>
+        </section>
+
+        {/* --- Main Content --- */}
+        <main className="fade-in">
+
+          {/* TAB: INSIGHTS (Overview) */}
+          {activeTab === 'insights' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+              {/* Main Chart (Left, 8 cols) */}
+              <div className="lg:col-span-8 glass rounded-xl border border-[var(--border)] p-4 flex flex-col h-[400px]">
+                <div className="flex items-center justify-between mb-2">
                   <div>
-                    <h2 className="text-3xl font-bold text-white mb-2">🧠 Amber Self-Learning</h2>
-                    <p className="text-gray-300">System uczenia maszynowego - analiza feedbacku i adaptacja intencji</p>
+                    <div className="text-[13px] font-semibold text-[var(--fg0)]">Sprzedaż & Ruch</div>
+                    <div className="text-[11px] text-[var(--muted)]">Zamówienia vs Czas</div>
                   </div>
-                  <button
-                    onClick={() => loadLearningStats()}
-                    disabled={learningLoading}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg"
-                  >
-                    {learningLoading ? 'Ładowanie...' : '🔄 Odśwież'}
-                  </button>
+                  <div className="text-[11px] text-[var(--muted)]">Live Data</div>
                 </div>
-
-                {/* KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                  <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-6 shadow-lg border border-purple-500/30">
-                    <div className="text-sm text-purple-200 mb-2">Całkowite rekordy</div>
-                    <div className="text-3xl font-bold text-white">{learningStats.total}</div>
-                  </div>
-                  <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-6 shadow-lg border border-green-500/30">
-                    <div className="text-sm text-green-200 mb-2">Pozytywny feedback</div>
-                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.positive}</div>
-                    <div className="text-xs text-green-200 mt-1">
-                      {learningStats.total > 0 ? ((learningStats.feedbackStats.positive / learningStats.total) * 100).toFixed(1) : 0}%
-                    </div>
-                  </div>
-                  <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-6 shadow-lg border border-red-500/30">
-                    <div className="text-sm text-red-200 mb-2">Negatywny feedback</div>
-                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.negative}</div>
-                    <div className="text-xs text-red-200 mt-1">
-                      {learningStats.total > 0 ? ((learningStats.feedbackStats.negative / learningStats.total) * 100).toFixed(1) : 0}%
-                    </div>
-                  </div>
-                  <div className="bg-gradient-to-br from-gray-600 to-gray-800 rounded-2xl p-6 shadow-lg border border-gray-500/30">
-                    <div className="text-sm text-gray-200 mb-2">Neutralny feedback</div>
-                    <div className="text-3xl font-bold text-white">{learningStats.feedbackStats.neutral}</div>
-                    <div className="text-xs text-gray-200 mt-1">
-                      {learningStats.total > 0 ? ((learningStats.feedbackStats.neutral / learningStats.total) * 100).toFixed(1) : 0}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Feedback Distribution Chart */}
-                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                  <div className="text-xl font-bold text-white mb-6">Rozkład Feedbacku</div>
-                  <div className="h-64">
-                    <Doughnut
-                      data={{
-                        labels: ['Pozytywny', 'Negatywny', 'Neutralny'],
-                        datasets: [{
-                          data: [
-                            learningStats.feedbackStats.positive,
-                            learningStats.feedbackStats.negative,
-                            learningStats.feedbackStats.neutral
-                          ],
-                          backgroundColor: ['#22c55e', '#ef4444', '#6b7280'],
-                          borderWidth: 0
-                        }]
-                      }}
-                      options={doughnutOptions}
-                    />
-                  </div>
-                </div>
-
-                {/* Intent Statistics */}
-                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                  <div className="text-xl font-bold text-white mb-6">Statystyki Intencji</div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(learningStats.intentStats || {}).map(([intent, count]) => (
-                      <div key={intent} className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
-                        <div className="text-sm text-gray-400 mb-1">{intent}</div>
-                        <div className="text-2xl font-bold text-white">{count}</div>
-                      </div>
-                    ))}
-                    {Object.keys(learningStats.intentStats || {}).length === 0 && (
-                      <div className="col-span-full text-gray-400 text-center py-8">Brak danych</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Latest Learning Records */}
-                <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="text-xl font-bold text-white">Ostatnie rekordy uczenia</div>
-                    <select
-                      onChange={(e) => loadLearningStats(parseInt(e.target.value))}
-                      className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded"
-                      defaultValue="20"
-                    >
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                      <option value="100">100</option>
-                    </select>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="text-gray-300 border-b border-gray-700">
-                          <th className="py-3 px-4">Intencja</th>
-                          <th className="py-3 px-4">Feedback</th>
-                          <th className="py-3 px-4">Tekst wejściowy</th>
-                          <th className="py-3 px-4">Data</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {learningStats.latest.map((record, idx) => (
-                          <tr key={idx} className="border-b border-gray-700 hover:bg-gray-900/50">
-                            <td className="py-3 px-4">
-                              <span className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded text-sm">
-                                {record.intent || 'unknown'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              {record.feedback_score === 1 ? (
-                                <span className="text-green-400">✓ Pozytywny</span>
-                              ) : record.feedback_score === 0 ? (
-                                <span className="text-red-400">✗ Negatywny</span>
-                              ) : (
-                                <span className="text-gray-400">— Neutralny</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-gray-300 text-sm">
-                              {record.input_text || '—'}
-                            </td>
-                            <td className="py-3 px-4 text-gray-400 text-sm">
-                              {record.created_at ? new Date(record.created_at).toLocaleString('pl-PL') : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                        {learningStats.latest.length === 0 && (
-                          <tr>
-                            <td colSpan={4} className="py-8 text-center text-gray-400">
-                              {learningLoading ? 'Ładowanie...' : 'Brak rekordów uczenia'}
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Period Controls */}
-              <div className="flex justify-center gap-4 items-center mb-8">
-                <button
-                  onClick={() => loadAnalyticsData(selectedPeriod.split(' ')[0])}
-                  disabled={loading}
-                  className="px-4 py-2 bg-white/10 border border-orange-400/30 rounded-full hover:bg-white/15 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-orange-200"
-                  title="Odśwież dane"
-                >
-                  🔄 {loading ? 'Ładowanie...' : 'Odśwież'}
-                </button>
-                {['Dziś', '7 dni', '30 dni', '90 dni'].map(period => (
-                  <button
-                    key={period}
-                    onClick={() => setSelectedPeriod(period)}
-                    disabled={loading}
-                    className={`px-5 py-2 border border-orange-400/30 rounded-full transition-all ${selectedPeriod === period
-                      ? 'bg-orange-500/20 border-orange-400/50 text-orange-200'
-                      : 'bg-white/10 hover:bg-white/15 text-white/80'
-                      } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
-              {/* Galaxy KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
-                {loading ? (
-                  Array(4).fill(0).map((_, index) => (
-                    <div key={index} className="glass-panel rounded-2xl p-6 animate-pulse">
-                      <div className="h-10 bg-gray-700/30 rounded mb-2"></div>
-                      <div className="h-4 bg-gray-700/30 rounded w-3/4"></div>
-                    </div>
-                  ))
-                ) : kpiData.length > 0 ? (
-                  <>
-                    <KPICard
-                      title="Total Revenue"
-                      value={parseFloat(analyticsData.totalRevenue) || 0}
-                      prefix="$"
-                      subtext={`daily avg $${((parseFloat(analyticsData.totalRevenue) || 0) / 7).toFixed(1)}k`}
-                      trend={analyticsData.revenueChange || 0}
-                      icon="CurrencyDollar"
-                      color="purple"
-                    />
-                    <KPICard
-                      title="Active Orders"
-                      value={parseInt(analyticsData.totalOrders) || 0}
-                      subtext="85 pending dispatch"
-                      trend={analyticsData.ordersChange || 0}
-                      icon="ShoppingCart"
-                      color="cyan"
-                    />
-                    <KPICard
-                      title="Amber Interventions"
-                      value={428}
-                      subtext="94% auto-resolved"
-                      trend={-2.4}
-                      icon="Robot"
-                      color="pink"
-                    />
-                    <KPICard
-                      title="Customer Rating"
-                      value={parseFloat(analyticsData.customerSatisfaction) || 4.9}
-                      subtext="based on 12k reviews"
-                      trend={analyticsData.satisfactionChange || 0}
-                      icon="Star"
-                      color="blue"
-                    />
-                  </>
-                ) : (
-                  Array(4).fill(0).map((_, index) => (
-                    <div key={index} className="glass-panel rounded-2xl p-6">
-                      <div className="text-gray-400">No data</div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Galaxy Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-                {/* Orders Chart */}
-                <GlassCard className="lg:col-span-2 h-[400px]">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold text-white font-space">Order Trends</h2>
-                    <select className="bg-black/30 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-400 focus:outline-none">
-                      <option>Last 24 Hours</option>
-                      <option>Last 7 Days</option>
-                      <option>Last Month</option>
-                    </select>
-                  </div>
+                <div className="flex-1 relative w-full min-h-0">
                   {ordersChart ? (
-                    <GalaxyChart
-                      type="line"
-                      data={{
-                        labels: ordersChart.labels || [],
-                        datasets: [{
-                          label: 'Today',
-                          data: ordersChart.values || [],
-                        }, {
-                          label: 'Yesterday',
-                          data: (ordersChart.values || []).map(v => v * 0.8),
-                        }]
-                      }}
-                      height={300}
+                    <Line
+                      data={ordersChartData}
+                      options={{ ...chartOptions, maintainAspectRatio: false }}
                     />
                   ) : (
-                    <div className="h-80 flex items-center justify-center text-gray-400">Loading chart...</div>
+                    <div className="flex items-center justify-center h-full text-[var(--muted)]">Ładowanie wykresu...</div>
                   )}
-                </GlassCard>
-
-                {/* Secondary Stats */}
-                <div className="space-y-6">
-                  <TopList dishes={topDishes} restaurants={topRestaurants} />
-                  <AlertsList alerts={alerts} />
                 </div>
               </div>
 
-              {/* Amber Diagnostics & Demographics */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-                <AmberDiagnostics metrics={{
-                  cpu: 45,
-                  nlu: diag.nluMs > 0 ? Math.min(100, 100 - (diag.nluMs / 10)) : 98,
-                  sentiment: 85,
-                  latency: diag.durationMs || 120
-                }} />
-                <GlassCard glowColor="purple" className="lg:col-span-2 relative overflow-hidden">
-                  <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
-                  <h3 className="text-gray-300 font-medium mb-4">User Demographics</h3>
-                  <div className="flex items-center justify-center h-48 relative">
-                    {hourlyChart ? (
-                      <GalaxyChart
-                        type="doughnut"
-                        data={{
-                          labels: hourlyChart.labels || ['Mobile', 'Desktop', 'Tablet'],
-                          datasets: [{
-                            data: hourlyChart.values || [65, 25, 10],
-                            backgroundColor: ['#00f5ff', '#8b5cf6', '#ec4899'],
-                            borderWidth: 0,
-                            hoverOffset: 4
-                          }]
-                        }}
-                        height={200}
-                      />
-                    ) : (
-                      <div className="text-gray-400">Loading...</div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white">12k</div>
-                        <div className="text-xs text-gray-400">Users</div>
+              {/* Right Side Widgets (4 cols) */}
+              <div className="lg:col-span-4 grid grid-cols-1 gap-3 content-start">
+                {/* Hourly Distribution Donut */}
+                <div className="glass rounded-xl border border-[var(--border)] p-4 h-[220px] flex flex-col">
+                  <div className="mb-2">
+                    <div className="text-[13px] font-semibold text-[var(--fg0)]">Szczyt Godzinowy</div>
+                    <div className="text-[11px] text-[var(--muted)]">Kiedy zamawiają najczęściej?</div>
+                  </div>
+                  <div className="flex-1 relative min-h-0">
+                    {hourlyChart && <Doughnut data={hourlyChartData} options={doughnutOptions} />}
+                  </div>
+                </div>
+
+                {/* Top Stats List */}
+                <div className="glass rounded-xl border border-[var(--border)] p-4 h-[170px] overflow-auto tiny-scroll">
+                  <div className="text-[13px] font-semibold text-[var(--fg0)] mb-2 sticky top-0 bg-[var(--glass)] backdrop-blur-md pb-1 border-b border-[var(--border)]">Top Dania</div>
+                  <div className="space-y-2 mt-2">
+                    {topDishes.slice(0, 3).map((d, i) => (
+                      <div key={i} className="flex justify-between items-center text-[12px]">
+                        <span className="text-[var(--fg0)] truncate pr-2">{d.name}</span>
+                        <span className="text-[var(--neon)] font-mono">{d.orders}</span>
                       </div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                    <div>
-                      <div className="text-cyan-400 font-bold">65%</div>
-                      <div className="text-xs text-gray-500">Mobile</div>
-                    </div>
-                    <div>
-                      <div className="text-purple-400 font-bold">25%</div>
-                      <div className="text-xs text-gray-500">Desktop</div>
-                    </div>
-                    <div>
-                      <div className="text-pink-400 font-bold">10%</div>
-                      <div className="text-xs text-gray-500">Tablet</div>
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Krzywa Intencji Amber */}
-              <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <div className="text-xl font-bold text-white">Krzywa Intencji Amber</div>
-                    <div className="text-sm text-gray-300">Confidence w czasie (ostatnie {intents.length}) · <span className="ml-1">{hb.status}</span></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={loadIntents} className="px-4 py-2 bg-white/10 border border-purple-400/40 text-purple-200 rounded-lg">Odśwież</button>
-                    <button onClick={testAmber} disabled={diag.running} className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg">{diag.running ? 'TEST...' : 'TEST AMBER'}</button>
-                    <button onClick={() => {
-                      const qs = new URLSearchParams();
-                      qs.append('token', adminToken);
-                      const fIso = toIsoSafe(fromDate);
-                      const tIso = toIsoSafe(toDate, true);
-                      if (fIso) qs.append('from', fIso);
-                      if (tIso) qs.append('to', tIso);
-                      if (intentFilter) qs.append('intent', intentFilter);
-                      window.open(getApiUrl(`/api/admin/intents/export?${qs.toString()}`));
-                    }} disabled={!tokenOk} className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg">⬇️ Eksport CSV</button>
-                  </div>
-                </div>
-                {/* Filters */}
-                <div className="flex flex-wrap items-end gap-3 mb-4">
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Od</div>
-                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Do</div>
-                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Intencja</div>
-                    <select value={intentFilter} onChange={e => setIntentFilter(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded">
-                      <option value="">Wszystkie</option>
-                      <option value="create_order">create_order</option>
-                      <option value="find_nearby">find_nearby</option>
-                      <option value="confirm_order">confirm_order</option>
-                      <option value="cancel_order">cancel_order</option>
-                      <option value="select_restaurant">select_restaurant</option>
-                      <option value="menu_request">menu_request</option>
-                    </select>
-                  </div>
-                  <button onClick={refreshData} className="px-3 py-2 bg-white/10 border border-white/20 text-white rounded">🔄 Odśwież</button>
-                </div>
-                <div className="h-72 mb-8">
-                  <Line data={intentsChartData} options={intentsChartOptions} />
-                </div>
-                {/* Amber Diagnostics bars */}
-                <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-white font-semibold">Amber Diagnostics</div>
-                    <div className="text-sm text-gray-400">Całkowity: {diag.durationMs} ms {diag.lastAt && `• ${new Date(diag.lastAt).toLocaleTimeString()}`}</div>
-                  </div>
-                  <div className="h-48">
-                    <Bar data={diagData} options={diagOptions} />
-                  </div>
-                  <div className="text-xs text-gray-300 mt-2">NLU parse {diag.nluMs}ms | DB fetch {diag.dbMs}ms | TTS gen {diag.ttsMs}ms</div>
-                </div>
-                <div className="mt-4">
-                  <AmberLiveMonitor />
-                </div>
-              </div>
-
-              {/* Trendy: Średnia latencja / dzień */}
-              <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-xl font-bold text-white">Średnia latencja / dzień</div>
-                  <button onClick={loadTrends} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
-                </div>
-                <div className="h-72">
-                  <Line data={trendsData} options={trendsOptions} />
-                </div>
-              </div>
-
-              {/* Top 5 najwolniejszych intencji */}
-              <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-xl font-bold text-white">Top 5 najwolniejszych intencji</div>
-                  <button onClick={loadTopSlow} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
-                </div>
-                <div className="space-y-2">
-                  {topSlow.map((r, i) => (
-                    <div key={r.intent + i} className="flex items-center justify-between text-white/90 border-b border-gray-700 py-2">
-                      <div className="flex items-center gap-2"><span>{i === 0 ? '🐢' : i === 1 ? '⚙️' : i === 2 ? '🐌' : '⏳'}</span><span className="font-semibold">{r.intent}</span></div>
-                      <div className="text-gray-300">{r.avgMs} ms</div>
-                    </div>
-                  ))}
-                  {topSlow.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
-                </div>
-              </div>
-
-              {/* Aktywność Ambera wg restauracji */}
-              <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-xl font-bold text-white">Aktywność Ambera wg restauracji</div>
-                  <div className="flex gap-2">
-                    <button onClick={loadActivity} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
-                    <button onClick={async () => { try { await adminFetch('/api/admin/trends/analyze', { method: 'POST' }); await Promise.all([loadActivity(), loadBusiness()]); } catch (e) { } }} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded">Analizuj teraz</button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {activity.map((r, i) => (
-                    <div key={r.id + i} className="flex items-center justify-between text-white/90 border-b border-gray-700 py-2">
-                      <div>{r.name}</div>
-                      <div className="text-gray-300">{r.interactions} interakcji</div>
-                    </div>
-                  ))}
-                  {activity.length === 0 && <div className="text-gray-400 text-sm">Brak danych</div>}
-                </div>
-              </div>
-
-              {/* FreeFlow Business Pulse */}
-              <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700 mb-8">
-                <div className="text-xl font-bold text-white mb-6">FreeFlow Business Pulse</div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
-                    <div className="text-sm text-gray-400">Całkowity przychód</div>
-                    <div className="text-2xl text-white font-bold">{bizStats.total_revenue.toFixed(2)} zł</div>
-                  </div>
-                  <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
-                    <div className="text-sm text-gray-400">Liczba zamówień</div>
-                    <div className="text-2xl text-white font-bold">{bizStats.total_orders}</div>
-                  </div>
-                  <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
-                    <div className="text-sm text-gray-400">Średnia wartość</div>
-                    <div className="text-2xl text-white font-bold">{bizStats.avg_order.toFixed(2)} zł</div>
-                  </div>
-                  <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4">
-                    <div className="text-sm text-gray-400">Konwersja</div>
-                    <div className="text-2xl text-white font-bold">{(bizStats.conversion * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-gray-500">{bizStats.interactions} interakcji</div>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Amber Alerts */}
-              <div className="p-6 bg-slate-900 rounded-2xl border border-gray-700 text-white mb-10">
+              {/* Bottom Diagnostics / Dev Widgets (Full Width) */}
+              <div className="lg:col-span-12 glass rounded-xl border border-[var(--border)] p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">⚠️ Amber Alerts</h3>
-                  <button onClick={fetchAlerts} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded">Odśwież</button>
+                  <div className="text-[12px] font-semibold text-[var(--fg0)]">System & Amber Diagnostics</div>
+                  <span className="text-[11px] text-[var(--muted)]">Real-time metrics</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-gray-300">
-                        <th className="py-2 text-left">Typ</th>
-                        <th className="py-2 text-left">Poziom</th>
-                        <th className="py-2 text-left">Treść</th>
-                        <th className="py-2 text-left">Czas</th>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  {/* Widget 1: Health */}
+                  <div className="glass-strong rounded-xl border border-[var(--border)] p-3">
+                    <div className="text-[11px] text-[var(--muted)]">Status Połączenia</div>
+                    <div className="mt-1 flex items-end justify-between">
+                      <div className={`text-[18px] font-semibold ${hb.status.includes('online') ? 'text-[var(--good)]' : 'text-[var(--bad)]'}`}>{hb.status}</div>
+                      <div className="text-[11px] text-[var(--muted)]">{new Date().toLocaleTimeString()}</div>
+                    </div>
+                  </div>
+                  {/* Widget 2: NLU Latency */}
+                  <div className="glass-strong rounded-xl border border-[var(--border)] p-3">
+                    <div className="text-[11px] text-[var(--muted)]">Amber NLU Latency</div>
+                    <div className="mt-1 flex items-end justify-between">
+                      <div className="text-[18px] font-semibold text-[var(--neon)]">{diag.nluMs} ms</div>
+                      <div className="text-[11px] text-[var(--muted)]">Parse time</div>
+                    </div>
+                    {/* Mini bar */}
+                    <div className="mt-2 h-1 bg-black/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--neon)]" style={{ width: `${Math.min(100, diag.nluMs / 5)}%` }}></div>
+                    </div>
+                  </div>
+                  {/* Widget 3: DB Latency */}
+                  <div className="glass-strong rounded-xl border border-[var(--border)] p-3">
+                    <div className="text-[11px] text-[var(--muted)]">Database Latency</div>
+                    <div className="mt-1 flex items-end justify-between">
+                      <div className="text-[18px] font-semibold text-[var(--warn)]">{diag.dbMs} ms</div>
+                      <div className="text-[11px] text-[var(--muted)]">Query time</div>
+                    </div>
+                    <div className="mt-2 h-1 bg-black/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--warn)]" style={{ width: `${Math.min(100, diag.dbMs / 5)}%` }}></div>
+                    </div>
+                  </div>
+                  {/* Widget 4: Memory/CPU (Mock) */}
+                  <div className="glass-strong rounded-xl border border-[var(--border)] p-3">
+                    <div className="text-[11px] text-[var(--muted)]">Server Load</div>
+                    <div className="mt-1 flex items-end justify-between">
+                      <div className="text-[18px] font-semibold text-[var(--neon2)]">24%</div>
+                      <div className="text-[11px] text-[var(--muted)]">Stable</div>
+                    </div>
+                    <div className="mt-2 h-1 bg-black/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-[var(--neon2)]" style={{ width: '24%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB: CONTROL (Amber Live) */}
+          {activeTab === 'control' && (
+            <div className="glass rounded-xl border border-[var(--border)] p-4 min-h-[600px]">
+              <AmberControlDeck adminToken={adminToken} />
+            </div>
+          )}
+
+          {/* TAB: LEARNING */}
+          {activeTab === 'learning' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <div className="lg:col-span-8 glass rounded-xl border border-[var(--border)] p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[13px] font-semibold text-[var(--fg0)]">Uczenie Feedbackowe</div>
+                  <button onClick={() => loadLearningStats()} className="text-[11px] glass px-2 py-1 rounded hover:bg-white/10">Odśwież</button>
+                </div>
+                {/* Table of learnings */}
+                <div className="overflow-auto max-h-[500px] tiny-scroll">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 bg-[var(--glass-strong)] backdrop-blur-md z-10 text-[11px] text-[var(--muted)] uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Intencja</th>
+                        <th className="p-3">Feedback</th>
+                        <th className="p-3">Input</th>
+                        <th className="p-3">Czas</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {(alerts || []).map((a, i) => (
-                        <tr key={(a.id || i)} className="border-t border-gray-700">
-                          <td className="py-2">{a.type}</td>
-                          <td className="py-2">{a.severity}</td>
-                          <td className="py-2">{a.message}</td>
-                          <td className="py-2">{a.created_at ? new Date(a.created_at).toLocaleString() : '—'}</td>
+                    <tbody className="text-[12px] text-[var(--fg0)] divide-y divide-[var(--border)]">
+                      {learningStats.latest.map((item, i) => (
+                        <tr key={i} className="hover:bg-white/5 transition-colors">
+                          <td className="p-3"><span className="px-2 py-1 rounded bg-[rgba(139,92,246,0.2)] text-[#a78bfa]">{item.intent}</span></td>
+                          <td className="p-3">
+                            {item.feedback_score > 0 ? <span className="text-[var(--good)]">Pozytywny</span> :
+                              item.feedback_score < 0 ? <span className="text-[var(--bad)]">Negatywny</span> : <span className="text-[var(--muted)]">Neutral</span>}
+                          </td>
+                          <td className="p-3 opacity-80">{item.input_text}</td>
+                          <td className="p-3 text-[var(--muted)]">{new Date(item.created_at).toLocaleTimeString()}</td>
                         </tr>
                       ))}
-                      {(!alerts || alerts.length === 0) && (
-                        <tr><td colSpan={4} className="py-3 text-gray-400">Brak alertów</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
-
-              {/* FreeFun Nearby */}
-              <FreeFunNearby />
-
-              {/* FreeFun Section - Zaawansowany widok wydarzeń */}
-              <div className="mt-8">
-                <FreeFunSection />
-              </div>
-
-              {/* Control Deck przeniesiony do osobnego komponentu i zakładki */}
-
-              {/* Restauracje & Menu */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-                  <div className="text-xl font-bold text-white mb-4">🍽️ Restauracje</div>
-                  <ol className="space-y-2 list-decimal list-inside text-white/90">
-                    {restaurants.map((r, idx) => (
-                      <li key={r.id} className="flex items-center justify-between gap-3">
-                        <button onClick={() => loadMenu(r)} className="text-left hover:text-purple-300">
-                          {r.name}
-                          <span className="text-xs text-gray-400 ml-2">({r.partner_mode})</span>
-                        </button>
-                        <span className="text-xs text-gray-400">menu: {r.menu_count}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-xl font-bold text-white">Menu: {selectedRestaurant?.name || '—'}</div>
-                    <button disabled={!selectedRestaurant} onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded-lg">➕ Add Item</button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="text-gray-300">
-                          <th className="py-2">Name</th>
-                          <th className="py-2">Price</th>
-                          <th className="py-2">Category</th>
-                          <th className="py-2">Available</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {menuItems.map(m => (
-                          <tr key={m.id} className="border-t border-gray-700 text-white/90">
-                            <td className="py-2">{m.name}</td>
-                            <td className="py-2">{Number(m.price).toFixed(2)} zł</td>
-                            <td className="py-2">{m.category || '—'}</td>
-                            <td className="py-2">{m.available ? '✓' : '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {/* Right side charts for Learning */}
+              <div className="lg:col-span-4 space-y-3">
+                <div className="glass rounded-xl border border-[var(--border)] p-4">
+                  <h3 className="text-[12px] font-semibold mb-2">Rozkład Feedbacku</h3>
+                  <div className="h-[200px]">
+                    <Doughnut data={{
+                      labels: ['Poz', 'Neg', 'Neu'],
+                      datasets: [{
+                        data: [learningStats.feedbackStats.positive, learningStats.feedbackStats.negative, learningStats.feedbackStats.neutral],
+                        backgroundColor: ['#22c55e', '#ef4444', '#64748b'],
+                        borderWidth: 0
+                      }]
+                    }} options={doughnutOptions} />
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Debug Card */}
-              <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700 mt-6">
-                <div className="text-xl font-bold text-white mb-3">🧠 Debug Info</div>
-                <div className="text-sm text-gray-300 space-y-1">
-                  <p><span className="font-semibold text-white">Token:</span> {adminToken ? (adminToken.slice(0, 20) + '****') : 'Brak'}</p>
-                  <p><span className="font-semibold text-white">Status:</span> {debugStatus || 'Nie testowano'}</p>
-                  <p><span className="font-semibold text-white">Odpowiedź:</span> {debugMsg || 'Brak danych'}</p>
+          {/* TAB: ALERTS */}
+          {activeTab === 'alerts' && (
+            <div className="glass rounded-xl border border-[var(--border)] p-4">
+              <div className="flex flex-col gap-4">
+                <h3 className="text-[14px] font-semibold text-[var(--fg0)]">System Alerts & Logs</h3>
+                <div className="space-y-2">
+                  {alerts.map((alert, idx) => (
+                    <div key={idx} className="glass-strong border border-[var(--border)] p-3 rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`size-2 rounded-full ${alert.severity === 'high' ? 'bg-[var(--bad)]' : 'bg-[var(--warn)]'}`}></div>
+                        <span className="text-[13px] font-medium">{alert.type}</span>
+                        <span className="text-[12px] text-[var(--muted)]">{alert.message}</span>
+                      </div>
+                      <span className="text-[11px] text-[var(--muted)]">{new Date(alert.created_at).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {alerts.length === 0 && <div className="text-[var(--muted)] italic p-4 text-center">System is stable. No active alerts.</div>}
                 </div>
-                <div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: CONFIG (MENU) */}
+          {activeTab === 'config' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="glass rounded-xl border border-[var(--border)] p-4 max-h-[600px] overflow-auto tiny-scroll">
+                <h3 className="text-[13px] font-semibold mb-4 text-[var(--fg0)]">Restauracje</h3>
+                <div className="space-y-1">
+                  {restaurants.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => loadMenu(r)}
+                      className={`p-3 rounded-lg cursor-pointer border transition-all flex justify-between
+                             ${selectedRestaurant?.id === r.id ? 'bg-[var(--neon)]/20 border-[var(--neon)]' : 'border-transparent hover:bg-white/5'}
+                          `}
+                    >
+                      <span className="font-medium text-[13px]">{r.name}</span>
+                      <span className="text-[11px] text-[var(--muted)]">{r.partner_mode}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass rounded-xl border border-[var(--border)] p-4 max-h-[600px] overflow-auto tiny-scroll flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-[13px] font-semibold text-[var(--fg0)]">
+                    Menu {selectedRestaurant ? `— ${selectedRestaurant.name}` : '(Wybierz restaurację)'}
+                  </h3>
                   <button
-                    className="mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded"
-                    onClick={async () => {
-                      setDebugStatus('Łączenie...');
-                      const start = performance.now();
-                      try {
-                        const res = await fetch(getApiUrl('/api/admin/restaurants'), { headers: { 'x-admin-token': adminToken } });
-                        const data = await res.json();
-                        const end = (performance.now() - start).toFixed(1);
-                        setDebugStatus(`HTTP ${res.status} (${end}ms)`);
-                        setDebugMsg(JSON.stringify(data).slice(0, 250) + '...');
-                      } catch (err) {
-                        setDebugStatus('❌ Błąd połączenia');
-                        setDebugMsg(err.message);
-                      }
-                    }}
-                  >Testuj Połączenie</button>
+                    disabled={!selectedRestaurant}
+                    onClick={() => setShowAddModal(true)}
+                    className="glass px-3 py-1 rounded text-[11px] border border-[var(--border)] hover:bg-[var(--neon)]/20 disabled:opacity-50"
+                  >
+                    + Dodaj
+                  </button>
                 </div>
-              </div>
 
-            </>
-          )}
-
-          {/* Modal Add Item */}
-          {showAddModal && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-              <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md">
-                <div className="text-white font-bold text-lg mb-4">Dodaj pozycję</div>
-                <div className="space-y-3">
-                  <input value={newItem.name} onChange={e => setNewItem({ ...newItem, name: e.target.value })} placeholder="Name" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
-                  <input value={newItem.price} onChange={e => setNewItem({ ...newItem, price: e.target.value })} placeholder="Price" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
-                  <input value={newItem.category} onChange={e => setNewItem({ ...newItem, category: e.target.value })} placeholder="Category" className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white" />
-                  <label className="flex items-center gap-2 text-white/80 text-sm">
-                    <input type="checkbox" checked={newItem.available} onChange={e => setNewItem({ ...newItem, available: e.target.checked })} /> Available
-                  </label>
-                </div>
-                <div className="flex justify-end gap-2 mt-5">
-                  <button onClick={() => setShowAddModal(false)} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white">Anuluj</button>
-                  <button onClick={saveMenuItem} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded">💾 Save</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Ostatnie blokady Amber */}
-          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700 mb-12">
-            <div className="text-xl font-bold text-white mb-4">⚠️ Ostatnie blokady Amber</div>
-            <div className="space-y-2">
-              {fallbackBlocks.length === 0 ? (
-                <div className="text-gray-400 text-sm">Brak blokad w ostatnich zapisach</div>
-              ) : (
-                fallbackBlocks.map((b, i) => (
-                  <div key={i} className="text-sm text-white/90 flex items-center justify-between border-b border-gray-700 py-2">
-                    <div>
-                      <div className="font-semibold">{b.intent} • {(b.confidence ?? 0).toFixed(2)}</div>
-                      <div className="text-gray-400">{(b.replySnippet || '').slice(0, 80)}</div>
-                    </div>
-                    <div className="text-gray-400">{new Date(b.timestamp).toLocaleTimeString()}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Bottom Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Top Dishes */}
-            <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
-              <div className="text-xl font-bold text-white mb-6">Top Dania</div>
-              {topDishes.map((dish, index) => (
-                <div key={index} className="flex justify-between items-center py-4 border-b border-gray-700 last:border-b-0">
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">{dish.name}</div>
-                      <div className="text-xs text-gray-300">{dish.description}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-white">{dish.orders}</div>
-                    <div className="text-xs text-gray-300">zamówień</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Top Restaurants */}
-            <div className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
-              <div className="text-xl font-bold text-white mb-6">Top Restauracje</div>
-              {topRestaurants.map((restaurant, index) => (
-                <div key={index} className="flex justify-between items-center py-4 border-b border-gray-700 last:border-b-0">
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">{restaurant.name}</div>
-                      <div className="text-xs text-gray-300">{restaurant.location}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-white">{restaurant.revenue}</div>
-                    <div className="text-xs text-gray-300">przychód</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Accounts Management Section */}
-          <motion.div
-            className="bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Server Accounts</h2>
-                <p className="text-gray-300">Manage user accounts and roles</p>
-              </div>
-              <button
-                onClick={loadAccounts}
-                disabled={accountsLoading}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
-              >
-                {accountsLoading ? 'Loading...' : '🔄 Refresh'}
-              </button>
-            </div>
-
-            {accountsLoading ? (
-              <div className="space-y-4">
-                {Array(5).fill(0).map((_, index) => (
-                  <div key={index} className="animate-pulse">
-                    <div className="h-16 bg-gray-700 rounded-lg"></div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {accounts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-3xl">👥</span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">No accounts found</h3>
-                    <p className="text-gray-300">No user accounts registered yet</p>
-                  </div>
-                ) : (
-                  accounts.map((account, index) => {
-                    const accountType = getAccountType(account.user_type);
-                    return (
-                      <motion.div
-                        key={account.id}
-                        className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl p-6 border border-gray-600 hover:shadow-lg transition-all duration-200"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
-                              <span className="text-xl">{accountType.icon}</span>
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-white text-lg">
-                                {account.first_name || 'Brak'} {account.last_name || 'nazwiska'}
-                              </h3>
-                              <p className="text-gray-300 text-sm">{account.email}</p>
-                              {account.phone && (
-                                <p className="text-gray-400 text-xs">📞 {account.phone}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${accountType.color}`}>
-                              {accountType.label}
+                {selectedRestaurant ? (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="text-[11px] text-[var(--muted)] uppercase border-b border-[var(--border)]">
+                      <tr>
+                        <th className="py-2">Nazwa</th>
+                        <th className="py-2">Cena</th>
+                        <th className="py-2">Dostępność</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[12px] text-[var(--fg0)]">
+                      {menuItems.map(m => (
+                        <tr key={m.id} className="border-b border-[var(--border)] last:border-0 hover:bg-white/5">
+                          <td className="py-2">{m.name}</td>
+                          <td className="py-2 font-mono">{Number(m.price).toFixed(2)}</td>
+                          <td className="py-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${m.available ? 'bg-[var(--good)]/20 text-[var(--good)]' : 'bg-[var(--bad)]/20 text-[var(--bad)]'}`}>
+                              {m.available ? 'TAK' : 'NIE'}
                             </span>
-                            <div className="text-right">
-                              <div className="text-sm text-gray-300">
-                                Joined: {new Date(account.created_at).toLocaleDateString()}
-                              </div>
-                              {account.business_id && (
-                                <div className="text-xs text-gray-400">
-                                  Business ID: {account.business_id}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-[var(--muted)] text-[12px]">
+                    Wybierz restaurację z listy po lewej
+                  </div>
                 )}
               </div>
-            )}
-          </motion.div>
-        </div>
+            </div>
+          )}
+
+          {/* TAB: EVENTS (FreeFun) */}
+          {activeTab === 'events' && (
+            <div className="glass rounded-xl border border-[var(--border)] p-4 min-h-[600px]">
+              <FreeFunSection />
+            </div>
+          )}
+        </main>
       </div>
+
+      {/* --- Add Item Modal --- */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="glass-strong border border-[var(--border)] p-6 rounded-2xl w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--fg0)] mb-4">Dodaj pozycję menu</h3>
+            <div className="space-y-3">
+              <input
+                placeholder="Nazwa dania"
+                value={newItem.name}
+                onChange={e => setNewItem({ ...newItem, name: e.target.value })}
+                className="w-full bg-[rgba(0,0,0,0.3)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--fg0)] focus:border-[var(--neon)] outline-none"
+              />
+              <div className="flex gap-3">
+                <input
+                  placeholder="Cena (PLN)"
+                  value={newItem.price}
+                  onChange={e => setNewItem({ ...newItem, price: e.target.value })}
+                  className="flex-1 bg-[rgba(0,0,0,0.3)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--fg0)] focus:border-[var(--neon)] outline-none"
+                />
+                <input
+                  placeholder="Kategoria"
+                  value={newItem.category}
+                  onChange={e => setNewItem({ ...newItem, category: e.target.value })}
+                  className="flex-1 bg-[rgba(0,0,0,0.3)] border border-[var(--border)] rounded-lg px-3 py-2 text-[13px] text-[var(--fg0)] focus:border-[var(--neon)] outline-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-[13px] text-[var(--muted)] cursor-pointer">
+                <input type="checkbox" checked={newItem.available} onChange={e => setNewItem({ ...newItem, available: e.target.checked })} />
+                Dostępne w sprzedaży
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg text-[12px] bg-white/5 hover:bg-white/10 text-[var(--fg0)]">Anuluj</button>
+              <button onClick={saveMenuItem} className="px-4 py-2 rounded-lg text-[12px] bg-[var(--neon)] hover:brightness-110 text-white font-medium shadow-[0_0_15px_rgba(91,124,255,0.4)]">Zapisz</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

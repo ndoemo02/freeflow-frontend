@@ -1,148 +1,55 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom'; // Usunięto HashRouter
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  UtensilsCrossed, 
-  User, 
-  Settings, 
-  LogOut, 
-  Bell, 
-  ChevronRight, 
-  Search, 
-  Plus, 
-  MapPin, 
-  Star, 
-  Clock, 
-  CreditCard,
-  History,
-  ShoppingCart,
-  X,
-  ArrowLeft
-} from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../../state/auth'
+import { supabase } from '../../lib/supabase'
+import { AmberLogger } from '../../lib/supabaseClient'
+import { useToast } from '../../components/Toast'
+import PanelHeader from '../../components/PanelHeader'
+import { useCart } from '../../state/CartContext'
+import { getApiUrl } from '../../lib/config'
+import Cart from '../../components/Cart'
 
-// --- MOCKI (Atrapy danych i hooków dla celów podglądu UI) ---
+export default function CustomerPanel() {
+  const { user, setUser } = useAuth()
+  const { push } = useToast()
+  const navigate = useNavigate()
+  const { addToCart, itemCount, setIsOpen } = useCart()
 
-const MOCK_USER = {
-  id: 'user-123',
-  email: 'jan.kowalski@example.com',
-  user_metadata: {
-    first_name: 'Jan',
-    last_name: 'Kowalski',
-    phone: '+48 123 456 789',
-    address: 'ul. Marszałkowska 1',
-    city: 'Warszawa'
-  }
-};
+  const [tab, setTab] = useState('profile')
+  const [profile, setProfile] = useState(null)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [orders, setOrders] = useState([])
+  const [orderFilter, setOrderFilter] = useState('all') // 'all', 'active', 'completed'
+  const [restaurants, setRestaurants] = useState([])
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null)
+  const [menuItems, setMenuItems] = useState([])
+  const [loadingMenu, setLoadingMenu] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [favorites, setFavorites] = useState([])
+  const [recentOrders, setRecentOrders] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0)
 
-const MOCK_ORDERS = [
-  {
-    id: 'ord-8723',
-    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min temu
-    status: 'preparing',
-    total_price: 4550,
-    restaurant_name: 'Pizzeria Napoli',
-    dish_name: 'Pizza Margherita'
-  },
-  {
-    id: 'ord-1209',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // wczoraj
-    status: 'delivered',
-    total_price: 3200,
-    restaurant_name: 'Burger King',
-    dish_name: 'Cheeseburger Set'
-  },
-  {
-    id: 'ord-0032',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 dni temu
-    status: 'completed',
-    total_price: 12500,
-    restaurant_name: 'Sushi Master',
-    dish_name: 'Zestaw Premium'
-  }
-];
-
-const MOCK_RESTAURANTS = [
-  { id: 1, name: 'Pizzeria Napoli', city: 'Warszawa', address: 'ul. Prosta 2', cuisine_type: 'Włoska', description: 'Najlepsza pizza w mieście na cienkim cieście.' },
-  { id: 2, name: 'Burger King', city: 'Warszawa', address: 'Złote Tarasy', cuisine_type: 'Amerykańska', description: 'Soczyste burgery w 100% z wołowiny.' },
-  { id: 3, name: 'Sushi Master', city: 'Kraków', address: 'Rynek Główny 5', cuisine_type: 'Japońska', description: 'Świeże ryby i tradycyjne receptury.' },
-  { id: 4, name: 'Green Way', city: 'Gdańsk', address: 'Długa 12', cuisine_type: 'Wegetariańska', description: 'Zdrowe i pyszne dania bez mięsa.' },
-];
-
-const MOCK_MENU_ITEMS = [
-  { id: 101, name: 'Pizza Margherita', price: 32, description: 'Sos pomidorowy, mozzarella, bazylia' },
-  { id: 102, name: 'Pizza Pepperoni', price: 36, description: 'Sos pomidorowy, mozzarella, pikantne salami' },
-  { id: 103, name: 'Focaccia', price: 18, description: 'Rozmaryn, sól morska, oliwa' },
-  { id: 104, name: 'Tiramisu', price: 22, description: 'Klasyczny włoski deser' },
-];
-
-// Mock Hooks
-function useAuth() {
-  const [user, setUser] = useState(MOCK_USER);
-  return { user, setUser };
-}
-
-function useToast() {
-  return { push: (msg, type) => console.log(`Toast [${type}]: ${msg}`) };
-}
-
-function useCart() {
-  const [cart, setCart] = useState([]);
-  const addToCart = (item, restaurant) => {
-    console.log('Added to cart:', item.name);
-    setCart(prev => [...prev, { ...item, qty: 1 }]);
-  };
-  return { 
-    cart, 
-    addToCart,
-    itemCount: cart.length,
-    total: cart.reduce((acc, item) => acc + item.price, 0)
-  };
-}
-
-const AmberLogger = {
-  error: (e) => console.error(e),
-  log: (msg) => console.log(msg)
-};
-
-// --- CUSTOM HOOK: LOGIKA BIZNESOWA ---
-
-function useCustomerDashboard() {
-  const { user, setUser } = useAuth();
-  const { push } = useToast();
-  const navigate = useNavigate();
-  const { addToCart } = useCart();
-
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [loading, setLoading] = useState(true);
-  
-  // Data State
-  const [profile, setProfile] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [restaurants, setRestaurants] = useState([]);
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-  const [menuItems, setMenuItems] = useState([]);
-  const [loadingMenu, setLoadingMenu] = useState(false);
-  
-  // Computed State
-  const loyaltyPoints = useMemo(() => {
-    const completedOrders = orders.filter(o => ['completed', 'delivered'].includes(o.status));
-    const totalSpent = completedOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0) / 100, 0);
-    return Math.floor(totalSpent / 10);
-  }, [orders]);
-
-  const activeOrders = useMemo(() => 
-    orders.filter(o => ['pending', 'confirmed', 'preparing', 'delivering'].includes(o.status)),
-  [orders]);
-
-  // Initial Data Fetch (Simulated)
+  // Redirect if not logged in
   useEffect(() => {
-    const simulateFetch = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800)); // Fake delay
+    // Poczekaj aż stan auth będzie znany; jeśli brak usera → wróć do Home bez intro
+    if (user === undefined) return;
+    if (!user?.id) {
+      try { sessionStorage.setItem('skipIntro', 'true'); } catch {}
+      navigate('/');
+    }
+  }, [user, navigate]);
 
-      // 1. Profile
+  // Load profile and orders
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadData = async () => {
+      setLoading(true);
+
+      // Load profile from auth metadata
       const profileData = {
         first_name: user.user_metadata?.first_name || '',
         last_name: user.user_metadata?.last_name || '',
@@ -153,669 +60,1466 @@ function useCustomerDashboard() {
         role: 'customer'
       };
       setProfile(profileData);
+      AmberLogger.log("Profile loaded:", profileData);
 
-      // 2. Orders
-      setOrders(MOCK_ORDERS);
+      // Load orders via backend API (bypasses RLS)
+      let ordersData = [];
+      try {
+        console.log('🔍 CustomerPanel: Loading orders for user_id:', user.id);
+        const response = await fetch(getApiUrl(`/api/orders?user_id=${user.id}`));
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        ordersData = data.orders || [];
+        console.log('📦 CustomerPanel: Orders loaded via API:', ordersData.length, 'orders');
+        AmberLogger.log("Orders loaded via API:", ordersData);
+        setOrders(ordersData);
+      } catch (error) {
+        AmberLogger.error('Failed to load orders:', error);
+        setOrders([]);
+      }
 
-      // 3. Restaurants
-      setRestaurants(MOCK_RESTAURANTS);
+      // Load restaurants
+      const { data: restaurantsData, error: restaurantsError } = await supabase
+          .from('restaurants')
+          .select('id,name,city,address,cuisine_type')
+        .order('name');
+
+      if (restaurantsError) AmberLogger.error(restaurantsError);
+      else AmberLogger.log("Restaurants loaded:", restaurantsData);
+      setRestaurants(restaurantsData || []);
+
+      // Calculate loyalty points (example: 1 point per 10 zł spent)
+      const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered') || [];
+      const totalSpent = completedOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0) / 100, 0);
+      setLoyaltyPoints(Math.floor(totalSpent / 10));
+
+      // Set recent orders (last 3)
+      setRecentOrders(ordersData?.slice(0, 3) || []);
 
       setLoading(false);
     };
 
-    simulateFetch();
-  }, [user]);
+    loadData();
 
-  const fetchMenu = async (restaurantId) => {
-    setLoadingMenu(true);
-    // Simulate API call
-    setTimeout(() => {
-      setMenuItems(MOCK_MENU_ITEMS);
+    // Realtime order updates
+    const channel = supabase
+      .channel(`orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          AmberLogger.log("Realtime order update:", payload);
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [user?.id]);
+
+  // Handle Escape key to close panel
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        navigate('/')
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [navigate])
+
+  const loadMenu = async (restaurantId) => {
+    try {
+      setLoadingMenu(true);
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('id,name,price,description')
+        .eq('restaurant_id', restaurantId)
+        .order('name');
+
+      if (error) throw error;
+      
+      setMenuItems(data || []);
+      AmberLogger.log("Menu loaded:", data);
+    } catch (e) {
+      push('Błąd podczas ładowania menu', 'error');
+      AmberLogger.error(e);
+      setMenuItems([]);
+    } finally {
       setLoadingMenu(false);
-    }, 600);
-  };
+    }
+  }
 
-  const handleSelectRestaurant = (restaurant) => {
+  const selectRestaurant = (restaurant) => {
     setSelectedRestaurant(restaurant);
-    fetchMenu(restaurant.id);
-  };
+    loadMenu(restaurant.id);
+  }
 
-  const handleBackToRestaurants = () => {
-    setSelectedRestaurant(null);
-    setMenuItems([]);
-  };
+  const saveProfile = async () => {
+    if (!profile) return;
+    
+    try {
+      setSavingProfile(true);
+      
+      // Update user metadata in Supabase Auth
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          phone: profile.phone,
+          address: profile.address,
+          city: profile.city
+        }
+      });
 
-  const handleUpdateProfile = async (newData) => {
-    // Simulate API update
-    setProfile(prev => ({ ...prev, ...newData }));
-    push('Profil zaktualizowany', 'success');
-    return true;
-  };
+      if (error) throw error;
+      
+      // Update local user state with new metadata
+      if (data?.user) {
+        setUser(data.user);
+      }
+      
+      push('Profil został zaktualizowany', 'success');
+      setEditingProfile(false);
+      AmberLogger.log("Profile saved:", profile);
+    } catch (e) {
+      push('Błąd podczas zapisywania profilu', 'error');
+      AmberLogger.error(e);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
 
-  const handleLogout = () => {
-    sessionStorage.setItem('skipIntro', 'true');
-    navigate('/');
-  };
+  const cancelOrder = async (orderId) => {
+    try {
+      // Use backend API to cancel order
+      const response = await fetch(getApiUrl(`/api/orders/${orderId}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'cancelled' })
+      });
 
-  return {
-    user,
-    profile,
-    orders,
-    activeOrders,
-    restaurants,
-    selectedRestaurant,
-    menuItems,
-    loading,
-    loadingMenu,
-    loyaltyPoints,
-    activeTab,
-    setActiveTab,
-    handleSelectRestaurant,
-    handleBackToRestaurants,
-    handleUpdateProfile,
-    handleLogout,
-    addToCart
-  };
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      push('Zamówienie zostało anulowane', 'success')
+      AmberLogger.log("Order cancelled:", { id: orderId });
+      
+      // Refresh orders via backend API
+      const ordersResponse = await fetch(getApiUrl(`/api/orders?user_id=${user.id}`));
+      if (ordersResponse.ok) {
+        const data = await ordersResponse.json();
+        setOrders(data.orders || []);
+      }
+    } catch (e) {
+      push('Błąd podczas anulowania zamówienia', 'error')
+      AmberLogger.error(e);
+    }
+  }
+
+  return (
+    <motion.div 
+      className="min-h-screen bg-black px-4 py-8 relative overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Animated Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black">
+        <div className="absolute inset-0">
+          <div className="grid grid-cols-12 gap-4 h-full">
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="relative"
+                animate={{
+                  opacity: [0.1, 0.8, 0.1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.15,
+                  ease: "easeInOut"
+                }}
+              >
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-b from-cyan-500/20 via-transparent to-purple-500/20"
+                  animate={{
+                    opacity: [0, 1, 0],
+                    scaleY: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                    ease: "easeInOut"
+                  }}
+                />
+                <motion.div
+                  className="absolute right-0 top-0 w-px h-full bg-gradient-to-b from-cyan-500 via-purple-500 to-pink-500"
+                  animate={{
+                    opacity: [0.2, 1, 0.2],
+                    boxShadow: [
+                      "0 0 5px rgba(0, 255, 255, 0.3)",
+                      "0 0 20px rgba(0, 255, 255, 0.8)",
+                      "0 0 5px rgba(0, 255, 255, 0.3)"
+                    ]
+                  }}
+                  transition={{
+                    duration: 2.5,
+                    repeat: Infinity,
+                    delay: i * 0.18,
+                    ease: "easeInOut"
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl relative z-10">
+        {/* Navigation Buttons */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex justify-between">
+          <motion.button
+            onClick={() => {
+              console.log('👤 CustomerPanel - ustawiam skipIntro flag');
+              sessionStorage.setItem('skipIntro', 'true');
+              navigate('/');
+            }}
+            className="rounded-xl border border-white/20 bg-black/40 px-4 py-2 text-slate-300 hover:bg-white/10 transition-all backdrop-blur-xl"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 0 20px rgba(0, 255, 255, 0.3)"
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            ← Strona główna
+          </motion.button>
+          
+          
+          <motion.button
+            onClick={() => {
+              console.log('👤 CustomerPanel - ustawiam skipIntro flag');
+              sessionStorage.setItem('skipIntro', 'true');
+              navigate('/');
+            }}
+            className="rounded-xl border border-white/20 bg-black/40 px-4 py-2 text-slate-300 hover:bg-white/10 transition-all backdrop-blur-xl"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 }}
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 0 20px rgba(0, 255, 255, 0.3)"
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            ✕ Zamknij panel
+          </motion.button>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-center mb-8"
+        >
+          <motion.h1
+            className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          >
+            Panel Klienta
+          </motion.h1>
+          
+          <motion.p
+            className="text-lg text-gray-300 mb-2"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            Zarządzaj swoim kontem, zamówieniami i ustawieniami
+          </motion.p>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <StatsCards orders={orders} />
+        </motion.div>
+
+        <motion.div
+          className="mb-6 flex gap-2 overflow-x-auto pb-2"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <TabButton current={tab} setTab={setTab} id="profile" icon="🙋">Profil</TabButton>
+          <TabButton current={tab} setTab={setTab} id="orders" icon="📋">Zamówienia</TabButton>
+          <TabButton current={tab} setTab={setTab} id="restaurants" icon="🍕">Restauracje</TabButton>
+          <TabButton current={tab} setTab={setTab} id="reservations" icon="🪑">Rezerwacje</TabButton>
+          <TabButton current={tab} setTab={setTab} id="cart" icon="🛒">Koszyk {itemCount > 0 && `(${itemCount})`}</TabButton>
+          <TabButton current={tab} setTab={setTab} id="settings" icon="⚙️">Ustawienia</TabButton>
+        </motion.div>
+
+        <motion.div 
+          className="rounded-2xl border border-cyan-500/20 bg-black/40 backdrop-blur-xl p-6 shadow-2xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 255, 255, 0.05))',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {tab === 'profile' && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ProfileTab
+                  profile={profile}
+                  user={user}
+                  editing={editingProfile}
+                  setEditing={setEditingProfile}
+                  saving={savingProfile}
+                  saveProfile={saveProfile}
+                  setProfile={setProfile}
+                />
+              </motion.div>
+            )}
+            {tab === 'orders' && (
+              <motion.div
+                key="orders"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <OrdersTab
+                  orders={orders}
+                  loading={loading}
+                  cancelOrder={cancelOrder}
+                  filter={orderFilter}
+                  setFilter={setOrderFilter}
+                />
+              </motion.div>
+            )}
+            {tab === 'restaurants' && (
+              <motion.div
+                key="restaurants"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <RestaurantsTab
+                  restaurants={restaurants}
+                  selectedRestaurant={selectedRestaurant}
+                  menuItems={menuItems}
+                  loadingMenu={loadingMenu}
+                  onSelectRestaurant={selectRestaurant}
+                  onBack={() => setSelectedRestaurant(null)}
+                  addToCart={addToCart}
+                />
+              </motion.div>
+            )}
+            {tab === 'reservations' && (
+              <motion.div
+                key="reservations"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ReservationsTab userId={user?.id} />
+              </motion.div>
+            )}
+            {tab === 'cart' && (
+              <motion.div
+                key="cart"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CartTab />
+              </motion.div>
+            )}
+            {tab === 'settings' && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <SettingsTab
+                  profile={profile}
+                  loyaltyPoints={loyaltyPoints}
+                  notifications={notifications}
+                  setNotifications={setNotifications}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+      
+      {/* Cart Popup */}
+      <Cart />
+    </motion.div>
+  )
 }
 
-// --- GŁÓWNY KOMPONENT ---
+function TabButton({ current, setTab, id, icon, children }) {
+  const active = current === id
+  return (
+    <motion.button 
+      onClick={() => setTab(id)} 
+      className={[
+        'flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all whitespace-nowrap backdrop-blur-xl',
+        active ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-white shadow-lg border border-cyan-500/30' : 'bg-black/40 border border-white/10 text-slate-300 hover:bg-white/10 hover:border-cyan-500/20'
+      ].join(' ')}
+      whileHover={{ 
+        scale: 1.05,
+        y: -2,
+        boxShadow: active ? "0 0 25px rgba(0, 255, 255, 0.4)" : "0 0 15px rgba(0, 255, 255, 0.2)",
+        transition: { type: "spring", stiffness: 300 }
+      }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <span>{icon}</span>
+        {children}
+    </motion.button>
+  )
+}
 
-// Bezpośredni eksport komponentu (używa Routera z nadrzędnej aplikacji)
-export default function CustomerPanel() {
-  const dashboard = useCustomerDashboard();
+function ProfileTab({ profile, user, editing, setEditing, saving, saveProfile, setProfile }) {
+  if (!profile) return <div className="text-slate-300">Ładowanie profilu…</div>;
 
-  // Loading Screen
-  if (dashboard.loading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-zinc-800 border-t-white rounded-full animate-spin" />
-          <p className="text-zinc-500 text-sm font-medium">Ładowanie panelu...</p>
+  return (
+    <div className="space-y-6">
+      {/* Header with Avatar */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <motion.div
+            className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            {profile.first_name?.[0]?.toUpperCase() || profile.email?.[0]?.toUpperCase() || '?'}
+          </motion.div>
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              {profile.first_name && profile.last_name
+                ? `${profile.first_name} ${profile.last_name}`
+                : 'Profil użytkownika'}
+            </h2>
+            <p className="text-sm text-slate-400">{profile.email}</p>
+          </div>
         </div>
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <motion.button
+                onClick={() => setEditing(false)}
+                className="rounded-xl border border-white/20 bg-glass px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-white/10"
+                disabled={saving}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Anuluj
+              </motion.button>
+              <motion.button
+                onClick={saveProfile}
+                disabled={saving}
+                className="rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg disabled:opacity-50"
+                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(6, 182, 212, 0.5)" }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {saving ? 'Zapisywanie...' : '💾 Zapisz'}
+              </motion.button>
+            </>
+          ) : (
+            <motion.button
+              onClick={() => setEditing(true)}
+              className="rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 px-4 py-2 text-sm font-medium text-white transition-all hover:shadow-lg"
+              whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(6, 182, 212, 0.5)" }}
+              whileTap={{ scale: 0.95 }}
+            >
+              ✏️ Edytuj profil
+            </motion.button>
+          )}
+        </div>
+      </div>
+
+      {/* Profile Fields */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <EditableField
+          label="Imię"
+          value={profile.first_name || ""}
+          editing={editing}
+          onChange={(value) => setProfile(prev => ({ ...prev, first_name: value }))}
+          icon="👤"
+        />
+        <EditableField
+          label="Nazwisko"
+          value={profile.last_name || ""}
+          editing={editing}
+          onChange={(value) => setProfile(prev => ({ ...prev, last_name: value }))}
+          icon="👤"
+        />
+        <Field label="Email" value={profile.email || "Nie podano"} icon="📧" full readOnly />
+        <EditableField
+          label="Telefon"
+          value={profile.phone || ""}
+          editing={editing}
+          onChange={(value) => setProfile(prev => ({ ...prev, phone: value }))}
+          placeholder="+48 123 456 789"
+          icon="📱"
+        />
+        <EditableField
+          label="Adres"
+          value={profile.address || ""}
+          editing={editing}
+          onChange={(value) => setProfile(prev => ({ ...prev, address: value }))}
+          placeholder="ul. Przykładowa 123/45"
+          icon="🏠"
+          full
+        />
+        <EditableField
+          label="Miasto"
+          value={profile.city || ""}
+          editing={editing}
+          onChange={(value) => setProfile(prev => ({ ...prev, city: value }))}
+          placeholder="Warszawa"
+          icon="🌆"
+        />
+        <Field label="Rola" value={profile.role || "customer"} icon="🎭" />
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, value, full, readOnly, icon }) {
+  return (
+    <div className={full ? "md:col-span-2" : ""}>
+      <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {label}
+      </label>
+      <div className={`rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 ${readOnly ? 'opacity-60' : ''}`}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+function EditableField({ label, value, editing, onChange, placeholder, full, icon }) {
+  return (
+    <div className={full ? "md:col-span-2" : ""}>
+      <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+        {icon && <span>{icon}</span>}
+        {label}
+      </label>
+      {editing ? (
+        <motion.input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-cyan-500/30 bg-black/40 px-4 py-3 text-slate-100 placeholder-slate-400 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 backdrop-blur-xl"
+          initial={{ scale: 0.98 }}
+          animate={{ scale: 1 }}
+          whileFocus={{ scale: 1.01 }}
+        />
+      ) : (
+        <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100">
+          {value || <span className="text-slate-500">{placeholder || "Nie podano"}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OrdersTab({ orders, loading, cancelOrder, filter, setFilter }) {
+  // Filtruj zamówienia na podstawie wybranego filtra
+  const filteredOrders = orders.filter(order => {
+    if (filter === 'all') return true;
+    if (filter === 'active') {
+      return ['pending', 'confirmed', 'preparing'].includes(order.status);
+    }
+    if (filter === 'completed') {
+      return ['completed', 'delivered', 'cancelled'].includes(order.status);
+    }
+    return true;
+  });
+
+  if (loading) return <div className="text-center text-slate-400 py-8">Ładowanie zamówień...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Historia zamówień</h2>
+
+        {/* Filtry */}
+        <div className="flex gap-2">
+          <FilterButton
+            active={filter === 'all'}
+            onClick={() => setFilter('all')}
+            icon="📦"
+          >
+            Wszystkie ({orders.length})
+          </FilterButton>
+          <FilterButton
+            active={filter === 'active'}
+            onClick={() => setFilter('active')}
+            icon="⏳"
+          >
+            W trakcie ({orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length})
+          </FilterButton>
+          <FilterButton
+            active={filter === 'completed'}
+            onClick={() => setFilter('completed')}
+            icon="✅"
+          >
+            Zakończone ({orders.filter(o => ['completed', 'delivered', 'cancelled'].includes(o.status)).length})
+          </FilterButton>
+        </div>
+      </div>
+
+      {filteredOrders.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">📦</div>
+          <p>
+            {filter === 'all' && 'Nie masz jeszcze żadnych zamówień'}
+            {filter === 'active' && 'Brak aktywnych zamówień'}
+            {filter === 'completed' && 'Brak zakończonych zamówień'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredOrders.map(order => (
+            <motion.div
+              key={order.id}
+              className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.02 }}
+              layout
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    Zamówienie #{order.id.slice(-8)}
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    {new Date(order.created_at).toLocaleDateString('pl-PL', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                  {order.restaurant_name && (
+                    <p className="text-sm text-cyan-400 mt-1">
+                      🏪 {order.restaurant_name}
+                    </p>
+                  )}
+                  {order.dish_name && (
+                    <p className="text-sm text-slate-300 mt-1">
+                      🍽️ {order.dish_name}
+                    </p>
+                  )}
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusClass(order.status)}`}>
+                  {getStatusText(order.status)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-slate-300">
+                  Kwota: {(Number(order.total_price || 0) / 100).toFixed(2)} zł
+                </div>
+                {(order.status === 'pending' || order.status === 'confirmed') && (
+                  <button
+                    onClick={() => {
+                      if (confirm('Czy na pewno chcesz anulować to zamówienie?')) {
+                        cancelOrder(order.id)
+                      }
+                    }}
+                    className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                  >
+                    Anuluj
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterButton({ active, onClick, icon, children }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      className={`
+        px-4 py-2 rounded-xl text-sm font-medium transition-all
+        ${active
+          ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 text-white border-2 border-cyan-500/50 shadow-lg'
+          : 'bg-black/30 text-slate-300 border border-white/10 hover:bg-black/50 hover:border-white/20'
+        }
+      `}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      <span className="mr-1">{icon}</span>
+      {children}
+    </motion.button>
+  )
+}
+
+function RestaurantsTab({ restaurants, selectedRestaurant, menuItems, loadingMenu, onSelectRestaurant, onBack, addToCart }) {
+  if (selectedRestaurant) {
+    return (
+      <div className="space-y-6">
+        {/* Restaurant Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <motion.button
+              onClick={onBack}
+              className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-slate-300 hover:bg-white/10 transition-colors"
+              whileHover={{ scale: 1.05, x: -5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              ← Wróć
+            </motion.button>
+            <div>
+              <h2 className="text-2xl font-bold text-white">{selectedRestaurant.name}</h2>
+              <p className="text-sm text-slate-400">📍 {selectedRestaurant.city}</p>
+            </div>
+          </div>
+        </div>
+
+        {loadingMenu ? (
+          <div className="text-center text-slate-400 py-12">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="inline-block text-4xl mb-4"
+            >
+              ⏳
+            </motion.div>
+            <p>Ładowanie menu...</p>
+          </div>
+        ) : menuItems.length === 0 ? (
+          <div className="text-center text-slate-400 py-12">
+            <div className="text-4xl mb-4">🍽️</div>
+            <p>Brak pozycji w menu</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {menuItems.map((item, index) => (
+              <motion.div
+                key={item.id}
+                className="rounded-xl border border-cyan-500/20 bg-black/40 p-5 backdrop-blur-xl group relative overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{
+                  scale: 1.03,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0, 255, 255, 0.3)",
+                  borderColor: "rgba(0, 255, 255, 0.5)"
+                }}
+              >
+                {/* Glow effect on hover */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+
+                <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-3">
+                    <h4 className="font-semibold text-white text-lg group-hover:text-cyan-300 transition-colors">
+                      {item.name}
+                    </h4>
+                    <span className="text-cyan-400 font-bold text-lg whitespace-nowrap ml-2">
+                      {Number(item.price).toFixed(2)} zł
+                    </span>
+                  </div>
+                  {item.description && (
+                    <p className="text-sm text-slate-400 mb-3 line-clamp-2">{item.description}</p>
+                  )}
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(item, selectedRestaurant);
+                    }}
+                    className="w-full mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gradient-to-r hover:from-cyan-500/30 hover:to-purple-500/30"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    🛒 Dodaj do koszyka
+                  </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Dostępne restauracje</h2>
+        <p className="text-slate-400">Wybierz restaurację, aby zobaczyć menu i złożyć zamówienie</p>
+      </div>
+
+      {restaurants.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">🏪</div>
+          <p>Brak dostępnych restauracji</p>
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {restaurants.map((restaurant, index) => (
+            <motion.div
+              key={restaurant.id}
+              className="rounded-xl border border-cyan-500/20 bg-black/40 p-6 backdrop-blur-xl cursor-pointer group relative overflow-hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08 }}
+              whileHover={{
+                scale: 1.05,
+                y: -8,
+                boxShadow: "0 25px 50px rgba(0, 255, 255, 0.3)",
+                borderColor: "rgba(0, 255, 255, 0.5)"
+              }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSelectRestaurant(restaurant)}
+            >
+              {/* Animated background gradient */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-3xl">🏪</div>
+                  <motion.div
+                    className="text-cyan-400 opacity-0 group-hover:opacity-100"
+                    initial={{ x: -10 }}
+                    whileHover={{ x: 0 }}
+                  >
+                    →
+                  </motion.div>
+                </div>
+                <h3 className="font-bold text-white text-xl mb-2 group-hover:text-cyan-300 transition-colors">
+                  {restaurant.name}
+                </h3>
+                <p className="text-sm text-slate-400 mb-3">📍 {restaurant.city}</p>
+                {restaurant.cuisine_type && (
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{restaurant.cuisine_type}</p>
+                )}
+                <div className="flex items-center gap-2 text-xs text-cyan-400 font-medium">
+                  <span>Zobacz menu</span>
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    →
+                  </motion.span>
+                </div>
+              </div>
+
+              {/* Bottom accent line */}
+              <motion.div
+                className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReservationsTab({ userId }) {
+  const [reservations, setReservations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { push } = useToast()
+
+  useEffect(() => {
+    if (!userId) return
+
+    const loadReservations = async () => {
+      try {
+        setLoading(true)
+        // Assuming we have a reservations table
+        const { data, error } = await supabase
+          .from('table_reservations')
+          .select('*, restaurants(name)')
+          .eq('user_id', userId)
+          .order('reservation_date', { ascending: false })
+
+        if (error) throw error
+        setReservations(data || [])
+      } catch (e) {
+        AmberLogger.error('Error loading reservations:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadReservations()
+  }, [userId])
+
+  const cancelReservation = async (reservationId) => {
+    try {
+      const { error } = await supabase
+        .from('table_reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', reservationId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      push('Rezerwacja została anulowana', 'success')
+
+      // Refresh
+      const { data } = await supabase
+        .from('table_reservations')
+        .select('*, restaurants(name)')
+        .eq('user_id', userId)
+        .order('reservation_date', { ascending: false })
+
+      setReservations(data || [])
+    } catch (e) {
+      push('Błąd podczas anulowania rezerwacji', 'error')
+      AmberLogger.error(e)
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center text-slate-400 py-8">Ładowanie rezerwacji...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Moje Rezerwacje</h2>
+        <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium hover:shadow-lg transition-all">
+          + Nowa rezerwacja
+        </button>
+      </div>
+
+      {reservations.length === 0 ? (
+        <div className="text-center text-slate-400 py-12">
+          <div className="text-4xl mb-4">🪑</div>
+          <p>Nie masz jeszcze żadnych rezerwacji</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reservations.map((reservation, index) => (
+            <motion.div
+              key={reservation.id}
+              className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-colors"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    {reservation.restaurants?.name || 'Restauracja'}
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    {new Date(reservation.reservation_date).toLocaleDateString('pl-PL', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                  <p className="text-sm text-cyan-400 mt-1">
+                    👥 {reservation.party_size} osób • 🪑 Stolik #{reservation.table_number || 'TBD'}
+                  </p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getReservationStatusClass(reservation.status)}`}>
+                  {getReservationStatusText(reservation.status)}
+                </span>
+              </div>
+
+              {reservation.status === 'confirmed' && (
+                <button
+                  onClick={() => {
+                    if (confirm('Czy na pewno chcesz anulować tę rezerwację?')) {
+                      cancelReservation(reservation.id)
+                    }
+                  }}
+                  className="px-3 py-1 rounded-md bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                >
+                  Anuluj rezerwację
+                </button>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsTab({ profile, loyaltyPoints, notifications, setNotifications }) {
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [pushNotifications, setPushNotifications] = useState(true)
+  const [smsNotifications, setSmsNotifications] = useState(false)
+  const [orderUpdates, setOrderUpdates] = useState(true)
+  const [promotions, setPromotions] = useState(true)
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-4">Ustawienia</h2>
+        <p className="text-slate-400">Zarządzaj swoimi preferencjami i powiadomieniami</p>
+      </div>
+
+      {/* Loyalty Program */}
+      <div className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">Program Lojalnościowy</h3>
+            <p className="text-sm text-slate-300">Zbieraj punkty za każde zamówienie</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-purple-400">{loyaltyPoints}</div>
+            <div className="text-xs text-slate-400">punktów</div>
+          </div>
+        </div>
+        <div className="w-full bg-black/30 rounded-full h-2 mb-2">
+          <div
+            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${Math.min((loyaltyPoints % 100), 100)}%` }}
+          />
+        </div>
+        <p className="text-xs text-slate-400">
+          {100 - (loyaltyPoints % 100)} punktów do następnej nagrody
+        </p>
+      </div>
+
+      {/* Notifications Settings */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-white">Powiadomienia</h3>
+
+        <SettingToggle
+          label="Powiadomienia Email"
+          description="Otrzymuj aktualizacje na email"
+          checked={emailNotifications}
+          onChange={setEmailNotifications}
+          icon="📧"
+        />
+
+        <SettingToggle
+          label="Powiadomienia Push"
+          description="Powiadomienia w przeglądarce"
+          checked={pushNotifications}
+          onChange={setPushNotifications}
+          icon="🔔"
+        />
+
+        <SettingToggle
+          label="Powiadomienia SMS"
+          description="Otrzymuj SMS o statusie zamówienia"
+          checked={smsNotifications}
+          onChange={setSmsNotifications}
+          icon="📱"
+        />
+
+        <SettingToggle
+          label="Aktualizacje zamówień"
+          description="Powiadomienia o statusie zamówień"
+          checked={orderUpdates}
+          onChange={setOrderUpdates}
+          icon="📦"
+        />
+
+        <SettingToggle
+          label="Promocje i oferty"
+          description="Otrzymuj informacje o promocjach"
+          checked={promotions}
+          onChange={setPromotions}
+          icon="🎁"
+        />
+      </div>
+
+      {/* Account Actions */}
+      <div className="space-y-3 pt-4 border-t border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4">Konto</h3>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Zmień hasło</div>
+              <div className="text-xs text-slate-400">Zaktualizuj swoje hasło</div>
+            </div>
+            <span>🔒</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Historia płatności</div>
+              <div className="text-xs text-slate-400">Zobacz wszystkie transakcje</div>
+            </div>
+            <span>💳</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Pobierz dane</div>
+              <div className="text-xs text-slate-400">Eksportuj swoje dane</div>
+            </div>
+            <span>📥</span>
+          </div>
+        </button>
+
+        <button className="w-full px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Usuń konto</div>
+              <div className="text-xs text-red-400/70">Trwale usuń swoje konto</div>
+            </div>
+            <span>⚠️</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SettingToggle({ label, description, checked, onChange, icon }) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{icon}</span>
+        <div>
+          <div className="font-medium text-white">{label}</div>
+          <div className="text-xs text-slate-400">{description}</div>
+        </div>
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`relative w-12 h-6 rounded-full transition-colors ${
+          checked ? 'bg-gradient-to-r from-cyan-500 to-purple-500' : 'bg-gray-600'
+        }`}
+      >
+        <div
+          className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+            checked ? 'transform translate-x-6' : ''
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
+function getStatusClass(status) {
+  switch(status) {
+    case 'delivered': return 'bg-green-600/20 text-green-500 border-green-600/30'
+    case 'completed': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    case 'preparing': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    case 'pending': return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+    case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/30'
+    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  }
+}
+
+function getStatusText(status) {
+  switch(status) {
+    case 'delivered': return 'Dostarczone'
+    case 'completed': return 'Gotowe do odbioru'
+    case 'preparing': return 'W przygotowaniu'
+    case 'pending': return 'Oczekiwanie'
+    case 'cancelled': return 'Anulowane'
+    default: return 'Nieznany'
+  }
+}
+
+function getReservationStatusClass(status) {
+  switch(status) {
+    case 'confirmed': return 'bg-green-600/20 text-green-500 border-green-600/30'
+    case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    case 'cancelled': return 'bg-red-500/20 text-red-400 border-red-500/30'
+    case 'completed': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  }
+}
+
+function getReservationStatusText(status) {
+  switch(status) {
+    case 'confirmed': return 'Potwierdzona'
+    case 'pending': return 'Oczekuje'
+    case 'cancelled': return 'Anulowana'
+    case 'completed': return 'Zakończona'
+    default: return 'Nieznany'
+  }
+}
+
+function StatsCards({ orders }) {
+  const totalOrders = orders.filter(o => o.status !== 'cancelled').length
+  const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
+  const totalSpent = orders
+    .filter(o => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + (Number(o.total_price) || 0) / 100, 0)
+  const pendingOrders = orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status)).length
+
+  const stats = [
+    {
+      title: "Wszystkich zamówień",
+      value: totalOrders,
+      icon: "📦",
+      gradient: "from-orange-500/25 to-orange-500/10",
+      borderColor: "border-orange-500/30",
+      glowColor: "rgba(249, 115, 22, 0.3)"
+    },
+    {
+      title: "Ukończonych",
+      value: completedOrders,
+      icon: "✅",
+      gradient: "from-emerald-500/25 to-emerald-500/10",
+      borderColor: "border-emerald-500/30",
+      glowColor: "rgba(16, 185, 129, 0.3)"
+    },
+    {
+      title: "Łączna kwota",
+      value: `${totalSpent.toFixed(2)} zł`,
+      icon: "💰",
+      gradient: "from-purple-500/25 to-purple-500/10",
+      borderColor: "border-purple-500/30",
+      glowColor: "rgba(168, 85, 247, 0.3)"
+    },
+    {
+      title: "W trakcie",
+      value: pendingOrders,
+      icon: "⏳",
+      gradient: "from-cyan-500/25 to-cyan-500/10",
+      borderColor: "border-cyan-500/30",
+      glowColor: "rgba(6, 182, 212, 0.3)"
+    }
+  ]
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map((stat, index) => (
+        <StatCard
+          key={stat.title}
+          title={stat.title}
+          value={stat.value}
+          icon={stat.icon}
+          gradient={stat.gradient}
+          borderColor={stat.borderColor}
+          glowColor={stat.glowColor}
+          index={index}
+        />
+      ))}
+    </div>
+  )
+}
+
+function StatCard({ title, value, icon, gradient, borderColor, glowColor, index }) {
+  return (
+    <motion.div
+      className={`rounded-2xl border ${borderColor} bg-black/40 backdrop-blur-xl p-6 transition-all shadow-2xl relative overflow-hidden group cursor-pointer`}
+      whileHover={{
+        scale: 1.05,
+        y: -5,
+        boxShadow: `0 20px 40px ${glowColor}`,
+        transition: { type: "spring", stiffness: 300 }
+      }}
+      whileTap={{ scale: 0.95 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        type: "spring",
+        stiffness: 200,
+        delay: index * 0.1
+      }}
+      style={{
+        background: `linear-gradient(135deg, ${gradient.includes('orange') ? 'rgba(249, 115, 22, 0.1)' : gradient.includes('emerald') ? 'rgba(16, 185, 129, 0.1)' : gradient.includes('purple') ? 'rgba(168, 85, 247, 0.1)' : 'rgba(6, 182, 212, 0.1)'}, rgba(0, 0, 0, 0.3))`,
+        borderColor: borderColor.includes('orange') ? 'rgba(249, 115, 22, 0.3)' : borderColor.includes('emerald') ? 'rgba(16, 185, 129, 0.3)' : borderColor.includes('purple') ? 'rgba(168, 85, 247, 0.3)' : 'rgba(6, 182, 212, 0.3)'
+      }}
+    >
+      {/* Animated gradient overlay */}
+      <motion.div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(circle at 50% 50%, ${glowColor}, transparent 70%)`
+        }}
+      />
+
+      <div className="flex items-center justify-between relative z-10">
+        <div>
+          <motion.p
+            className="text-sm font-medium text-slate-300 mb-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 + index * 0.1 }}
+          >
+            {title}
+          </motion.p>
+          <motion.p
+            className="text-3xl font-bold text-white"
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{
+              delay: 0.3 + index * 0.1,
+              type: "spring",
+              stiffness: 200
+            }}
+          >
+            {value}
+          </motion.p>
+        </div>
+        <motion.div
+          className="text-3xl opacity-80"
+          animate={{
+            rotate: [0, 10, -10, 0],
+            scale: [1, 1.15, 1]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatType: "reverse",
+            delay: index * 0.2
+          }}
+        >
+          {icon}
+        </motion.div>
+      </div>
+
+      {/* Bottom accent line */}
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 h-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${glowColor}, transparent)`
+        }}
+      />
+    </motion.div>
+  )
+}
+
+function CartTab() {
+  const { cart, restaurant, total, removeFromCart, updateQuantity, clearCart, submitOrder, isSubmitting } = useCart();
+  const { push } = useToast();
+
+  if (cart.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🛒</div>
+        <h3 className="text-xl font-semibold text-white mb-2">Koszyk jest pusty</h3>
+        <p className="text-slate-400">Dodaj produkty z zakładki "Restauracje"</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-zinc-800">
-      <div className="flex h-screen overflow-hidden">
-        
-        {/* Sidebar Navigation (Desktop) */}
-        <Sidebar 
-          activeTab={dashboard.activeTab} 
-          setActiveTab={dashboard.setActiveTab} 
-          onLogout={dashboard.handleLogout}
-          user={dashboard.profile}
-        />
-
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto relative">
-          {/* Header Mobile Only */}
-          <div className="md:hidden flex items-center justify-between p-4 border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-30">
-            <h1 className="font-bold text-lg">Panel Klienta</h1>
-            <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold">{dashboard.profile?.first_name?.[0]}</span>
-            </div>
-          </div>
-
-          <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 pb-24 md:pb-8">
-            <AnimatePresence mode="wait">
-              {dashboard.activeTab === 'dashboard' && (
-                <DashboardView key="dashboard" dashboard={dashboard} />
-              )}
-              {dashboard.activeTab === 'restaurants' && (
-                <RestaurantsView key="restaurants" dashboard={dashboard} />
-              )}
-              {dashboard.activeTab === 'orders' && (
-                <OrdersView key="orders" orders={dashboard.orders} />
-              )}
-              {dashboard.activeTab === 'profile' && (
-                <ProfileView key="profile" profile={dashboard.profile} onUpdate={dashboard.handleUpdateProfile} />
-              )}
-              {dashboard.activeTab === 'settings' && (
-                <SettingsView key="settings" />
-              )}
-            </AnimatePresence>
-          </div>
-        </main>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileNav activeTab={dashboard.activeTab} setActiveTab={dashboard.setActiveTab} />
-      
-      {/* Global Cart Mock */}
-      <CartMock />
-    </div>
-  );
-}
-
-// --- PODKOMPONENTY WIDOKÓW ---
-
-function DashboardView({ dashboard }) {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0 }}
-      className="space-y-6"
-    >
-      <header className="mb-8">
-        <h2 className="text-3xl font-bold tracking-tight text-white">
-          Witaj, {dashboard.profile?.first_name || 'Kliencie'} 👋
-        </h2>
-        <p className="text-zinc-400 mt-1">Oto podsumowanie Twojej aktywności.</p>
-      </header>
-
-      {/* Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Loyalty Card - Large */}
-        <div className="md:col-span-2 relative overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800 p-6 flex flex-col justify-between group">
-          <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-indigo-500/20" />
-          
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 text-indigo-400 mb-2">
-              <Star size={18} fill="currentColor" />
-              <span className="text-sm font-semibold uppercase tracking-wider">Program Lojalnościowy</span>
-            </div>
-            <h3 className="text-4xl font-bold text-white mt-2">{dashboard.loyaltyPoints} pkt</h3>
-            <p className="text-zinc-400 text-sm mt-1">Brakuje {100 - (dashboard.loyaltyPoints % 100)} pkt do darmowego lunchu.</p>
-          </div>
-          
-          <div className="relative z-10 mt-6 w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${dashboard.loyaltyPoints % 100}%` }}
-              className="bg-indigo-500 h-full rounded-full"
-            />
-          </div>
-        </div>
-
-        {/* Quick Action - Order Again */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col justify-between hover:border-zinc-700 transition-colors cursor-pointer group">
-          <div>
-            <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center mb-4 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 transition-colors">
-              <History size={20} />
-            </div>
-            <h4 className="font-semibold text-white">Ostatnie zamówienie</h4>
-            <p className="text-zinc-400 text-xs mt-1">Pad Thai z krewetkami</p>
-          </div>
-          <button className="mt-4 w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-sm font-medium rounded-lg transition-colors">
-            Zamów ponownie
-          </button>
-        </div>
-
-        {/* Active Order Status */}
-        {dashboard.activeOrders.length > 0 ? (
-          <div className="md:col-span-3 bg-gradient-to-r from-zinc-900 to-zinc-900/50 border border-emerald-500/30 rounded-2xl p-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center animate-pulse">
-                <Clock size={24} />
-              </div>
-              <div>
-                <h4 className="font-semibold text-emerald-400">Zamówienie w toku</h4>
-                <p className="text-zinc-400 text-sm">Twoje jedzenie jest w drodze. Szacowany czas: 15 min.</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => dashboard.setActiveTab('orders')}
-              className="px-4 py-2 bg-emerald-500 text-black font-semibold text-sm rounded-lg hover:bg-emerald-400 transition-colors"
-            >
-              Śledź
-            </button>
-          </div>
-        ) : (
-          <div className="md:col-span-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center border-dashed">
-            <p className="text-zinc-500">Brak aktywnych zamówień w tej chwili.</p>
-            <button 
-              onClick={() => dashboard.setActiveTab('restaurants')}
-              className="mt-2 text-indigo-400 text-sm hover:underline"
-            >
-              Znajdź coś pysznego →
-            </button>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-function RestaurantsView({ dashboard }) {
-  // Jeśli wybrano restaurację -> pokaż widok szczegółów (Menu)
-  if (dashboard.selectedRestaurant) {
-    return <RestaurantDetailView dashboard={dashboard} />;
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="space-y-6"
-    >
-      <header className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Restauracje</h2>
-          <p className="text-zinc-400 text-sm">Odkryj najlepsze smaki w Twojej okolicy.</p>
-        </div>
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-          <input 
-            type="text" 
-            placeholder="Szukaj restauracji..." 
-            className="bg-zinc-900 border border-zinc-800 rounded-lg pl-10 pr-4 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 w-64"
-          />
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {dashboard.restaurants.map((rest, i) => (
-          <RestaurantCard 
-            key={rest.id} 
-            data={rest} 
-            index={i}
-            onClick={() => dashboard.handleSelectRestaurant(rest)} 
-          />
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-function RestaurantDetailView({ dashboard }) {
-  const { selectedRestaurant, menuItems, loadingMenu, addToCart, handleBackToRestaurants } = dashboard;
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-6"
-    >
-      {/* Back Header */}
-      <button 
-        onClick={handleBackToRestaurants}
-        className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm font-medium"
-      >
-        <ArrowLeft size={16} /> Wróć do listy
-      </button>
-
-      {/* Restaurant Hero */}
-      <div className="relative rounded-2xl overflow-hidden h-48 bg-zinc-900 border border-zinc-800">
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent z-10" />
-        {/* Placeholder image pattern */}
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900 via-zinc-900 to-black"></div>
-        
-        <div className="absolute bottom-0 left-0 p-6 z-20">
-          <h1 className="text-3xl font-bold text-white">{selectedRestaurant.name}</h1>
-          <div className="flex items-center gap-4 mt-2 text-sm text-zinc-300">
-            <span className="flex items-center gap-1"><MapPin size={14}/> {selectedRestaurant.city}</span>
-            <span className="flex items-center gap-1"><UtensilsCrossed size={14}/> {selectedRestaurant.cuisine_type || 'Ogólna'}</span>
-            <span className="flex items-center gap-1 text-yellow-500"><Star size={14} fill="currentColor"/> 4.8</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Menu Grid */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-white">Menu</h3>
-        
-        {loadingMenu ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1,2,3,4].map(n => <div key={n} className="h-24 bg-zinc-900 rounded-xl animate-pulse" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {menuItems.map(item => (
-              <div key={item.id} className="group bg-zinc-900/50 border border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900 rounded-xl p-4 transition-all flex justify-between items-start">
-                <div className="flex-1 pr-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-medium text-zinc-200 group-hover:text-white transition-colors">{item.name}</h4>
-                    <span className="font-semibold text-white ml-2 whitespace-nowrap">
-                      {(item.price / 1).toFixed(2)} zł
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500 line-clamp-2 mb-3">{item.description || 'Pyszne danie przygotowane ze świeżych składników.'}</p>
-                  <button 
-                    onClick={() => addToCart(item, selectedRestaurant)}
-                    className="text-xs font-medium bg-zinc-800 hover:bg-white hover:text-black text-zinc-300 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
-                  >
-                    <Plus size={12} /> Dodaj
-                  </button>
-                </div>
-                <div className="w-16 h-16 bg-zinc-800 rounded-lg flex-shrink-0" /> {/* Placeholder na zdjęcie dania */}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-function OrdersView({ orders }) {
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'completed': return 'bg-zinc-800 text-zinc-400';
-      case 'delivered': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'cancelled': return 'bg-red-500/10 text-red-400 border-red-500/20';
-      default: return 'bg-zinc-800 text-zinc-400';
-    }
-  };
-
-  const sortedOrders = [...orders].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  return (
     <div className="space-y-6">
-      <header>
-        <h2 className="text-2xl font-bold text-white">Twoje Zamówienia</h2>
-        <p className="text-zinc-400 text-sm">Historia wszystkich Twoich transakcji.</p>
-      </header>
-
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-900 text-zinc-400 border-b border-zinc-800">
-            <tr>
-              <th className="p-4 font-medium">Nr Zamówienia</th>
-              <th className="p-4 font-medium">Restauracja</th>
-              <th className="p-4 font-medium">Data</th>
-              <th className="p-4 font-medium">Kwota</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium text-right">Akcje</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800">
-            {sortedOrders.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="p-8 text-center text-zinc-500">Brak zamówień w historii.</td>
-              </tr>
-            ) : (
-              sortedOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-zinc-900 transition-colors">
-                  <td className="p-4 font-mono text-zinc-500">#{order.id.slice(0, 8)}</td>
-                  <td className="p-4 font-medium text-zinc-200">{order.restaurant_name || 'Nieznana'}</td>
-                  <td className="p-4 text-zinc-400">{new Date(order.created_at).toLocaleDateString()}</td>
-                  <td className="p-4 font-semibold text-zinc-200">{(order.total_price / 100).toFixed(2)} zł</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button className="text-zinc-400 hover:text-white transition-colors">
-                      Szczegóły
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function ProfileView({ profile, onUpdate }) {
-  const [formData, setFormData] = useState({ ...profile });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    await onUpdate(formData);
-    setLoading(false);
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <header>
-        <h2 className="text-2xl font-bold text-white">Ustawienia Profilu</h2>
-        <p className="text-zinc-400 text-sm">Zarządzaj swoimi danymi osobowymi i adresem dostawy.</p>
-      </header>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
-          <InputGroup 
-            label="Imię" 
-            value={formData.first_name} 
-            onChange={v => setFormData({...formData, first_name: v})} 
-          />
-          <InputGroup 
-            label="Nazwisko" 
-            value={formData.last_name} 
-            onChange={v => setFormData({...formData, last_name: v})} 
-          />
-        </div>
-
-        <InputGroup 
-          label="Email" 
-          value={formData.email} 
-          disabled 
-          icon={<Settings size={14}/>} // Placeholder icon for read-only
-        />
-        
-        <InputGroup 
-          label="Numer telefonu" 
-          value={formData.phone} 
-          onChange={v => setFormData({...formData, phone: v})} 
-        />
-
-        <div className="pt-4 border-t border-zinc-800">
-          <h3 className="text-lg font-medium text-white mb-4">Adres dostawy</h3>
-          <div className="space-y-4">
-            <InputGroup 
-              label="Ulica i numer" 
-              value={formData.address} 
-              onChange={v => setFormData({...formData, address: v})} 
-            />
-            <InputGroup 
-              label="Miasto" 
-              value={formData.city} 
-              onChange={v => setFormData({...formData, city: v})} 
-            />
-          </div>
-        </div>
-
-        <div className="pt-4 flex justify-end">
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="bg-white text-black hover:bg-zinc-200 px-6 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Zapisywanie...' : 'Zapisz zmiany'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function SettingsView() {
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <header>
-        <h2 className="text-2xl font-bold text-white">Ustawienia Aplikacji</h2>
-      </header>
-      
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        {[
-          { icon: Bell, title: "Powiadomienia Push", desc: "Otrzymuj powiadomienia o statusie zamówienia" },
-          { icon: UtensilsCrossed, title: "Preferencje dietetyczne", desc: "Filtruj menu na podstawie diety" },
-          { icon: CreditCard, title: "Metody płatności", desc: "Zarządzaj kartami i płatnościami" },
-          { icon: History, title: "Wyczyść historię", desc: "Usuń lokalną historię wyszukiwania" },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center justify-between p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/50 cursor-pointer transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-400">
-                <item.icon size={20} />
-              </div>
-              <div>
-                <h4 className="font-medium text-zinc-200">{item.title}</h4>
-                <p className="text-xs text-zinc-500">{item.desc}</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-zinc-600" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// --- MNIEJSZE KOMPONENTY UI ---
-
-function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
-  const menu = [
-    { id: 'dashboard', label: 'Przegląd', icon: LayoutDashboard },
-    { id: 'restaurants', label: 'Restauracje', icon: UtensilsCrossed },
-    { id: 'orders', label: 'Zamówienia', icon: ShoppingBag },
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'settings', label: 'Ustawienia', icon: Settings },
-  ];
-
-  return (
-    <aside className="hidden md:flex flex-col w-64 border-r border-zinc-900 bg-zinc-950 p-4">
-      <div className="mb-8 px-2 flex items-center gap-2">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white">G</div>
-        <span className="font-bold text-lg tracking-tight">GastroPanel</span>
-      </div>
-
-      <nav className="flex-1 space-y-1">
-        {menu.map(item => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === item.id 
-                ? 'bg-zinc-900 text-white shadow-sm ring-1 ring-zinc-800' 
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
-            }`}
-          >
-            <item.icon size={18} className={activeTab === item.id ? 'text-indigo-400' : 'text-zinc-500'} />
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="border-t border-zinc-900 pt-4 mt-4">
-        <div className="flex items-center gap-3 px-2 mb-4">
-          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-400">
-            {user?.first_name?.[0] || <User size={16}/>}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user?.first_name || 'Użytkownik'}</p>
-            <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
-          </div>
-        </div>
-        <button 
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Twój koszyk</h2>
+        <button
+          onClick={clearCart}
+          className="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
         >
-          <LogOut size={18} /> Wyloguj się
+          Wyczyść koszyk
         </button>
       </div>
-    </aside>
-  );
-}
 
-function MobileNav({ activeTab, setActiveTab }) {
-  const items = [
-    { id: 'dashboard', icon: LayoutDashboard },
-    { id: 'restaurants', icon: UtensilsCrossed },
-    { id: 'orders', icon: ShoppingBag },
-    { id: 'profile', icon: User },
-  ];
-
-  return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-900 p-4 pb-8 z-50">
-      <div className="flex justify-around items-center">
-        {items.map(item => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`p-2 rounded-xl transition-colors ${activeTab === item.id ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}
-          >
-            <item.icon size={24} />
-          </button>
+      <div className="space-y-4">
+        {cart.map((item) => (
+          <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex-1">
+              <h3 className="font-medium text-white">{item.name}</h3>
+              <p className="text-sm text-slate-400">{((item.price * item.quantity) / 100).toFixed(2)} zł</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+              >
+                -
+              </button>
+              <span className="w-8 text-center text-white">{item.quantity}</span>
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+              >
+                +
+              </button>
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="ml-2 p-2 text-red-400 hover:text-red-300"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
         ))}
       </div>
-    </div>
-  );
-}
 
-function RestaurantCard({ data, onClick, index }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      onClick={onClick}
-      className="group bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl overflow-hidden cursor-pointer transition-all hover:shadow-2xl hover:shadow-indigo-500/10"
-    >
-      <div className="h-40 bg-zinc-800 relative">
-        {/* Placeholder Pattern */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent" />
-        <div className="absolute inset-0 flex items-center justify-center text-zinc-700 group-hover:text-zinc-600 transition-colors">
-          <UtensilsCrossed size={48} />
+      {restaurant && (
+        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+          <h3 className="font-medium text-white mb-2">Restauracja: {restaurant.name}</h3>
+          <p className="text-sm text-slate-300">{restaurant.address}</p>
         </div>
-        
-        {/* Badges */}
-        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-medium text-white flex items-center gap-1">
-          <Clock size={12} /> 30-45 min
-        </div>
-      </div>
-      
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg text-white group-hover:text-indigo-400 transition-colors">{data.name}</h3>
-          <span className="flex items-center gap-1 text-xs font-bold bg-yellow-500/10 text-yellow-500 px-2 py-1 rounded-md">
-            <Star size={10} fill="currentColor" /> 4.8
-          </span>
-        </div>
-        <p className="text-zinc-400 text-sm mb-4 line-clamp-2">{data.description || 'Kuchnia międzynarodowa, świeże składniki i szybka dostawa.'}</p>
-        
-        <div className="flex items-center gap-3 text-xs text-zinc-500">
-          <span className="bg-zinc-800 px-2 py-1 rounded-md">{data.cuisine_type || 'Restauracja'}</span>
-          <span className="flex items-center gap-1"><MapPin size={12}/> {data.city}</span>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+      )}
 
-function InputGroup({ label, value, onChange, disabled, icon }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{label}</label>
-      <div className="relative">
-        <input 
-          type="text" 
-          value={value || ''}
-          onChange={(e) => onChange && onChange(e.target.value)}
-          disabled={disabled}
-          className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-200 text-sm focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        />
-        {icon && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">{icon}</div>}
-      </div>
-    </div>
-  );
-}
-
-// Mock Cart Component
-function CartMock() {
-  const { itemCount, total } = useCart();
-  
-  if (itemCount === 0) return null;
-  
-  return (
-    <div className="fixed bottom-24 md:bottom-8 right-8 z-50">
-      <div className="bg-indigo-600 text-white rounded-full p-4 shadow-xl shadow-indigo-500/30 flex items-center gap-3 cursor-pointer hover:bg-indigo-500 transition-colors">
-        <ShoppingCart size={24} />
-        <div className="flex flex-col leading-tight">
-          <span className="font-bold text-sm">{itemCount} pozycji</span>
-          <span className="text-xs opacity-90">{total} zł</span>
-        </div>
+      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30">
+        <span className="text-lg font-bold text-white">Razem: {(total / 100).toFixed(2)} zł</span>
+        <button
+          onClick={() => {
+            const deliveryInfo = {
+              name: 'Użytkownik',
+              phone: '',
+              address: '',
+              notes: ''
+            };
+            submitOrder(deliveryInfo);
+          }}
+          disabled={isSubmitting}
+          className="px-6 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium hover:shadow-lg transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? 'Składanie...' : 'Złóż zamówienie'}
+        </button>
       </div>
     </div>
   );

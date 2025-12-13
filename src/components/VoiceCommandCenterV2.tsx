@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AmberCore } from "./AmberCore";
+import { AmberStatus } from '../types/amber';
 
 interface VoiceCommandCenterV2Props {
   amberResponse?: string;
@@ -12,6 +14,7 @@ interface VoiceCommandCenterV2Props {
   onSubmitText?: (value: string) => void; // Fallback
   isSpeaking?: boolean;
   isProcessing?: boolean;
+  isPresenting?: boolean;
 }
 
 export default function VoiceCommandCenterV2({
@@ -25,6 +28,7 @@ export default function VoiceCommandCenterV2({
   onSubmitText,
   isSpeaking = false,
   isProcessing = false,
+  isPresenting = false,
 }: VoiceCommandCenterV2Props) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,14 +36,16 @@ export default function VoiceCommandCenterV2({
   // Handle both prop names
   const handleSubmitText = onTextSubmit || onSubmitText;
 
-  // Determine current state
-  const currentState = recording
+  // 1️⃣ Czysty stan Ambera (One Source of Truth)
+  const amberStatus: AmberStatus = recording
     ? 'listening'
     : isProcessing
-      ? 'processing'
+      ? 'thinking'
       : isSpeaking
         ? 'speaking'
-        : 'idle';
+        : isPresenting
+          ? 'presenting'
+          : 'idle';
 
   // Update input placeholder or value based on voice input
   useEffect(() => {
@@ -70,62 +76,17 @@ export default function VoiceCommandCenterV2({
           animate={{ y: 0, opacity: 1, x: "-50%" }}
           exit={{ y: 100, opacity: 0, x: "-50%" }}
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed bottom-6 left-1/2 w-[92%] max-w-lg flex items-center gap-2 
+          className="fixed bottom-6 left-[58%] md:left-1/2 w-[72%] md:w-[92%] max-w-lg flex items-center gap-2 
                      rounded-full backdrop-blur-xl bg-[#0F0F16]/90 border border-white/10 
                      shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] p-2 z-50 transform-gpu"
         >
-          {/* Mic Orb */}
-          <div onClick={onMicClick} className="relative w-12 h-12 flex items-center justify-center flex-shrink-0 cursor-pointer group ml-1">
-            {/* Orb Body */}
-            <motion.div
-              animate={currentState}
-              variants={orbVariants}
-              className="relative w-10 h-10 rounded-full overflow-hidden flex items-center justify-center 
-                                     bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20 z-10"
-            >
-              <AnimatePresence mode="wait">
-                {currentState === 'idle' && (
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                )}
-
-                {currentState === 'listening' && (
-                  <motion.div
-                    key="listening"
-                    className="flex items-center gap-[2px] h-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {[...Array(4)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        animate={{
-                          height: [4, 16, 4],
-                          backgroundColor: ['#fff', '#22d3ee', '#fff']
-                        }}
-                        transition={{
-                          duration: 0.6,
-                          repeat: Infinity,
-                          delay: i * 0.1,
-                          ease: "easeInOut"
-                        }}
-                        className="w-1 rounded-full bg-white"
-                      />
-                    ))}
-                  </motion.div>
-                )}
-
-                {currentState === 'processing' && (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                  />
-                )}
-              </AnimatePresence>
-            </motion.div>
+          {/* Amber Orb (Status Indicator) */}
+          <div
+            onClick={onMicClick}
+            className="flex items-center justify-center flex-shrink-0 cursor-pointer w-14 h-14"
+            title="Kliknij, aby rozmawiać"
+          >
+            <AmberCore status={amberStatus} className="w-full h-full" />
           </div>
 
           {/* Input Area */}
@@ -135,7 +96,7 @@ export default function VoiceCommandCenterV2({
               value={inputValue || interimText}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={currentState === 'listening' ? "Słucham..." : "Napisz wiadomość..."}
+              placeholder={amberStatus === 'listening' ? "Słucham..." : "Napisz wiadomość..."}
               className={`w-full h-full bg-transparent border-none text-white font-sans text-[15px] px-2 outline-none 
                                        placeholder:text-white/30`}
             />
@@ -158,24 +119,4 @@ export default function VoiceCommandCenterV2({
   );
 }
 
-// Animation Variants
-const orbVariants: Variants = {
-  idle: {
-    scale: 1,
-    transition: { duration: 0.2 }
-  },
-  listening: {
-    scale: 1.1,
-    boxShadow: "0 0 20px rgba(0, 240, 255, 0.4)",
-    transition: { duration: 0.2 }
-  },
-  processing: {
-    scale: 0.95,
-    transition: { duration: 0.2 }
-  },
-  speaking: {
-    scale: [1, 1.1, 1],
-    boxShadow: ["0 0 10px rgba(0, 240, 255, 0.3)", "0 0 20px rgba(255, 0, 170, 0.4)", "0 0 10px rgba(0, 240, 255, 0.3)"],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-  }
-};
+
