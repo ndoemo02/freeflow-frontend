@@ -9,9 +9,7 @@ import Cart from "../components/Cart"
 import { useTheme } from '../state/ThemeContext';
 // @ts-ignore
 import MenuDrawer from "../ui/MenuDrawer"
-import ChatBubbles from "../components/ChatBubbles"
 import VoiceCommandCenterV2 from '../components/VoiceCommandCenterV2';
-import ChatBubblesV2 from '../components/ChatBubblesV2';
 import Switch from "../components/Switch"
 import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 // @ts-ignore
@@ -20,8 +18,9 @@ import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE, getApiUrl } from "../lib/config"
 import { LLMContract, PresentationStep } from "../lib/llmContract"
 import { renderFromLLM, UIController } from "../lib/renderEngine"
-import PresentationContainer from "../components/PresentationContainer"
+import PresentationStage from "../components/PresentationStage"
 import { speakTts } from "../lib/ttsClient"
+import { logger } from "../lib/logger"
 
 export default function Home() {
   const { theme } = useTheme();
@@ -37,11 +36,12 @@ export default function Home() {
   const [showTextPanel, setShowTextPanel] = useState(true);
   const [immersive, setImmersive] = useState(false)
   const [voiceQuery, setVoiceQuery] = useState("")
-  const [amberResponse, setAmberResponse] = useState("") // Just text for bubbles
+  const [amberResponse, setAmberResponse] = useState("") // Just text for UI
   const [userMessage, setUserMessage] = useState("")
 
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // Blocks UI interaction (RenderEngine)
+  const [isThinking, setIsThinking] = useState(false)   // API Request in progress
 
   const openDrawer = useUI((s) => s.openDrawer)
   const { setIsOpen, addToCart } = useCart()
@@ -71,7 +71,7 @@ export default function Home() {
         const isInPoland = latitude >= 49 && latitude <= 55 && longitude >= 14 && longitude <= 25;
         if (isInPoland) setCoords({ lat: latitude, lng: longitude });
       },
-      (err) => console.log('📍 Geolocation error:', err.message),
+      (err) => logger.warn('📍 Geolocation error:', err.message),
       { enableHighAccuracy: true, maximumAge: 30000, timeout: 8000 }
     );
   }, [])
@@ -90,7 +90,7 @@ export default function Home() {
   const toggleUI = (checked: boolean) => setShowTextPanel(checked)
 
   const handleLogoClick = () => {
-    if (ENABLE_IMMERSIVE_MODE) setImmersive(true)
+    // if (ENABLE_IMMERSIVE_MODE) setImmersive(true) - User requested logo to stay put
     if (recording) {
       stopRecording()
     } else {
@@ -154,6 +154,8 @@ export default function Home() {
     lastMessageRef.current = text.trim()
 
     setIsSending(true)
+    setIsThinking(true)
+    setAmberResponse("") // Clear old response so we don't show it during thinking
     setUserMessage(text)
     // Clear previous presentation on new request
     // clearPresentation(); // Optional: RenderEngine will clear it anyway
@@ -178,7 +180,8 @@ export default function Home() {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      console.log("🧠 Amber Data:", data);
+      setIsThinking(false); // 🧠 Thinking done, now speaking/rendering
+      logger.info("🧠 Amber Data:", data);
 
       setAmberResponse(data.reply || "");
 
@@ -249,10 +252,11 @@ export default function Home() {
       renderFromLLM(contract, uiController());
 
     } catch (error) {
-      console.error("Communication Error:", error);
+      logger.error("Communication Error:", error);
       setAmberResponse("Błąd komunikacji.");
     } finally {
       setIsSending(false)
+      setIsThinking(false)
     }
   }, [sessionId, coords, isSending, uiController, setPresentationItems, recording, renderFromLLM])
 
@@ -295,7 +299,8 @@ export default function Home() {
       </picture>
       <span className="flow">Flow</span>
 
-      <div className={`fixed inset-0 z-40 transition-all duration-700 pointer-events-none ${(isProcessing || recording) ? "backdrop-blur-xl bg-black/40 opacity-100" : "backdrop-blur-0 bg-transparent opacity-0"}`} />
+      {/* 🔹 BLUR OVERLAY REMOVED FULLY */}
+
 
       <Switch onToggle={toggleUI} amberReady={!recording} initial={true} />
 
@@ -329,41 +334,23 @@ export default function Home() {
       </div>
 
       <div className="chat-wrapper">
-        {/* Only render text bubbles here, removed card lists */}
-        {theme === 'v2' ? (
-          <ChatBubblesV2
-            userMessage={userMessage}
-            amberResponse={amberResponse}
-            restaurants={[]} // 🚫 Hidden from bubbles
-            menuItems={[]}   // 🚫 Hidden from bubbles
-            onRestaurantSelect={() => { }}
-            onMenuItemSelect={() => { }}
-          />
-        ) : (
-          <ChatBubbles
-            userMessage={userMessage}
-            amberResponse={amberResponse}
-            restaurants={[]}
-            menuItems={[]}
-            onRestaurantSelect={() => { }}
-            onMenuItemSelect={() => { }}
-          />
-        )}
-
+        {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
         <VoiceCommandCenterV2
           recording={recording}
-          isProcessing={isSending}
+          isProcessing={isThinking}
           isSpeaking={isPlayingAudio}
           interimText={interimText}
           finalText={finalText || voiceQuery}
+          amberResponse={amberResponse}
+          onClearResponse={() => setAmberResponse("")}
           onMicClick={handleLogoClick}
           onTextSubmit={handleManualSubmit}
           isPresenting={mode === 'restaurant_presentation' || mode === 'menu_presentation'}
         />
       </div>
 
-      {/* 🚀 PRESENTATION LAYER */}
-      <PresentationContainer onSelect={handleCardSelect} />
+      {/* 🚀 PRESENTATION LAYER (z-30 handled internally) */}
+      <PresentationStage onSelect={handleCardSelect} recording={recording} />
 
       <MenuDrawer />
       <Cart />

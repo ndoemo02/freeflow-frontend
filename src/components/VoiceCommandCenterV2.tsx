@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AmberCore } from "./AmberCore";
-import { AmberStatus } from '../types/amber';
+import { AmberIndicator, AmberStatusNode } from "./AmberIndicator";
 
 interface VoiceCommandCenterV2Props {
   amberResponse?: string;
@@ -15,6 +14,7 @@ interface VoiceCommandCenterV2Props {
   isSpeaking?: boolean;
   isProcessing?: boolean;
   isPresenting?: boolean;
+  onClearResponse?: () => void;
 }
 
 export default function VoiceCommandCenterV2({
@@ -29,6 +29,7 @@ export default function VoiceCommandCenterV2({
   isSpeaking = false,
   isProcessing = false,
   isPresenting = false,
+  onClearResponse,
 }: VoiceCommandCenterV2Props) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,23 +37,23 @@ export default function VoiceCommandCenterV2({
   // Handle both prop names
   const handleSubmitText = onTextSubmit || onSubmitText;
 
-  // 1️⃣ Czysty stan Ambera (One Source of Truth)
-  const amberStatus: AmberStatus = recording
-    ? 'listening'
-    : isProcessing
-      ? 'thinking'
-      : isSpeaking
-        ? 'speaking'
-        : isPresenting
-          ? 'presenting'
-          : 'idle';
-
-  // Update input placeholder or value based on voice input
+  // Auto-clear response when recording starts
   useEffect(() => {
-    if (finalText) {
-      setInputValue(finalText);
+    if (recording && amberResponse && onClearResponse) {
+      onClearResponse();
     }
-  }, [finalText]);
+  }, [recording, amberResponse, onClearResponse]);
+
+  // 1️⃣ Mapowanie stanu aplikacji na status Amber (Deterministic)
+  let amberStatus: AmberStatusNode = 'idle';
+
+  if (recording) amberStatus = 'listening';
+  else if (isProcessing) amberStatus = 'thinking';
+  else if (isSpeaking) amberStatus = 'ok'; // Speaking is active/healthy
+  else if (isPresenting) amberStatus = 'ok'; // Presenting is active
+  else amberStatus = 'idle';
+
+  const showResponse = !!(amberResponse && amberResponse.length > 0);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && inputValue.trim()) {
@@ -86,37 +87,54 @@ export default function VoiceCommandCenterV2({
             className="flex items-center justify-center flex-shrink-0 cursor-pointer w-14 h-14"
             title="Kliknij, aby rozmawiać"
           >
-            <AmberCore status={amberStatus} className="w-full h-full" />
+            <AmberIndicator status={amberStatus} className="w-full h-full" />
           </div>
 
-          {/* Input Area */}
-          <div className="flex-1 relative h-10 transition-all duration-300 flex items-center">
-            <input
-              ref={inputRef}
-              value={inputValue || interimText}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={amberStatus === 'listening' ? "Słucham..." : "Napisz wiadomość..."}
-              className={`w-full h-full bg-transparent border-none text-white font-sans text-[15px] px-2 outline-none 
-                                       placeholder:text-white/30`}
-            />
+          {/* Input / Message Area */}
+          <div className="flex-1 relative h-10 transition-all duration-300 flex items-center overflow-hidden">
+            {showResponse ? (
+              // 🗣️ Asystent mówi/wyświetla (Amber Text)
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full h-full flex items-center justify-between cursor-pointer group"
+                onClick={onClearResponse}
+                title="Kliknij, aby zamknąć"
+              >
+                <span className="text-[15px] font-medium text-amber-400 px-2 truncate leading-10 flex-1">
+                  {amberResponse}
+                </span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 text-xs px-2">✕</span>
+              </motion.div>
+            ) : (
+              // 🎤 Użytkownik mówi / pisze (User Input) - TYLKO TEXT INPUT, BEZ PODGLĄDU MOWY
+              <input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={amberStatus === 'listening' ? "Słucham..." : amberStatus === 'thinking' ? "Przetwarzam..." : "Napisz wiadomość..."}
+                className={`w-full h-full bg-transparent border-none text-white font-sans text-[15px] px-2 outline-none 
+                                         placeholder:text-white/30`}
+              />
+            )}
           </div>
 
           {/* Send Button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!inputValue.trim()}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 
-                                 disabled:opacity-20 disabled:cursor-not-allowed transition-colors mr-1"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" />
-            </svg>
-          </button>
+          {!showResponse && (
+            <button
+              onClick={handleSubmit}
+              disabled={!inputValue.trim()}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 
+                                  disabled:opacity-20 disabled:cursor-not-allowed transition-colors mr-1"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" />
+              </svg>
+            </button>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
-
-

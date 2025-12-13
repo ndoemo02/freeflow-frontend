@@ -1,6 +1,7 @@
 import { LLMContract } from './llmContract';
+import { logger } from './logger';
 
-// Typy pomocnicze dla funkcji sterujących UI (zostaną zaimplementowane w konkretnych komponentach)
+// Typy pomocnicze dla funkcji sterujących UI
 export interface UIController {
     stopAllTTS: () => void;
     playTTS: (text: string) => Promise<void>;
@@ -14,7 +15,6 @@ export interface UIController {
     unlockUserInput: () => void;
     openMicrophone: () => void;
 
-    // Funkcje montujące widoki - w React mogą to być settery stanu
     setUIMode: (mode: LLMContract['ui_mode']) => void;
 }
 
@@ -25,7 +25,7 @@ let isRendering = false;
 let abort = false;
 
 export function abortRender() {
-    console.log("🛑 [RenderFromLLM] Abort requested");
+    logger.info("🛑 [RenderFromLLM] Abort requested");
     abort = true;
 }
 
@@ -39,7 +39,7 @@ export function abortRender() {
 export async function renderFromLLM(contract: LLMContract, ui: UIController) {
     // (A) Guard: Re-entrancy Lock
     if (isRendering) {
-        console.warn("⚠️ [RenderFromLLM] Already running — request ignored");
+        logger.warn("⚠️ [RenderFromLLM] Already running — request ignored");
         return;
     }
 
@@ -48,24 +48,22 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
 
     // (C) Debug Trace
     if (process.env.NODE_ENV !== 'production') {
-        console.group("🎬 renderFromLLM");
-        console.log("ui_mode:", contract.ui_mode);
-        console.log("steps:", contract.presentation_sequence?.length || 0);
-        console.log("expect_selection:", contract.expect_selection);
-        console.groupEnd();
+        logger.debug("🎬 renderFromLLM", {
+            ui_mode: contract.ui_mode,
+            steps: contract.presentation_sequence?.length || 0,
+            expect_selection: contract.expect_selection
+        });
     }
 
     try {
         // 1. HARD RESET UI STATE
-        // Czyścimy wszystko, aby nie nałożyć prezentacji na poprzedni stan
         ui.stopAllTTS();
         ui.clearHighlights();
-        ui.lockUserInput(); // Blokujemy interakcję podczas prezentacji (opcjonalne, ale zalecane)
+        ui.lockUserInput(); // Blokujemy interakcję podczas prezentacji
 
         if (abort) return;
 
         // 2. SWITCH TYLKO PO ui_mode
-        // Decydujemy, co wyświetlić. To ustawia "scenę".
         switch (contract.ui_mode) {
             case 'idle':
             case 'standard_chat':
@@ -89,27 +87,23 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
                 break;
 
             default:
-                // (B) Hard Fail na nieznany ui_mode
                 throw new Error(`Unsupported ui_mode: ${(contract as any).ui_mode}`);
         }
 
+        // Determinuje czy TTS ma być słyszalny
+        const allowTTS = ['restaurant_presentation', 'menu_presentation'].includes(contract.ui_mode);
+
         if (abort) return;
 
-        // 3. VOICE INTRO (Blokujące)
-        // Asystent wprowadza w temat. Nic się jeszcze nie dzieje na ekranie (poza zmianą widoku).
-        if (contract.voice_intro) {
+        // 3. VOICE INTRO (Blokujące - tylko w trybach prezentacji)
+        if (contract.voice_intro && allowTTS) {
             await ui.playTTS(contract.voice_intro);
         }
 
         if (abort) return;
 
         // 4. SEKWENCJA PREZENTACJI (Deterministyczna pętla)
-        // Iterujemy po krokach. Każdy krok to: Fokus -> Scroll -> Głos -> Defokus
         if (contract.presentation_sequence && contract.presentation_sequence.length > 0) {
-
-            // (C) Logic Assertion: Sekwencja powinna być ignorowana, jeśli to tylko pytanie kończące (co nie powinno mieć miejsca, jeśli LLM jest poprawny, ale dla bezpieczeństwa)
-            // W obecnym modelu, jeśli mamy sekwencję, to ją odtwarzamy, a potem pytanie.
-
             for (const step of contract.presentation_sequence) {
                 if (abort) break;
 
@@ -117,8 +111,8 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
                 ui.scrollToCard(step.card_id);
                 ui.highlightCard(step.card_id);
 
-                // B. Opowiadamy o tym elemencie (Blokujące - czekamy aż skończy)
-                if (step.tts_narrative) {
+                // B. Opowiadamy o tym elemencie (tylko w trybach prezentacji)
+                if (step.tts_narrative && allowTTS) {
                     await ui.playTTS(step.tts_narrative);
                 }
 
@@ -129,20 +123,16 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
 
         if (abort) return;
 
-        // 5. CLOSING QUESTION (Stop generowania)
-        // Asystent zadaje pytanie końcowe. To jest sygnał "Twoja kolej".
-        if (contract.closing_question) {
+        // 5. CLOSING QUESTION
+        if (contract.closing_question && allowTTS) {
             await ui.playTTS(contract.closing_question);
-            // (C) Zapewnienie logiczne: Po pytaniu nie ma już generowania.
         }
 
         if (abort) return;
 
-        // 6. STEROWANIE MIKROFONEM (Koniec)
-        // Decydujemy, czy oddać głos użytkownikowi automatycznie.
-
+        // 6. STEROWANIE MIKROFONEM
         if (contract.expect_selection) {
-            ui.unlockUserInput(); // Odblokuj tuż przed otwarciem mica
+            ui.unlockUserInput();
             ui.openMicrophone();
         } else {
             ui.unlockUserInput();
@@ -150,14 +140,14 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
 
     } catch (error) {
         if (abort) {
-            console.log("🛑 [RenderFromLLM] Aborted during execution");
+            logger.info("🛑 [RenderFromLLM] Aborted during execution");
         } else {
-            console.error("❌ [RenderFromLLM] Critical Error:", error);
+            logger.error("❌ [RenderFromLLM] Critical Error:", error);
         }
-        ui.unlockUserInput(); // Safety unlock on crash
+        ui.unlockUserInput();
     } finally {
         isRendering = false;
-        abort = false; // Reset flagi po zakończeniu
-        console.log("🏁 [RenderFromLLM] Finished");
+        abort = false;
+        logger.info("🏁 [RenderFromLLM] Finished");
     }
 }
