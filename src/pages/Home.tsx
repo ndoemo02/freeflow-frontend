@@ -14,6 +14,7 @@ import Switch from "../components/Switch"
 import LogoFreeFlow from "../components/LogoFreeFlow.jsx"
 // @ts-ignore
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
+import freeflowLogo from '../assets/Freeflowlogo.png';
 import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE, getApiUrl } from "../lib/config"
 import { LLMContract, PresentationStep } from "../lib/llmContract"
@@ -336,7 +337,7 @@ export default function Home() {
       <div className="main-wrapper">
         <div className="hero-stack">
           <div className="logo-container" onClick={handleLogoClick}>
-            <img src="/images/Freeflowlogo.png" alt="FreeFlow" className={`logo ${recording ? 'recording' : ''}`} style={{ filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none' }} />
+            <img src={freeflowLogo} alt="FreeFlow" className={`logo ${recording ? 'recording' : ''}`} style={{ filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none' }} />
           </div>
         </div>
       </div>
