@@ -4,7 +4,7 @@
   }
 
   50% {
-    transform: scale(1.03) translateY(-10px);
+    transform: scale(1.05) translateY(-10px);
   }
 
   100% {
@@ -18,7 +18,8 @@
   background-image: url("/images/background.png");
   background-size: cover;
   background-position: center;
-  z-index: -1;
+  z-index: 0;
+  /* Zmieniono z -1 na 0, aby było widoczne nad tłem body, ale pod treścią (z-10) */
   animation: slowFloat 18s ease-in-out infinite;
   will-change: transform;
 }
