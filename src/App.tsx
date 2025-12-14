@@ -13,7 +13,8 @@ import MenuDrawer from "./ui/MenuDrawer";
 import { ThemeProvider } from "./state/ThemeContext";
 
 // ✅ DODAJ TEN IMPORT
-import { MotionBackground } from "./components/MotionBackground";
+import MotionBackground from "./components/MotionBackground";
+
 
 function AppContent() {
   const authOpen = useUI((s) => s.authOpen);

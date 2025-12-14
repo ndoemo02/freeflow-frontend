@@ -1,25 +1,11 @@
-@keyframes slowFloat {
-  0% {
-    transform: scale(1) translateY(0px);
-  }
-
-  50% {
-    transform: scale(1.05) translateY(-10px);
-  }
-
-  100% {
-    transform: scale(1) translateY(0px);
-  }
-}
-
 .motionBg {
   position: fixed;
   inset: -40px;
   background-image: url("/images/background.png");
   background-size: cover;
   background-position: center;
-  z-index: 0;
-  /* Zmieniono z -1 na 0, aby było widoczne nad tłem body, ale pod treścią (z-10) */
-  animation: slowFloat 18s ease-in-out infinite;
+  z-index: -1;
+  transition: transform 0.15s ease-out;
   will-change: transform;
+  filter: brightness(0.85);
 }
