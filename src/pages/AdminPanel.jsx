@@ -660,6 +660,39 @@ export default function AdminPanel() {
   };
   const diagOptions = { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw} ms` } } } };
 
+  // Jeśli brak tokena, wymuś logowanie
+  if (!tokenOk) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-sans" style={{ background: 'var(--bg0)', color: 'var(--fg0)' }}>
+        <div className="glass p-8 rounded-2xl border border-[var(--border)] max-w-md w-full text-center shadow-2xl relative z-10">
+          <div className="size-16 rounded-xl glass neon-ring flex items-center justify-center mx-auto mb-6 text-[var(--neon)]">
+            <svg className="size-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7L12 12L22 7L12 2Z" /><path d="M2 17L12 22L22 17" /><path d="M2 12L12 17L22 12" /></svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Panel Administratora</h2>
+          <p className="text-[var(--muted)] mb-6 text-sm">Wprowadź token dostępu, aby zobaczyć dane.</p>
+          <input
+            type="password"
+            autoFocus
+            className="w-full p-3 rounded-xl bg-[rgba(255,255,255,0.05)] border border-[var(--border)] focus:border-[var(--neon)] outline-none transition-colors text-center text-lg tracking-widest mb-4 placeholder-gray-600"
+            placeholder="••••••••"
+            onKeyDown={(e) => { if (e.key === 'Enter') saveToken(e.currentTarget.value) }}
+          />
+          <button
+            className="w-full py-3 rounded-xl bg-[var(--neon)] text-black font-bold hover:opacity-90 transition-opacity"
+            onClick={(e) => saveToken(e.currentTarget.previousElementSibling.value)}
+          >
+            Zaloguj
+          </button>
+        </div>
+        {/* Tło dla logowania */}
+        <div className="fixed inset-0 pointer-events-none" style={{
+          background: `radial-gradient(circle at center, rgba(34,211,238,0.1) 0%, transparent 70%)`
+        }}></div>
+        <div className="grid-overlay"></div>
+      </div>
+    );
+  }
+
   // Loading state UI
   if (loading && !analyticsData) {
     return (

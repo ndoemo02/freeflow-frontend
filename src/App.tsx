@@ -6,6 +6,8 @@ import { ToastProvider } from "./components/Toast";
 import { CartProvider } from "./state/CartContext";
 import Cart from "./components/Cart";
 import CustomerPanel from "./pages/Panel/CustomerPanel";
+import BusinessPanel from "./pages/Panel/BusinessPanel";
+import AdminPanel from "./pages/AdminPanel"; // Import AdminPanel
 import AuthModal from "./components/AuthModal";
 import MenuDrawer from "./ui/MenuDrawer";
 import { ThemeProvider } from "./state/ThemeContext";
@@ -13,15 +15,13 @@ import { ThemeProvider } from "./state/ThemeContext";
 // ✅ DODAJ TEN IMPORT
 import { MotionBackground } from "./components/MotionBackground";
 
-
-
 function AppContent() {
   const authOpen = useUI((s) => s.authOpen);
   const closeAuth = useUI((s) => s.closeAuth);
 
   return (
     <div className="min-h-screen text-slate-100 relative overflow-hidden">
-      
+
       {/* 🌌 GLOBALNE TŁO */}
       <MotionBackground />
 
@@ -29,15 +29,18 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/panel/customer" element={<CustomerPanel />} />
+          <Route path="/panel/business" element={<BusinessPanel />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/panel/admin" element={<AdminPanel />} />
           {/* reszta tras */}
-        </Routes>
-      </main>
+        </Routes >
+      </main >
 
       {/* Globalne komponenty */}
-      <MenuDrawer />
+      < MenuDrawer />
       <Cart />
       {authOpen && <AuthModal onClose={closeAuth} />}
-    </div>
+    </div >
   );
 }
 

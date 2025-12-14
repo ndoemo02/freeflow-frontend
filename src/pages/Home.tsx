@@ -27,8 +27,10 @@ export default function Home() {
   const { theme } = useTheme();
 
   // UI State from Zustand
+  // UI State from Zustand
   const {
     mode, setMode,
+    presentationItems,
     setPresentationItems,
     setHighlightedCardId,
     clearPresentation
@@ -66,10 +68,15 @@ export default function Home() {
 
   // Auto-switch view mode based on presentation state
   useEffect(() => {
-    if (mode === 'restaurant_presentation' || mode === 'menu_presentation') {
-      setViewMode('bar'); // W czasie prezentacji chcemy widzieć Voice Bar
+    // Jeśli mamy wyniki wyszukiwania (ale nie wybraliśmy konkretnej), pokaż kafelki
+    if (presentationItems.length > 0 && mode !== 'restaurant_presentation' && mode !== 'menu_presentation') {
+      setViewMode('island');
     }
-  }, [mode]);
+    // Jeśli wchodzimy w tryb prezentacji (konkretna restauracja), pokaż Voice Bar
+    if (mode === 'restaurant_presentation' || mode === 'menu_presentation') {
+      setViewMode('bar');
+    }
+  }, [mode, presentationItems]);
 
   const WARSAW_COORDS = { lat: 52.2297, lng: 21.0122 };
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>(WARSAW_COORDS);
@@ -350,8 +357,8 @@ export default function Home() {
 
       <div className="chat-wrapper">
         {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
-        {/* 🏝️ Floating Contextual Widget (Right Side) - Only if in Island mode */}
-        {viewMode === 'island' && <ContextualIsland onSelect={handleCardSelect} />}
+        {/* 🏝️ Floating Contextual Widget (Right Side) - Zawsze w drzewie, sam zarządza widocznością */}
+        <ContextualIsland onSelect={handleCardSelect} />
 
         <VoiceCommandCenterV2
           recording={recording}
