@@ -58,10 +58,10 @@ export default function ContextualIsland({ onSelect }: ContextualIslandProps) {
 
     return (
         <motion.div
-            className="absolute left-[70%] md:left-[65%] top-1/2 -translate-y-1/2 z-30 ml-4 md:ml-0"
-            initial={{ opacity: 0, x: 20, scale: 0.9 }}
+            className="fixed bottom-[180px] left-4 md:left-8 z-40"
+            initial={{ opacity: 0, x: -50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 20, scale: 0.9 }}
+            exit={{ opacity: 0, x: -50, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
             <motion.div

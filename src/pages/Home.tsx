@@ -18,7 +18,6 @@ import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE, getApiUrl } from "../lib/config"
 import { LLMContract, PresentationStep } from "../lib/llmContract"
 import { renderFromLLM, UIController } from "../lib/renderEngine"
-import PresentationStage from "../components/PresentationStage"
 import { speakTts } from "../lib/ttsClient"
 import { logger } from "../lib/logger"
 import ContextualIsland from "../components/ContextualIsland"
@@ -325,7 +324,6 @@ export default function Home() {
           <div className="logo-container" onClick={handleLogoClick}>
             <img src="/images/Freeflowlogo.png" alt="FreeFlow" className={`logo ${recording ? 'recording' : ''}`} style={{ filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none' }} />
           </div>
-          <ContextualIsland onSelect={handleCardSelect} />
         </div>
       </div>
 
@@ -337,6 +335,9 @@ export default function Home() {
 
       <div className="chat-wrapper">
         {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
+        {/* 🏝️ Floating Contextual Widget (Right Side) */}
+        <ContextualIsland onSelect={handleCardSelect} />
+
         <VoiceCommandCenterV2
           recording={recording}
           isProcessing={isThinking}
@@ -350,9 +351,6 @@ export default function Home() {
           isPresenting={mode === 'restaurant_presentation' || mode === 'menu_presentation'}
         />
       </div>
-
-      {/* 🚀 PRESENTATION LAYER (z-30 handled internally) */}
-      <PresentationStage onSelect={handleCardSelect} recording={recording} />
 
       <MenuDrawer />
       <Cart />
