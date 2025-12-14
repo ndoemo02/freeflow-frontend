@@ -21,6 +21,7 @@ import { renderFromLLM, UIController } from "../lib/renderEngine"
 import PresentationStage from "../components/PresentationStage"
 import { speakTts } from "../lib/ttsClient"
 import { logger } from "../lib/logger"
+import ContextualIsland from "../components/ContextualIsland"
 
 export default function Home() {
   const { theme } = useTheme();
@@ -324,6 +325,7 @@ export default function Home() {
           <div className="logo-container" onClick={handleLogoClick}>
             <img src="/images/Freeflowlogo.png" alt="FreeFlow" className={`logo ${recording ? 'recording' : ''}`} style={{ filter: recording ? 'drop-shadow(0 0 20px rgba(255, 50, 150, 0.6))' : 'none' }} />
           </div>
+          <ContextualIsland onSelect={handleCardSelect} />
         </div>
       </div>
 

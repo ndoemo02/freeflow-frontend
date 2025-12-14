@@ -34,6 +34,24 @@ export default function AmberControlDeck({ adminToken }) {
   const [aliasForm, setAliasForm] = useState({ alias: '', canonical: '' });
   const [aliasSaving, setAliasSaving] = useState(false);
 
+  // Preset logic
+  const [presets, setPresets] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('amber_prompt_presets') || '[null, null, null]');
+    } catch { return [null, null, null]; }
+  });
+
+  const savePreset = (idx) => {
+    const n = [...presets];
+    n[idx] = prompt;
+    setPresets(n);
+    localStorage.setItem('amber_prompt_presets', JSON.stringify(n));
+  };
+
+  const loadPreset = (idx) => {
+    if (presets[idx]) setPrompt(presets[idx]);
+  };
+
   const headers = { 'Content-Type': 'application/json', 'x-admin-token': adminToken };
 
   const fetchData = async () => {
@@ -425,6 +443,38 @@ export default function AmberControlDeck({ adminToken }) {
           <div className="text-[var(--fg0)] font-semibold">🪄 Prompt stylizacji GPT-4o</div>
           <button onClick={savePrompt} className="px-3 py-2 bg-[var(--neon)] hover:brightness-110 text-white rounded-lg font-medium shadow-[0_0_15px_rgba(91,124,255,0.3)]">💾 Zapisz prompt</button>
         </div>
+
+        {/* Presets UI */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="flex items-center justify-between gap-2 bg-[rgba(255,255,255,0.03)] p-2 rounded-lg border border-[var(--border)]">
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] uppercase text-[var(--muted)] font-bold tracking-wider">Preset #{i + 1}</span>
+                <span className="text-[10px] text-[var(--fg0)] opacity-50 truncate" title={presets[i]}>
+                  {presets[i] ? (presets[i].substring(0, 25) + '...') : '(pusty)'}
+                </span>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button
+                  onClick={() => loadPreset(i)}
+                  disabled={!presets[i]}
+                  className="px-2 py-1 text-xs bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed rounded border border-[var(--border)] text-[var(--fg0)] transition-colors"
+                  title="Wczytaj ten preset"
+                >
+                  ⚡
+                </button>
+                <button
+                  onClick={() => savePreset(i)}
+                  className="px-2 py-1 text-xs border border-[var(--border)] text-[var(--muted)] hover:border-[var(--neon)] hover:text-[var(--neon)] rounded transition-all"
+                  title="Zapisz obecny prompt jako ten preset"
+                >
+                  💾
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
