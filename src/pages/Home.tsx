@@ -60,6 +60,16 @@ export default function Home() {
   const lastMessageRef = useRef("")
   const [isSending, setIsSending] = useState(false);
 
+  // UI View Mode (Bar vs Island/Tiles)
+  const [viewMode, setViewMode] = useState<'bar' | 'island'>('bar');
+
+  // Auto-switch view mode based on presentation state
+  useEffect(() => {
+    if (mode === 'restaurant_presentation' || mode === 'menu_presentation') {
+      setViewMode('bar'); // W czasie prezentacji chcemy widzieć Voice Bar
+    }
+  }, [mode]);
+
   const WARSAW_COORDS = { lat: 52.2297, lng: 21.0122 };
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>(WARSAW_COORDS);
 
@@ -87,7 +97,11 @@ export default function Home() {
     onTranscriptChange: (transcript: string) => setVoiceQuery(transcript),
   })
 
-  const toggleUI = (checked: boolean) => setShowTextPanel(checked)
+  // Switch kontroluje widoczność paska (Bar vs Island/Tiles)
+  const toggleUI = (checked: boolean) => {
+    setViewMode(checked ? 'bar' : 'island');
+    // setShowTextPanel(checked); // Opcjonalnie zachowaj dla kompatybilności
+  }
 
   const handleLogoClick = () => {
     // if (ENABLE_IMMERSIVE_MODE) setImmersive(true) - User requested logo to stay put
@@ -327,7 +341,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className={`tiles ${(showTextPanel || immersive) ? 'hidden' : ''}`}>
+      <div className={`tiles ${(viewMode === 'bar' || immersive) ? 'hidden' : ''}`}>
         <div className="tile"><img src="/icons/food.png" alt="Jedzenie" /></div>
         <div className="tile"><img src="/icons/car.png" alt="Taxi" /></div>
         <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
@@ -335,8 +349,8 @@ export default function Home() {
 
       <div className="chat-wrapper">
         {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
-        {/* 🏝️ Floating Contextual Widget (Right Side) */}
-        <ContextualIsland onSelect={handleCardSelect} />
+        {/* 🏝️ Floating Contextual Widget (Right Side) - Only if in Island mode */}
+        {viewMode === 'island' && <ContextualIsland onSelect={handleCardSelect} />}
 
         <VoiceCommandCenterV2
           recording={recording}
@@ -349,6 +363,7 @@ export default function Home() {
           onMicClick={handleLogoClick}
           onTextSubmit={handleManualSubmit}
           isPresenting={mode === 'restaurant_presentation' || mode === 'menu_presentation'}
+          visible={viewMode === 'bar'}
         />
       </div>
 

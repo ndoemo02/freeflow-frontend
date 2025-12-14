@@ -15,6 +15,8 @@ interface VoiceCommandCenterV2Props {
   isProcessing?: boolean;
   isPresenting?: boolean;
   onClearResponse?: () => void;
+  viewMode?: 'bar' | 'island';
+  onToggleView?: () => void;
 }
 
 export default function VoiceCommandCenterV2({
@@ -30,9 +32,13 @@ export default function VoiceCommandCenterV2({
   isProcessing = false,
   isPresenting = false,
   onClearResponse,
+  viewMode = 'bar',
+  onToggleView,
 }: VoiceCommandCenterV2Props) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isIsland = viewMode === 'island';
 
   // Handle both prop names
   const handleSubmitText = onTextSubmit || onSubmitText;
