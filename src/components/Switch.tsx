@@ -48,13 +48,13 @@ export default function Switch({ onToggle, initial = false, amberReady = true }:
           }}
           aria-label="Toggle voice/tiles"
         />
-        
+
         {/* Kulka na górze */}
         <div className="switch-knob" />
-        
+
         {/* Pasek */}
         <div className="switch-track" />
-        
+
         {/* Podstawa na dole */}
         <div className="switch-base">
           <div className="switch-base-inner" />
@@ -95,14 +95,14 @@ const Wrapper = styled.div<{ $amberReady: boolean }>`
     width: clamp(1.5em, 4vw, 2em);
     height: clamp(1.5em, 4vw, 2em);
     border-radius: 50%;
-    background-image: ${props => props.$amberReady 
-      ? 'radial-gradient(farthest-corner at 70% 30%, #00ff77 4%, #00cc55 12% 24%, #009944 50% 65%, #00ff77 75%)'
-      : 'radial-gradient(farthest-corner at 70% 30%, #ff4444 4%, #cc2222 12% 24%, #aa0000 50% 65%, #ff4444 75%)'
-    };
-    box-shadow: ${props => props.$amberReady 
-      ? '0 0 15px rgba(0, 255, 119, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
-      : '0 0 15px rgba(255, 68, 68, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
-    };
+    background-image: ${props => props.$amberReady
+    ? 'radial-gradient(farthest-corner at 70% 30%, #00ff77 4%, #00cc55 12% 24%, #009944 50% 65%, #00ff77 75%)'
+    : 'radial-gradient(farthest-corner at 70% 30%, #ff4444 4%, #cc2222 12% 24%, #aa0000 50% 65%, #ff4444 75%)'
+  };
+    box-shadow: ${props => props.$amberReady
+    ? '0 0 15px rgba(0, 255, 119, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
+    : '0 0 15px rgba(255, 68, 68, 0.6), inset 0 0 8px 2px rgb(255 255 255 / .4)'
+  };
     transition: all 0.3s cubic-bezier(.65, 1.35, .5, 1);
     position: relative;
     z-index: 2;

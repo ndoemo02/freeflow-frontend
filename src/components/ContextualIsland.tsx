@@ -11,7 +11,7 @@ export default function ContextualIsland({ onSelect }: ContextualIslandProps) {
     const [expanded, setExpanded] = useState(false);
 
     // 🛑 Render only if presentation active and items exist
-    const isPresentationMode = ['restaurant_presentation', 'menu_presentation'].includes(mode);
+    const isPresentationMode = ['restaurant_presentation'].includes(mode);
     if (!isPresentationMode || presentationItems.length === 0) {
         return null;
     }
@@ -122,7 +122,7 @@ export default function ContextualIsland({ onSelect }: ContextualIslandProps) {
                                 <div className="pt-2 flex justify-between items-center border-t border-white/10">
                                     <span className="text-white font-mono">
                                         {currentItem.price || (currentItem.price_range ? '$$$' : '')}
-                                        {currentItem.price_pln ? `${currentItem.price_pln} zł` : ''}
+                                        {(currentItem.price_pln || currentItem.price) ? `${Number(currentItem.price_pln || currentItem.price).toFixed(2)} zł` : ''}
                                     </span>
                                     <button
                                         className="bg-amber-500 text-black text-xs font-bold px-3 py-1.5 rounded-full hover:bg-amber-400 transition-colors"
@@ -143,7 +143,7 @@ export default function ContextualIsland({ onSelect }: ContextualIslandProps) {
                             className="flex items-center gap-3 text-[10px] text-gray-400 mt-1"
                         >
                             {currentItem.distance && <span>📍 {currentItem.distance.toFixed(1)} km</span>}
-                            {currentItem.price_pln && <span>💰 {currentItem.price_pln} zł</span>}
+                            {(currentItem.price_pln || currentItem.price) && <span>💰 {Number(currentItem.price_pln || currentItem.price).toFixed(2)} zł</span>}
                             <span className="ml-auto opacity-50">Swipe →</span>
                         </motion.div>
                     )}

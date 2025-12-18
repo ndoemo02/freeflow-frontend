@@ -22,6 +22,7 @@ import { renderFromLLM, UIController } from "../lib/renderEngine"
 import { speakTts } from "../lib/ttsClient"
 import { logger } from "../lib/logger"
 import ContextualIsland from "../components/ContextualIsland"
+import MenuRightList from '../components/MenuRightList';
 
 export default function Home() {
   const { theme } = useTheme();
@@ -214,7 +215,13 @@ export default function Home() {
       let sequence: PresentationStep[] = [];
 
       // Detect Mode
-      if (data.restaurants && data.restaurants.length > 0) {
+      // 🧠 Fix: Priorytetyzacja Menu jeśli intencja na to wskazuje (bo restaurants mogą być w cache z poprzedniego kroku)
+      const isMenuIntent = data.intent === 'menu_request' || data.intent === 'show_menu';
+
+      if (isMenuIntent && data.menuItems && data.menuItems.length > 0) {
+        ui_mode = 'menu_presentation';
+        items = data.menuItems;
+      } else if (data.restaurants && data.restaurants.length > 0) {
         ui_mode = 'restaurant_presentation';
         items = data.restaurants;
       } else if (data.menuItems && data.menuItems.length > 0) {
@@ -227,6 +234,7 @@ export default function Home() {
 
       // Populate Presentation items in Store
       setPresentationItems(items);
+      setMode(ui_mode); // 🔥 Fix: Aktywacja odpowiedniego trybu (np. menu_presentation)
 
       // ✂️ UX Refinement: Force intro only if Presentation Mode
       let cleanReply = data.reply || "";
@@ -321,9 +329,6 @@ export default function Home() {
       </picture>
       <span className="flow">Flow</span>
 
-      {/* 🔹 BLUR OVERLAY REMOVED FULLY */}
-
-
       <Switch onToggle={toggleUI} amberReady={!recording} initial={true} />
 
       <header className="top-header">
@@ -358,7 +363,12 @@ export default function Home() {
       <div className="chat-wrapper">
         {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
         {/* 🏝️ Floating Contextual Widget (Right Side) - Zawsze w drzewie, sam zarządza widocznością */}
+
+        {/* 🏝️ Floating Contextual Widget (Left Side - Restaurants) */}
         <ContextualIsland onSelect={handleCardSelect} />
+
+        {/* 📜 Floating Menu List (Right Side) */}
+        <MenuRightList />
 
         <VoiceCommandCenterV2
           recording={recording}

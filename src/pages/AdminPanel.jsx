@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,6 +28,7 @@ import { CONFIG, getApiUrl } from '../lib/config';
 import AmberControlDeck from '../components/admin/AmberControlDeck';
 import AmberLiveMonitor from '../components/AmberLiveMonitor';
 import FreeFunSection from '../components/FreeFunSection';
+import ConversationViewer from '../components/admin/ConversationViewer';
 
 ChartJS.register(
   CategoryScale,
@@ -44,6 +46,7 @@ ChartJS.register(
 import { useTheme } from '../state/ThemeContext';
 
 export default function AdminPanel() {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState('7 dni');
   const [chartType, setChartType] = useState('Dzienna');
   const { theme, setTheme } = useTheme();
@@ -784,6 +787,14 @@ export default function AdminPanel() {
             >
               {theme === 'v2' ? '🔮 Modern' : '🏛️ Classic'}
             </button>
+
+            <button
+              onClick={() => navigate('/')}
+              className="glass rounded-xl px-3 py-2 text-[12px] font-medium border border-[var(--border)] hover:neon-ring transition-shadow focus-ring text-[var(--fg0)] ml-2"
+              title="Wróć do strony głównej"
+            >
+              🏠 Powrót
+            </button>
           </div>
         </header>
 
@@ -901,7 +912,8 @@ export default function AdminPanel() {
                 { id: 'learning', label: 'Brain / Learning' },
                 { id: 'alerts', label: 'System Alerts' },
                 { id: 'config', label: 'Konfiguracja Menu' },
-                { id: 'events', label: 'Wydarzenia' }
+                { id: 'events', label: 'Wydarzenia' },
+                { id: 'conversations', label: 'Rozmowy' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1187,6 +1199,13 @@ export default function AdminPanel() {
           {activeTab === 'events' && (
             <div className="glass rounded-xl border border-[var(--border)] p-4 min-h-[600px]">
               <FreeFunSection />
+            </div>
+          )}
+
+          {/* TAB: CONVERSATIONS */}
+          {activeTab === 'conversations' && (
+            <div className="glass rounded-xl border border-[var(--border)] p-4 h-[650px]">
+              <ConversationViewer adminToken={adminToken} />
             </div>
           )}
         </main>

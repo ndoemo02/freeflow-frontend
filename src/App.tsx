@@ -7,13 +7,15 @@ import { CartProvider } from "./state/CartContext";
 import Cart from "./components/Cart";
 import CustomerPanel from "./pages/Panel/CustomerPanel";
 import BusinessPanel from "./pages/Panel/BusinessPanel";
-import AdminPanel from "./pages/AdminPanel"; // Import AdminPanel
+import AdminPanel from "./pages/AdminPanel";
 import AuthModal from "./components/AuthModal";
 import MenuDrawer from "./ui/MenuDrawer";
 import { ThemeProvider } from "./state/ThemeContext";
 
-// ✅ DODAJ TEN IMPORT
-import MotionBackground from "./components/MotionBackground";
+// ✅ KOMPONENT Z 3D KIELISZKIEM I LAMPKĄ
+import RestaurantBackground from "./components/RestaurantBackground";
+
+import MenuViewer from "./components/MenuViewer";
 
 
 function AppContent() {
@@ -23,8 +25,8 @@ function AppContent() {
   return (
     <div className="min-h-screen text-slate-100 relative overflow-hidden">
 
-      {/* 🌌 GLOBALNE TŁO */}
-      <MotionBackground />
+      {/* 🌌 GLOBALNE TŁO Z 3D KIELISZKIEM WINA */}
+      <RestaurantBackground />
 
       <main className="relative z-10">
         <Routes>
