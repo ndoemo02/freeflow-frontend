@@ -17,12 +17,13 @@ import { useSpeechRecognition } from "../hooks/useSpeechRecognition"
 import freeflowLogo from '../assets/Freeflowlogo.png';
 import "./Home.css"
 import { CONFIG, ENABLE_IMMERSIVE_MODE, getApiUrl } from "../lib/config"
-import { LLMContract, PresentationStep } from "../lib/llmContract"
+import { LLMContract, PresentationStep, UIMode } from "../lib/llmContract"
 import { renderFromLLM, UIController } from "../lib/renderEngine"
 import { speakTts } from "../lib/ttsClient"
 import { logger } from "../lib/logger"
 import ContextualIsland from "../components/ContextualIsland"
 import MenuRightList from '../components/MenuRightList';
+
 
 export default function Home() {
   const { theme } = useTheme();
@@ -42,13 +43,15 @@ export default function Home() {
   const [voiceQuery, setVoiceQuery] = useState("")
   const [amberResponse, setAmberResponse] = useState("") // Just text for UI
   const [userMessage, setUserMessage] = useState("")
+  const preloadedAudioRef = useRef<{ text: string, base64: string } | null>(null);
 
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false) // Blocks UI interaction (RenderEngine)
   const [isThinking, setIsThinking] = useState(false)   // API Request in progress
 
   const openDrawer = useUI((s) => s.openDrawer)
-  const { setIsOpen, addToCart } = useCart()
+  // @ts-ignore
+  const { setIsOpen, addToCart, syncCart } = useCart()
 
   // Audio Ref to stop playback
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -69,12 +72,18 @@ export default function Home() {
 
   // Auto-switch view mode based on presentation state
   useEffect(() => {
+    const isBarMode =
+      mode === 'restaurant_presentation' ||
+      mode === 'menu_presentation' ||
+      mode === 'cart_summary' ||
+      mode === 'confirmation';
+
     // Jeśli mamy wyniki wyszukiwania (ale nie wybraliśmy konkretnej), pokaż kafelki
-    if (presentationItems.length > 0 && mode !== 'restaurant_presentation' && mode !== 'menu_presentation') {
+    if ((presentationItems?.length || 0) > 0 && !isBarMode) {
       setViewMode('island');
     }
-    // Jeśli wchodzimy w tryb prezentacji (konkretna restauracja), pokaż Voice Bar
-    if (mode === 'restaurant_presentation' || mode === 'menu_presentation') {
+    // Jeśli wchodzimy w tryb prezentacji (konkretna restauracja, menu, koszyk), pokaż Voice Bar
+    if (isBarMode) {
       setViewMode('bar');
     }
   }, [mode, presentationItems]);
@@ -132,18 +141,51 @@ export default function Home() {
     playTTS: async (text: string) => {
       setIsPlayingAudio(true);
       try {
-        // 🔊 Wymuś żeński głos (Wavenet-A) - zapobiega fallbackowi na "Microsoft Paul"
-        const audio = await speakTts(text, { voiceName: 'pl-PL-Wavenet-A' });
+        let audio: HTMLAudioElement;
+
+        // 🚀 Check for Pre-generated Audio (Optimization)
+        const cached = preloadedAudioRef.current;
+        logger.debug(`🔊 [playTTS] Incoming: "${text.substring(0, 20)}...", Cached: "${cached?.text?.substring(0, 20)}..."`);
+
+        const matches = cached && (
+          cached.text.trim() === text.trim() ||
+          text.includes(cached.text.substring(0, 15)) ||
+          cached.text.includes(text.substring(0, 15))
+        );
+
+        if (matches && cached) {
+          logger.info("🔊 [Home] Playing PRELOADED audio from backend cache");
+          audio = new Audio(`data:audio/mp3;base64,${cached.base64}`);
+          preloadedAudioRef.current = null; // Use once
+        } else {
+          logger.info("🔊 [Home] Fetching TTS for text:", text.substring(0, 40) + "...");
+          // Speed up list items and narratives (narrations) to feel less "slow"
+          const isNarrative = text.includes('.') && text.length < 100 && !text.includes('?');
+          const speakingRate = isNarrative ? 1.15 : 1.05;
+
+          audio = await speakTts(text, {
+            voiceName: 'pl-PL-Wavenet-A',
+            speakingRate: speakingRate
+          });
+        }
+
         currentAudioRef.current = audio;
-        // Wait for end
+
+        // 🔥 CRITICAL: Must await play and end!
+        await audio.play();
+
         if (!audio.paused || !audio.ended) {
           await new Promise<void>(resolve => {
             audio.onended = () => resolve();
-            audio.onerror = () => resolve(); // Fail grace
+            audio.onerror = (e) => {
+              logger.error("Audio playback error:", e);
+              resolve();
+            };
           });
         }
+        logger.info("✅ [Home] Audio playback finished");
       } catch (e) {
-        console.error("TTS Output Error:", e);
+        logger.error("TTS Output Error:", e);
       } finally {
         setIsPlayingAudio(false);
         currentAudioRef.current = null;
@@ -184,102 +226,178 @@ export default function Home() {
     // clearPresentation(); // Optional: RenderEngine will clear it anyway
 
     try {
-      const apiUrl = getApiUrl('/api/brain')
+      const isV2 = CONFIG.USE_BRAIN_V2;
+      const apiUrl = getApiUrl(isV2 ? '/api/brain/v2' : '/api/brain')
+
+      // Request body based on backend version (ETAP 6 Substitution)
+      const body = isV2 ? {
+        session_id: sessionId,
+        input: text,
+        includeTTS: true,
+        tts: true,
+        meta: {
+          lat: coords.lat,
+          lng: coords.lng,
+          channel: 'voice' // Enforce 'voice' to trigger backend logic
+        }
+      } : {
+        text: text,
+        sessionId: sessionId,
+        lat: coords.lat,
+        lng: coords.lng,
+        includeTTS: true,
+        tts: true,
+        channel: 'voice'
+      };
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: text,
-          sessionId: sessionId,
-          lat: coords.lat,
-          lng: coords.lng,
-          includeTTS: false, // We handle TTS via renderEngine now for granularity? Or mixed?
-          // If we want audioContent from backend, set true. 
-          // But renderEngine synthesizes steps. Let's keep false to force local TTS control 
-          // OR true if we want the "voice_intro" to be pre-generated.
-          // Let's set FALSE and rely on speakTts client-side for "Amber prowadzi" step-by-step
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      setIsThinking(false); // 🧠 Thinking done, now speaking/rendering
+      setIsThinking(false);
       logger.info("🧠 Amber Data:", data);
+
+      // Save audio for RenderEngine (Task 1)
+      if (data.audioContent) {
+        // Use tts_text if available (V2 optimized), fallback to full reply
+        preloadedAudioRef.current = {
+          text: data.tts_text || data.reply || data.text,
+          base64: data.audioContent
+        };
+      }
 
       setAmberResponse(data.reply || "");
 
-      // 🛠️ Construct LLM Contract from Backend Data (Legacy Adapter)
-      // If backend sends flat lists, we convert to presentation sequence
-      let ui_mode = 'standard_chat';
+      // 🛠️ Construct LLM Contract from Backend Data (V2 Adapter)
+      let ui_mode: UIMode = 'standard_chat';
       let items: any[] = [];
       let sequence: PresentationStep[] = [];
 
-      // Detect Mode
-      // 🧠 Fix: Priorytetyzacja Menu jeśli intencja na to wskazuje (bo restaurants mogą być w cache z poprzedniego kroku)
-      const isMenuIntent = data.intent === 'menu_request' || data.intent === 'show_menu';
+      const effectiveMenuItems = data.menuItems || data.menu;
+      const effectiveRestaurants = data.restaurants;
 
-      if (isMenuIntent && data.menuItems && data.menuItems.length > 0) {
-        ui_mode = 'menu_presentation';
-        items = data.menuItems;
-      } else if (data.restaurants && data.restaurants.length > 0) {
-        ui_mode = 'restaurant_presentation';
-        items = data.restaurants;
-      } else if (data.menuItems && data.menuItems.length > 0) {
-        ui_mode = 'menu_presentation';
-        items = data.menuItems;
-      } else if (data.meta?.cart) {
-        ui_mode = 'cart_summary';
-        items = data.meta.cart.items;
+      // Detect Mode
+      const isMenuIntent = data.intent === 'menu_request' || data.intent === 'show_menu' || data.intent === 'menu_presentation';
+      const isConfirmIntent = data.intent === 'confirm_order' || (data.intent === 'create_order' && data.meta?.addedToCart);
+
+      // 🛒 Cart Sync (Voice -> Frontend)
+      if (data.meta?.cart) {
+        syncCart(data.meta.cart.items, data.meta.llm_refinement?.targetRestaurant || 'Restauracja');
       }
 
-      // Populate Presentation items in Store
-      setPresentationItems(items);
-      setMode(ui_mode); // 🔥 Fix: Aktywacja odpowiedniego trybu (np. menu_presentation)
+      // ⚡ Handle Backend Actions (Task 3)
+      if (data.actions && Array.isArray(data.actions)) {
+        const showCartAction = data.actions.find((a: any) => a.type === 'SHOW_CART');
+        if (showCartAction) {
+          logger.info("⚡ [Action] SHOW_CART detected! Transitioning mode...");
+          ui_mode = 'confirmation';
+          items = data.meta?.cart?.items || [];
+          // Note: setIsOpen(true) moved to after await renderFromLLM
+        }
 
-      // ✂️ UX Refinement: Force intro only if Presentation Mode
+        const closeCartAction = data.actions.find((a: any) => a.type === 'CLOSE_CART');
+        if (closeCartAction) {
+          logger.info("⚡ [Action] CLOSE_CART detected! Closing cart...");
+          setIsOpen(false);
+        }
+      }
+
+      if (isConfirmIntent) {
+        logger.info("🛒 [Mode] Switching to Confirmation Mode");
+        ui_mode = 'confirmation';
+        items = data.meta?.cart?.items || data.meta?.lastOrder?.items || [];
+      } else if (isMenuIntent && (effectiveMenuItems?.length || 0) > 0) {
+        ui_mode = 'menu_presentation';
+        items = effectiveMenuItems;
+      } else if ((effectiveRestaurants?.length || 0) > 0) {
+        logger.info("🍽️ [Mode] Switching to Restaurant Presentation Mode");
+        ui_mode = 'restaurant_presentation';
+        items = effectiveRestaurants;
+      } else if ((effectiveMenuItems?.length || 0) > 0) {
+        logger.info("🍔 [Mode] Switching to Menu Presentation Mode");
+        ui_mode = 'menu_presentation';
+        items = effectiveMenuItems;
+      } else if (data.meta?.cart) {
+        logger.info("🛒 [Mode] Switching to Cart Summary Mode");
+        ui_mode = 'cart_summary';
+        items = data.meta.cart.items || [];
+      }
+
+      logger.info(`🎭 [UI] Final calculated mode: ${ui_mode}`);
+
+      setPresentationItems(items || []);
+      setMode(ui_mode);
+
       let cleanReply = data.reply || "";
-      if (items.length > 0 && (ui_mode === 'restaurant_presentation' || ui_mode === 'menu_presentation')) {
-        // Attempt to extract just the intro sentence (ends with colon, or split by newline)
-        // Look for X found: or X results:
+      let closingQuestion = data.closing_question || "";
+
+      if (items.length > 0 && (ui_mode === 'restaurant_presentation' || ui_mode === 'menu_presentation' || ui_mode === 'cart_summary')) {
         const splitByLine = cleanReply.split('\n');
         if (splitByLine.length > 0) {
           let firstLine = splitByLine[0].trim();
-          if (firstLine.length < 5 && splitByLine.length > 1) firstLine = splitByLine[1].trim(); // skip empty/short first line
+          // If first line is too short, merge with next
+          if (firstLine.length < 5 && splitByLine.length > 1) {
+            firstLine = splitByLine[1].trim();
+          }
           cleanReply = firstLine;
         }
-        // Fallback cleanup
-        if (cleanReply.length > 120) {
-          const dotIndex = cleanReply.indexOf('.');
-          if (dotIndex > 10 && dotIndex < 120) cleanReply = cleanReply.substring(0, dotIndex + 1);
-          else cleanReply = cleanReply.substring(0, 100) + "...";
+
+        // Extract closing question if not provided but exists in last line
+        if (!closingQuestion && splitByLine.length > 1) {
+          const lastLine = splitByLine[splitByLine.length - 1].trim();
+          if (lastLine.includes('?') || lastLine.length < 50) {
+            closingQuestion = lastLine;
+          }
         }
-        // Ensure it ends nicely
+
+        if (cleanReply.length > 150) {
+          const dotIndex = cleanReply.indexOf('.');
+          if (dotIndex > 10 && dotIndex < 150) cleanReply = cleanReply.substring(0, dotIndex + 1);
+          else cleanReply = cleanReply.substring(0, 120) + "...";
+        }
         if (!cleanReply.endsWith(':') && !cleanReply.endsWith('.') && !cleanReply.endsWith('?')) cleanReply += ":";
       }
 
       setAmberResponse(cleanReply);
 
-      // Build Sequence if not provided
-      // Use smart narration if available, otherwise generic
       if (items.length > 0) {
-        sequence = items.map((item: any, idx: number) => ({
+        // Limit voice presentation to top 3 items for restaurants/menu to avoid long narrations (Task 3)
+        const itemsToRead = (ui_mode === 'restaurant_presentation' || ui_mode === 'menu_presentation')
+          ? items.slice(0, 3)
+          : items;
+
+        sequence = itemsToRead.map((item: any, idx: number) => ({
           step_index: idx,
-          card_id: item.id,
-          tts_narrative: `${item.name}. ${item.cuisine_type || item.category || ''}.` // Basic narration
+          card_id: item.id || item.menuItemId,
+          tts_narrative: `${item.name}.` // Concise version to minimize gaps
         }));
       }
 
       const contract: LLMContract = {
         ui_mode: ui_mode as any,
-        voice_intro: cleanReply, // Use CLEAN reply for intro to avoid reading the whole list twice!
+        voice_intro: cleanReply,
         presentation_sequence: sequence,
-        closing_question: data.meta?.decision?.shouldAskClarification ? "Co wybierasz?" : undefined,
-        expect_selection: !data.meta?.decision?.shouldAskClarification // Open mic if we expect selection
+        closing_question: closingQuestion,
+        expect_selection: !isConfirmIntent && (data.intent !== 'confirm_order')
       };
 
+      logger.info("🎬 [Render V3] Contract Ready:", contract);
+
       // 🎬 EXECUTE ENGINE
-      // This is async and detached
-      renderFromLLM(contract, uiController());
+      await renderFromLLM(contract, uiController());
+
+      // 🛒 Post-render Actions (Task 2: Sync with TTS End)
+      if (data.actions && Array.isArray(data.actions)) {
+        const showCartAction = data.actions.find((a: any) => a.type === 'SHOW_CART');
+        if (showCartAction) {
+          logger.info("🏁 [Home] AI finished presentation. Opening cart as requested by SHOW_CART action.");
+          setIsOpen(true);
+        }
+      }
 
     } catch (error) {
       logger.error("Communication Error:", error);
@@ -355,20 +473,26 @@ export default function Home() {
       </div>
 
       <div className={`tiles ${(viewMode === 'bar' || immersive) ? 'hidden' : ''}`}>
-        <div className="tile"><img src="/icons/food.png" alt="Jedzenie" /></div>
-        <div className="tile"><img src="/icons/car.png" alt="Taxi" /></div>
-        <div className="tile"><img src="/icons/hotel.png" alt="Hotel" /></div>
+        <div className="tile" onClick={() => handleManualSubmit("Zamawiam jedzenie")}>
+          <img src="/icons/food.png" alt="Jedzenie" />
+        </div>
+        <div className="tile" onClick={() => handleManualSubmit("Zamawiam taxi")}>
+          <img src="/icons/car.png" alt="Transport" />
+        </div>
+        <div className="tile" onClick={() => handleManualSubmit("Szukam hotelu")}>
+          <img src="/icons/hotel.png" alt="Hotel" />
+        </div>
       </div>
 
       <div className="chat-wrapper">
         {/* 🗣️ Voice Panel - Jedyne źródło prawdy o dialogu (user + amber) */}
         {/* 🏝️ Floating Contextual Widget (Right Side) - Zawsze w drzewie, sam zarządza widocznością */}
 
-        {/* 🏝️ Floating Contextual Widget (Left Side - Restaurants) */}
+        {/* 🏝️ Floating Contextual Widget (Left/Right Island) */}
         <ContextualIsland onSelect={handleCardSelect} />
 
-        {/* 📜 Floating Menu List (Right Side) */}
-        <MenuRightList />
+        {/* 📜 Floating Menu List (Deprecated - Unified into ContextualIsland) */}
+        {/* <MenuRightList /> */}
 
         <VoiceCommandCenterV2
           recording={recording}

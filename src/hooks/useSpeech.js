@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getApiUrl } from "../lib/config";
+import { getApiUrl, CONFIG } from "../lib/config";
 
 export const useSpeech = (options = {}) => {
   const {
@@ -80,20 +80,39 @@ export const useSpeech = (options = {}) => {
   const sendToBackend = useCallback(async (text, userId = "demo-user-001") => {
     setLoading(true);
     setError(null);
-    
+
+    if (!text || text.trim() === "") {
+      console.warn("⚠️ useSpeech: Attempted to send empty text. Aborting.");
+      setLoading(false);
+      return;
+    }
+
     console.log("🚀 Sending to backend:", { text, userId });
-    
+
     try {
-      const res = await fetch(getApiUrl('/api/brain'), {
+      const isV2 = CONFIG.USE_BRAIN_V2;
+      const apiUrl = getApiUrl(isV2 ? '/api/brain/v2' : '/api/brain');
+
+      const body = isV2 ? {
+        session_id: userId,
+        input: text,
+        includeTTS: true, // Explicitly request TTS
+        tts: true,        // Redundant flag for different backend versions
+        meta: { channel: 'voice', locale: 'pl-PL' }
+      } : {
+        text: text,
+        user_id: userId,
+        channel: 'voice',
+        tts: true
+      };
+
+      const res = await fetch(apiUrl, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({
-          text: text,
-          user_id: userId,
-        }),
+        body: JSON.stringify(body),
       });
 
       console.log("📡 API Response status:", res.status, res.statusText);
@@ -103,18 +122,18 @@ export const useSpeech = (options = {}) => {
       }
 
       const data = await res.json();
-      console.log("✅ Backend response:", data);
+      console.log("✅ Backend response FULL JSON:", JSON.stringify(data, null, 2));
 
       // Extract response with fallback logic
-      const reply = 
+      const reply =
         data?.fulfillment_response?.messages?.[0]?.text?.text?.[0] ||
         data?.message ||
         data?.response ||
         "No response received.";
-      
+
       setResponse(reply);
       console.log("🎯 Extracted reply:", reply);
-      
+
     } catch (err) {
       console.error("❌ Backend error:", err);
       const errorMessage = err.message || "Connection error with server";

@@ -37,6 +37,8 @@ export function abortRender() {
  * Wykonywana jest liniowo (await za await), aby uniknąć race conditions.
  */
 export async function renderFromLLM(contract: LLMContract, ui: UIController) {
+    logger.info("🚀 [RenderEngine V3] Start", contract);
+
     // (A) Guard: Re-entrancy Lock
     if (isRendering) {
         logger.warn("⚠️ [RenderFromLLM] Already running — request ignored");
@@ -44,22 +46,13 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
     }
 
     isRendering = true;
-    abort = false; // Reset aborcji na starcie
-
-    // (C) Debug Trace
-    if (process.env.NODE_ENV !== 'production') {
-        logger.debug("🎬 renderFromLLM", {
-            ui_mode: contract.ui_mode,
-            steps: contract.presentation_sequence?.length || 0,
-            expect_selection: contract.expect_selection
-        });
-    }
+    abort = false;
 
     try {
         // 1. HARD RESET UI STATE
         ui.stopAllTTS();
         ui.clearHighlights();
-        ui.lockUserInput(); // Blokujemy interakcję podczas prezentacji
+        ui.lockUserInput();
 
         if (abort) return;
 
@@ -87,16 +80,18 @@ export async function renderFromLLM(contract: LLMContract, ui: UIController) {
                 break;
 
             default:
-                throw new Error(`Unsupported ui_mode: ${(contract as any).ui_mode}`);
+                // Fallback instead of crash
+                ui.setUIMode('standard_chat');
         }
 
-        // Determinuje czy TTS ma być słyszalny
-        const allowTTS = ['restaurant_presentation', 'menu_presentation'].includes(contract.ui_mode);
+        // 🔥 FORCE ALL AUDIO (Task 1)
+        const allowTTS = true;
 
         if (abort) return;
 
-        // 3. VOICE INTRO (Blokujące - tylko w trybach prezentacji)
+        // 3. VOICE INTRO
         if (contract.voice_intro && allowTTS) {
+            logger.info("🔊 [Render V3] Intro:", contract.voice_intro.substring(0, 40));
             await ui.playTTS(contract.voice_intro);
         }
 
