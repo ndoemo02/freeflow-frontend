@@ -105,12 +105,12 @@ export function CartProvider({ children }) {
   const removeFromCart = (itemId) => {
     const newCart = cart.filter(item => item.id !== itemId);
     setCart(newCart);
-    
+
     // Clear restaurant if cart is empty
     if (newCart.length === 0) {
       setRestaurant(null);
     }
-    
+
     push('Usunięto z koszyka', 'info');
     console.log('Item removed from cart', { itemId });
   };
@@ -137,14 +137,45 @@ export function CartProvider({ children }) {
     console.log('Cart cleared');
   };
 
+  // Sync cart with backend state (e.g. from Voice AI)
+  const syncCart = (backendItems, restaurantData) => {
+    console.log("🛒 Syncing cart from Backend:", backendItems, restaurantData);
+    if (!backendItems || !Array.isArray(backendItems)) return;
+
+    const mappedItems = backendItems.map(item => ({
+      id: item.id || item.menu_item_id, // Fallback
+      name: item.name,
+      price: Number(item.price_pln ?? item.price ?? 0),
+      quantity: Number(item.qty ?? item.quantity ?? 1)
+    }));
+
+    setCart(mappedItems);
+
+    if (restaurantData) {
+      // If restaurantData is string, wrap it
+      const rData = typeof restaurantData === 'string' ? { name: restaurantData, id: 'unknown-sync' } : restaurantData;
+
+      // Try to preserve ID if we have it in current state and names match
+      if (restaurant && restaurant.name === rData.name) {
+        // Keep existing restaurant object with ID
+      } else {
+        setRestaurant(rData);
+      }
+    }
+
+    // Opcjonalnie otwórz koszyk jeśli są elementy
+    if (mappedItems.length > 0) {
+      // setIsOpen(true); // Decyzja UX: czy otwierać automatycznie? User complain "nie pokazuje", więc może tak.
+    }
+  };
+
   // Calculate total
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   // Submit order
   const submitOrder = async (deliveryInfo) => {
     console.log('🛒 submitOrder called with user:', user);
-    
-    // Require login for orders
+
     if (!user) {
       push('Musisz być zalogowany, aby złożyć zamówienie', 'error');
       return false;
@@ -163,18 +194,17 @@ export function CartProvider({ children }) {
     setIsSubmitting(true);
 
     try {
-      // Prepare order data
       const orderData = {
-        user_id: user?.id || null, // User must be logged in
+        user_id: user?.id || null,
         restaurant_id: restaurant.id,
         restaurant_name: restaurant.name,
         items: cart.map(item => ({
-          menu_item_id: item.id, // Use menu_item_id instead of id
+          menu_item_id: item.id,
           name: item.name,
-          unit_price_cents: Math.round(item.price * 100), // Convert to cents
+          unit_price_cents: Math.round(item.price * 100),
           qty: item.quantity
         })),
-        total_price: Math.round(total * 100), // Convert to cents
+        total_price: Math.round(total * 100),
         status: 'pending',
         customer_name: deliveryInfo.name || user?.user_metadata?.first_name || user?.email || 'Gość',
         customer_phone: deliveryInfo.phone || user?.user_metadata?.phone || '',
@@ -184,38 +214,21 @@ export function CartProvider({ children }) {
       };
 
       console.log('🛒 Submitting order', orderData);
-      console.log('🛒 Restaurant ID type:', typeof restaurant.id, 'value:', restaurant.id);
-      console.log('🛒 User ID type:', typeof user?.id, 'value:', user?.id);
-      console.log('🛒 Items structure:', orderData.items);
-      console.log('🛒 Restaurant object:', restaurant);
-
-      // Use backend API instead of direct Supabase access
       const response = await fetch(getApiUrl('/api/orders'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),
       });
 
-      console.log('🛒 Backend API response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('🛒 Backend API error:', errorData);
         throw new Error(errorData.error || 'Failed to create order');
       }
 
       const data = await response.json();
-      console.log('🛒 Backend API success:', data);
-
-      console.log('Order created successfully', data);
       push('Zamówienie złożone pomyślnie! 🎉', 'success');
-
-      // Clear cart
       clearCart();
       setIsOpen(false);
-
       return data;
     } catch (error) {
       console.error('Failed to submit order', error);
@@ -236,10 +249,13 @@ export function CartProvider({ children }) {
     removeFromCart,
     updateQuantity,
     clearCart,
+    syncCart, // Export this
     submitOrder,
     setIsOpen,
     itemCount: cart.reduce((sum, item) => sum + item.quantity, 0)
   };
+
+
 
   return (
     <CartContext.Provider value={value}>

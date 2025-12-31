@@ -8,6 +8,7 @@ import Cart from "./components/Cart";
 import CustomerPanel from "./pages/Panel/CustomerPanel";
 import BusinessPanel from "./pages/Panel/BusinessPanel";
 import AdminPanel from "./pages/AdminPanel";
+import DriverPanel from "./pages/DriverPanel";
 import AuthModal from "./components/AuthModal";
 import MenuDrawer from "./ui/MenuDrawer";
 import { ThemeProvider } from "./state/ThemeContext";
@@ -16,6 +17,7 @@ import { ThemeProvider } from "./state/ThemeContext";
 import RestaurantBackground from "./components/RestaurantBackground";
 
 import MenuViewer from "./components/MenuViewer";
+
 
 
 function AppContent() {
@@ -28,6 +30,8 @@ function AppContent() {
       {/* 🌌 GLOBALNE TŁO Z 3D KIELISZKIEM WINA */}
       <RestaurantBackground />
 
+
+
       <main className="relative z-10">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -35,6 +39,7 @@ function AppContent() {
           <Route path="/panel/business" element={<BusinessPanel />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/panel/admin" element={<AdminPanel />} />
+          <Route path="/driver" element={<DriverPanel />} />
           {/* reszta tras */}
         </Routes >
       </main >

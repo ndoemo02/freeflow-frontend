@@ -1,5 +1,7 @@
 // src/lib/ttsClient.ts
 import { getApiUrl } from './config';
+// @ts-ignore
+import { voiceStateManager } from '../managers/VoiceStateManager';
 
 export interface TtsOptions {
   lang?: string;
@@ -25,12 +27,12 @@ export interface TtsResponse {
 // Google Cloud TTS API function
 async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLAudioElement> {
   console.log("🎤 Google TTS: Starting speech synthesis for text:", text);
-  
+
   try {
     const res = await fetch(getApiUrl('/api/tts'), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         text,
         languageCode: opts.lang || 'pl-PL',
         voice: opts.voiceName || 'pl-PL-Standard-A'
@@ -50,19 +52,22 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    
+
     return new Promise((resolve, reject) => {
       audio.onloadeddata = () => {
         console.log("🎤 Google TTS: Audio loaded, starting playback");
+        voiceStateManager.registerAudio(audio);
+        voiceStateManager.onTtsStart('google');
         audio.play();
         resolve(audio);
       };
-      
+
       audio.onended = () => {
         console.log("🎤 Google TTS: Speech completed");
+        voiceStateManager.onTtsEnd();
         URL.revokeObjectURL(url); // Clean up
       };
-      
+
       audio.onerror = (event) => {
         console.error("🎤 Google TTS: Audio error:", event);
         URL.revokeObjectURL(url); // Clean up
@@ -78,7 +83,7 @@ async function speakWithGoogleTTS(text: string, opts: TtsOptions): Promise<HTMLA
 // Web Speech API fallback function
 async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HTMLAudioElement> {
   console.log("🎤 Web Speech API: Starting speech synthesis for text:", text);
-  
+
   return new Promise((resolve, reject) => {
     if (!('speechSynthesis' in window)) {
       reject(new Error('Web Speech API not supported in this browser'));
@@ -86,7 +91,7 @@ async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HT
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
-    
+
     // Configure voice settings
     utterance.lang = opts.lang || 'pl-PL';
     utterance.rate = opts.speakingRate || 1.0;
@@ -96,7 +101,7 @@ async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HT
     // Try to find a Polish voice
     const voices = speechSynthesis.getVoices();
     const polishVoices = voices.filter(voice => voice.lang.startsWith('pl'));
-    
+
     if (polishVoices.length > 0) {
       // Prefer Wavenet voices if available
       const wavenetVoice = polishVoices.find(voice => voice.name.includes('Wavenet'));
@@ -108,10 +113,12 @@ async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HT
 
     utterance.onstart = () => {
       console.log("🎤 Web Speech API: Speech started");
+      voiceStateManager.onTtsStart('webspeech');
     };
 
     utterance.onend = () => {
       console.log("🎤 Web Speech API: Speech completed");
+      voiceStateManager.onTtsEnd();
       // Create a dummy audio element for compatibility
       const audio = new Audio();
       resolve(audio);
@@ -130,7 +137,7 @@ async function speakWithWebSpeechAPI(text: string, opts: TtsOptions): Promise<HT
 // Main TTS function - tries OpenAI first, falls back to Web Speech API
 export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTMLAudioElement> {
   console.log("🎤 TTS: Starting speech synthesis for text:", text);
-  
+
   // Default options
   const defaultOpts: TtsOptions = {
     lang: 'pl-PL',
@@ -146,7 +153,7 @@ export async function speakTts(text: string, opts: TtsOptions = {}): Promise<HTM
     return await speakWithGoogleTTS(text, defaultOpts);
   } catch (googleError) {
     console.warn("🎤 TTS: Google Cloud TTS failed, falling back to Web Speech API:", googleError);
-    
+
     try {
       // Fallback to Web Speech API
       console.log("🎤 TTS: Attempting Web Speech API...");

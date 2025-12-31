@@ -1,5 +1,6 @@
 // src/hooks/useSpeechRecognition.js
 import { useState, useEffect, useRef } from "react";
+import { voiceStateManager } from "../managers/VoiceStateManager";
 
 const SILENCE_MS = 800;
 const MAX_RECORDING_MS = 10000;
@@ -44,7 +45,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
         if (res.isFinal) {
           finalStr += (finalStr ? " " : "") + t.trim();
           // Szybkie zakończenie po finalu, żeby nie czekać
-          try { recognition.stop(); } catch (e) {}
+          try { recognition.stop(); } catch (e) { }
         } else {
           interimStr += t;
         }
@@ -67,7 +68,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
         console.log("⏱️ Silence timeout - stopping recognition")
         try {
           recognition.stop();
-        } catch (e) {}
+        } catch (e) { }
       }, SILENCE_MS);
     };
 
@@ -78,18 +79,19 @@ export function useSpeechRecognition({ onTranscriptChange }) {
 
     recognition.onend = () => {
       console.log("🔚 Recognition ended")
+      voiceStateManager.onVadEnd(); // ASM: Transition to PROCESSING
       console.log("📋 Final text before clearing:", finalStrRef.current)
-      
+
       // NAJPIERW ustaw recording na false
       setRecording(false);
       console.log("✅ Recording set to FALSE")
-      
+
       // Zbierz cały tekst (final + interim jeśli coś zostało)
       const finalStr = finalStrRef.current.trim();
       const interimStr = interimStrRef.current.trim();
       const textToSend = finalStr || interimStr;
       console.log("📤 Text to send:", textToSend)
-      
+
       // DOPIERO TERAZ ustaw finalText (gdy recording już FALSE)
       if (textToSend) {
         setTimeout(() => {
@@ -97,7 +99,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
           setFinalText(textToSend);
         }, 50); // Małe opóźnienie aby recording:false zdążyło się zaktualizować
       }
-      
+
       // Wyczyść refs po chwili
       setTimeout(() => {
         finalStrRef.current = "";
@@ -111,7 +113,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
     return () => {
       try {
         recognition.stop();
-      } catch (e) {}
+      } catch (e) { }
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (hardStopTimerRef.current) clearTimeout(hardStopTimerRef.current);
       recognitionRef.current = null;
@@ -120,6 +122,17 @@ export function useSpeechRecognition({ onTranscriptChange }) {
 
   const startRecording = () => {
     console.log("🎙️ Starting recording...")
+
+    // --- ASM: Input Guard ---
+    // Sprawdź czy możemy nagrywać (Echo Guard) i zatrzymaj TTS (Barge-in)
+    // Importujemy dynamicznie lub statycznie. Statycznie na górze lepiej.
+    // Zakładam import na górze.
+    if (!voiceStateManager.onVadStart()) {
+      console.warn("ASM: Recording blocked by VoiceStateManager (Echo Guard or Processing)");
+      setRecording(false);
+      return;
+    }
+
     if (!supported || !recognitionRef.current) {
       console.warn("SpeechRecognition not available — ignoring start");
       setRecording(false);
@@ -134,7 +147,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
       // Twardy limit bezpieczeństwa — zatrzymaj po MAX_RECORDING_MS
       if (hardStopTimerRef.current) clearTimeout(hardStopTimerRef.current);
       hardStopTimerRef.current = setTimeout(() => {
-        try { recognitionRef.current?.stop(); } catch (e) {}
+        try { recognitionRef.current?.stop(); } catch (e) { }
       }, MAX_RECORDING_MS);
     } catch (e) {
       console.warn("Failed to start recognition:", e);
@@ -145,7 +158,7 @@ export function useSpeechRecognition({ onTranscriptChange }) {
   const stopRecording = () => {
     console.log("🛑 Stopping recording...")
     console.log("📋 Current finalStr:", finalStrRef.current)
-    try { recognitionRef.current?.stop(); } catch (e) {}
+    try { recognitionRef.current?.stop(); } catch (e) { }
   };
 
   return { recording, interimText, finalText, setFinalText, startRecording, stopRecording };

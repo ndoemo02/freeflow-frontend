@@ -91,10 +91,23 @@ export default function AdminPanel() {
     try {
       setDiag(d => ({ ...d, running: true }));
       const t0 = performance.now();
-      const resp = await fetch(getApiUrl('/api/brain'), {
+      const isV2 = CONFIG.USE_BRAI_V2 || CONFIG.USE_BRAIN_V2; // Just to be safe with naming
+      const apiUrl = getApiUrl(isV2 ? '/api/brain/v2' : '/api/brain');
+
+      const body = isV2 ? {
+        session_id: `diag-${Date.now()}`,
+        input: 'Gdzie mogę zjeść w pobliżu?',
+        meta: { channel: 'admin_diag' }
+      } : {
+        text: 'Gdzie mogę zjeść w pobliżu?',
+        includeTTS: true,
+        sessionId: `diag-${Date.now()}`
+      };
+
+      const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Gdzie mogę zjeść w pobliżu?', includeTTS: true, sessionId: `diag-${Date.now()}` })
+        body: JSON.stringify(body)
       });
       const json = await resp.json();
       const t1 = performance.now();
@@ -159,6 +172,19 @@ export default function AdminPanel() {
   const [activity, setActivity] = useState([]);
   const [bizStats, setBizStats] = useState({ total_orders: 0, total_revenue: 0, avg_order: 0, interactions: 0, conversion: 0 });
   const [alerts, setAlerts] = useState([]);
+  const [systemStatus, setSystemStatus] = useState(null);
+
+  const loadSystemStatus = async () => {
+    if (!tokenOk) return;
+    try {
+      const j = await adminFetch('/api/admin/system-status');
+      if (j.ok && j.status) {
+        setSystemStatus(j.status["dr.panel.status"]);
+      }
+    } catch (e) {
+      console.warn('system-status error', e.message);
+    }
+  };
 
   // Debug state (retained)
   const [debugStatus, setDebugStatus] = useState("");
@@ -227,10 +253,15 @@ export default function AdminPanel() {
     loadBusiness();
     fetchAlerts();
     loadLearningStats();
+    loadSystemStatus();
+
+    // Background polling for health status every 30s
+    const statusInterval = setInterval(loadSystemStatus, 30000);
+    return () => clearInterval(statusInterval);
   }, [tokenOk, fromDate, toDate, intentFilter]);
 
   const refreshData = async () => {
-    await Promise.all([loadIntents(), loadTrends(), loadTopSlow(), loadActivity(), loadBusiness()]);
+    await Promise.all([loadIntents(), loadTrends(), loadTopSlow(), loadActivity(), loadBusiness(), loadSystemStatus()]);
   };
 
   const trendsData = {
@@ -509,11 +540,23 @@ export default function AdminPanel() {
   ];
 
   // Przygotuj dane KPI dla wyświetlenia
+  const getStatusIcon = (metric) => {
+    const s = systemStatus?.metrics?.[metric] || 'UNKNOWN';
+    let icon = '🔴';
+    let label = 'Offline / Error';
+
+    if (s === 'REALTIME') { icon = '🟢'; label = 'Live / Realtime'; }
+    else if (s === 'STALE' || s === 'HARDCODED') { icon = '🟡'; label = 'Demo / Cached'; }
+
+    return <span title={label} className="cursor-help">{icon}</span>;
+  };
+
   const kpiData = analyticsData ? [
     {
       value: analyticsData.totalRevenue.toLocaleString('pl-PL'),
       unit: 'zł',
       label: 'Całkowity Przychód',
+      status: getStatusIcon('revenue'),
       change: `${analyticsData.revenueChange >= 0 ? '+' : ''}${analyticsData.revenueChange.toFixed(1)}% vs poprzedni okres`,
       positive: analyticsData.revenueChange >= 0
     },
@@ -521,6 +564,7 @@ export default function AdminPanel() {
       value: analyticsData.totalOrders.toLocaleString('pl-PL'),
       unit: 'zamówień',
       label: 'Liczba Zamówień',
+      status: getStatusIcon('orders'),
       change: `${analyticsData.ordersChange >= 0 ? '+' : ''}${analyticsData.ordersChange.toFixed(1)}% vs poprzedni okres`,
       positive: analyticsData.ordersChange >= 0
     },
@@ -528,6 +572,7 @@ export default function AdminPanel() {
       value: analyticsData.averageOrderValue.toFixed(2),
       unit: 'zł',
       label: 'Średnia Wartość Zamówienia',
+      status: getStatusIcon('orders'), // Shared with orders usually
       change: `${analyticsData.avgOrderChange >= 0 ? '+' : ''}${analyticsData.avgOrderChange.toFixed(1)}% vs poprzedni okres`,
       positive: analyticsData.avgOrderChange >= 0
     },
@@ -535,6 +580,7 @@ export default function AdminPanel() {
       value: analyticsData.customerSatisfaction.toFixed(1),
       unit: '%',
       label: 'Zadowolenie Klientów',
+      status: '🟡', // Always hardcoded in analytics.ts for now
       change: `${analyticsData.satisfactionChange >= 0 ? '+' : ''}${analyticsData.satisfactionChange.toFixed(1)}% vs poprzedni okres`,
       positive: analyticsData.satisfactionChange >= 0
     }
@@ -798,6 +844,30 @@ export default function AdminPanel() {
           </div>
         </header>
 
+        {/* --- Global System Status (Agent Loop) --- */}
+        {systemStatus && (
+          <div className={`mb-4 px-4 py-2 rounded-xl flex items-center justify-between gap-3 border transition-colors
+            ${systemStatus.state === 'ALL SYSTEMS OPERATIONAL' ? 'bg-[rgba(34,197,94,0.1)] border-[rgba(34,197,94,0.3)]' :
+              systemStatus.state === 'INVALID' ? 'bg-[rgba(239,68,68,0.1)] border-[rgba(239,68,68,0.3)]' :
+                'bg-[rgba(245,158,11,0.1)] border-[rgba(245,158,11,0.3)]'}
+          `}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm">
+                {systemStatus.state === 'ALL SYSTEMS OPERATIONAL' ? '🟢' :
+                  systemStatus.state === 'INVALID' ? '🔴' : '🟡'}
+              </span>
+              <span className="text-[10px] font-bold tracking-wider uppercase text-[var(--fg0)]">
+                Status Systemu: {systemStatus.state}
+              </span>
+              <span className="text-[11px] text-[var(--muted)] ml-2">— {systemStatus.label}</span>
+            </div>
+            <div className="text-[10px] text-[var(--muted)] flex items-center gap-3">
+              <span>Confidence: {(systemStatus.confidence * 100).toFixed(0)}%</span>
+              <span>Checked: {new Date(systemStatus.last_checked).toLocaleTimeString()}</span>
+            </div>
+          </div>
+        )}
+
         {/* --- KPI Grid --- */}
         <section className="mt-4 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -810,7 +880,9 @@ export default function AdminPanel() {
                     $
                   </div>
                   <div>
-                    <div className="text-[11px] text-[var(--muted)]">Przychód Total</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      {getStatusIcon('revenue')} Przychód Total
+                    </div>
                     <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
                       {analyticsData?.totalRevenue?.toLocaleString('pl-PL') || '0'} zł
                     </div>
@@ -832,7 +904,9 @@ export default function AdminPanel() {
                     <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93L7.76 7.76M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
                   </div>
                   <div>
-                    <div className="text-[11px] text-[var(--muted)]">Interwencje AI</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      {getStatusIcon('ai_intervention')} Interwencje AI
+                    </div>
                     <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
                       {((1 - (learningStats.feedbackStats.negative / (learningStats.total || 1))) * 100).toFixed(1)}%
                     </div>
@@ -850,7 +924,9 @@ export default function AdminPanel() {
                     <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
                   </div>
                   <div>
-                    <div className="text-[11px] text-[var(--muted)]">Zamówienia</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      {getStatusIcon('orders')} Zamówienia
+                    </div>
                     <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
                       {analyticsData?.totalOrders || 0}
                     </div>
@@ -872,7 +948,9 @@ export default function AdminPanel() {
                     <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>
                   </div>
                   <div>
-                    <div className="text-[11px] text-[var(--muted)]">Śr. Zamówienie</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      {getStatusIcon('orders')} Śr. Zamówienie
+                    </div>
                     <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
                       {analyticsData?.averageOrderValue?.toFixed(2) || '0.00'} zł
                     </div>
@@ -889,7 +967,9 @@ export default function AdminPanel() {
                     <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                   </div>
                   <div>
-                    <div className="text-[11px] text-[var(--muted)]">System Status</div>
+                    <div className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      Status Silnika
+                    </div>
                     <div className="text-[16px] font-semibold tracking-tight text-[var(--fg0)]">
                       {hb.status === 'unknown' ? 'Checking...' : hb.status.includes('online') ? 'Online' : 'Offline'}
                     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AmberIndicator, AmberStatusNode } from "./AmberIndicator";
+import './VoiceCommandCenterV2.css';
 
 interface VoiceCommandCenterV2Props {
   amberResponse?: string;
@@ -37,8 +38,6 @@ export default function VoiceCommandCenterV2({
 }: VoiceCommandCenterV2Props) {
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const isIsland = viewMode === 'island';
 
   // Handle both prop names
   const handleSubmitText = onTextSubmit || onSubmitText;
@@ -83,62 +82,74 @@ export default function VoiceCommandCenterV2({
           animate={{ y: 0, opacity: 1, x: "-50%" }}
           exit={{ y: 100, opacity: 0, x: "-50%" }}
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="fixed bottom-6 left-[58%] md:left-1/2 w-[72%] md:w-[92%] max-w-lg flex items-center gap-2 
-                     rounded-full backdrop-blur-xl bg-[#0F0F16]/90 border border-white/10 
-                     shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] p-2 z-50 transform-gpu"
+          className="fixed bottom-6 left-1/2 w-full max-w-[600px] z-50 transform-gpu vcc-input-wrapper pointer-events-auto"
         >
-          {/* Amber Orb (Status Indicator) */}
-          <div
-            onClick={onMicClick}
-            className="flex items-center justify-center flex-shrink-0 cursor-pointer w-14 h-14"
-            title="Kliknij, aby rozmawiać"
-          >
-            <AmberIndicator status={amberStatus} className="w-full h-full" />
-          </div>
+          <div className="voice-cc-container">
+            <div className="voice-cc-inner-container">
+              <div className="voice-cc-field">
+                {/* Visual Flairs */}
+                <div className="vcc-twinkle-container">
+                  {[...Array(10)].map((_, i) => <div key={i} className="vcc-twinkle"></div>)}
+                </div>
+                <div className="voice-cc-flare"></div>
+                <div className="voice-cc-floating-label">
+                  {showResponse ? "Asystent" : "Twoja wiadomość"}
+                </div>
 
-          {/* Input / Message Area */}
-          <div className="flex-1 relative h-10 transition-all duration-300 flex items-center overflow-hidden">
-            {showResponse ? (
-              // 🗣️ Asystent mówi/wyświetla (Amber Text)
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full h-full flex items-center justify-between cursor-pointer group"
-                onClick={onClearResponse}
-                title="Kliknij, aby zamknąć"
-              >
-                <span className="text-[15px] font-medium text-amber-400 px-2 truncate leading-10 flex-1">
-                  {amberResponse}
-                </span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 text-xs px-2">✕</span>
-              </motion.div>
-            ) : (
-              // 🎤 Użytkownik mówi / pisze (User Input) - TYLKO TEXT INPUT, BEZ PODGLĄDU MOWY
-              <input
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={amberStatus === 'listening' ? "Słucham..." : amberStatus === 'thinking' ? "Przetwarzam..." : "Napisz wiadomość..."}
-                className={`w-full h-full bg-transparent border-none text-white font-sans text-[15px] px-2 outline-none 
-                                         placeholder:text-white/30`}
-              />
-            )}
-          </div>
+                {/* INPUT AREA */}
+                {showResponse ? (
+                  <div
+                    className="w-full h-[60px] flex items-center px-[20px] pt-[15px] relative z-[2] cursor-pointer"
+                    onClick={onClearResponse}
+                  >
+                    <span className="text-[#00ffcc] truncate font-medium text-[15px] w-full">
+                      {amberResponse}
+                    </span>
+                  </div>
+                ) : (
+                  <input
+                    id="voice-cc-text-input"
+                    ref={inputRef}
+                    type="text"
+                    placeholder={amberStatus === 'listening' ? "Słucham..." : "Napisz lub powiedz..."}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                )}
 
-          {/* Send Button */}
-          {!showResponse && (
-            <button
-              onClick={handleSubmit}
-              disabled={!inputValue.trim()}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/80 
-                                  disabled:opacity-20 disabled:cursor-not-allowed transition-colors mr-1"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" />
-              </svg>
-            </button>
-          )}
+                {/* ORB AREA (Inside Panel, Right Side) */}
+                <div
+                  className="voice-cc-animation-container cursor-pointer"
+                  title="Kliknij, aby rozmawiać"
+                  onClick={onMicClick}
+                >
+                  {/* We place the AmberIndicator here. 
+                             Usually 56px, we can let it scale via its internal logic or wrapper.
+                             This wrapper has display flex.
+                          */}
+                  <AmberIndicator status={amberStatus} className="w-12 h-12" />
+                </div>
+
+                {/* Typing/Processing Indicator */}
+                {(isProcessing || amberStatus === 'thinking') && (
+                  <div className="voice-cc-typing-indicator">
+                    <span></span><span></span><span></span>
+                  </div>
+                )}
+              </div>
+
+              {/* SEND BUTTON (Outside) */}
+              <button id="voice-cc-send-button" onClick={handleSubmit} disabled={!inputValue.trim()} title="Wyślij">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinejoin="round" strokeLinecap="round" strokeWidth="2" stroke="currentColor"
+                    d="M22 2L11 13"></path>
+                  <path strokeLinejoin="round" strokeLinecap="round" strokeWidth="2" stroke="currentColor"
+                    d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

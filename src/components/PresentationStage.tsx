@@ -30,8 +30,8 @@ export default function PresentationStage({ onSelect, recording }: PresentationS
     }
 
     // 🛑 Render nothing if mode is not a presentation mode
-    const isPresentationMode = ['restaurant_presentation', 'menu_presentation', 'cart_summary'].includes(mode);
-    if (!isPresentationMode || presentationItems.length === 0) {
+    const isPresentationMode = ['restaurant_presentation', 'menu_presentation', 'cart_summary', 'confirmation'].includes(mode);
+    if (!isPresentationMode || (presentationItems?.length || 0) === 0) {
         return null;
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, Transition } from '@headlessui/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,12 +9,14 @@ export default function Cart() {
   const { cart, restaurant, total, isOpen, isSubmitting, removeFromCart, updateQuantity, clearCart, submitOrder, setIsOpen } = useCart();
   const restaurantLabel = restaurant
     ? (typeof restaurant === 'object'
-        ? (typeof restaurant.name === 'string' ? restaurant.name : JSON.stringify(restaurant.name ?? restaurant))
-        : String(restaurant))
+      ? (typeof restaurant.name === 'string' ? restaurant.name : JSON.stringify(restaurant.name ?? restaurant))
+      : String(restaurant))
     : null;
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
+  const closeButtonRef = useRef(null);
+
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: user?.user_metadata?.first_name || '',
     phone: user?.user_metadata?.phone || '',
@@ -35,7 +37,7 @@ export default function Cart() {
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)}>
+      <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)} initialFocus={closeButtonRef}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -72,6 +74,7 @@ export default function Cart() {
                       )}
                     </Dialog.Title>
                     <button
+                      ref={closeButtonRef}
                       onClick={() => setIsOpen(false)}
                       className="text-slate-400 hover:text-white transition-colors"
                     >
@@ -104,54 +107,55 @@ export default function Cart() {
                             quantity: Number(rawItem?.quantity ?? rawItem?.qty ?? 1)
                           };
                           return (
-                          <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="rounded-xl border border-cyan-500/20 bg-black/40 p-4 backdrop-blur-xl"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <h3 className="text-white font-semibold">{item.name}</h3>
-                                <p className="text-sm text-slate-400">{Number(item.price).toFixed(2)} zł</p>
-                              </div>
-                              
-                              {/* Quantity Controls */}
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 bg-black/40 rounded-lg px-2 py-1">
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ delay: index * 0.05 }}
+                              className="rounded-xl border border-cyan-500/20 bg-black/40 p-4 backdrop-blur-xl"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <h3 className="text-white font-semibold">{item.name}</h3>
+                                  <p className="text-sm text-slate-400">{Number(item.price).toFixed(2)} zł</p>
+                                </div>
+
+                                {/* Quantity Controls */}
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 bg-black/40 rounded-lg px-2 py-1">
+                                    <button
+                                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                      className="text-slate-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center"
+                                    >
+                                      −
+                                    </button>
+                                    <span className="text-white font-semibold w-8 text-center">
+                                      {item.quantity}
+                                    </span>
+                                    <button
+                                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                      className="text-slate-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  <div className="text-white font-bold min-w-[80px] text-right">
+                                    {(Number(item.price) * Number(item.quantity)).toFixed(2)} zł
+                                  </div>
+
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                    className="text-slate-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center"
+                                    onClick={() => removeFromCart(item.id)}
+                                    className="text-red-400 hover:text-red-300 transition-colors ml-2"
                                   >
-                                    −
-                                  </button>
-                                  <span className="text-white font-semibold w-8 text-center">
-                                    {item.quantity}
-                                  </span>
-                                  <button
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                    className="text-slate-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center"
-                                  >
-                                    +
+                                    🗑️
                                   </button>
                                 </div>
-                                
-                                <div className="text-white font-bold min-w-[80px] text-right">
-                                  {(Number(item.price) * Number(item.quantity)).toFixed(2)} zł
-                                </div>
-                                
-                                <button
-                                  onClick={() => removeFromCart(item.id)}
-                                  className="text-red-400 hover:text-red-300 transition-colors ml-2"
-                                >
-                                  🗑️
-                                </button>
                               </div>
-                            </div>
-                          </motion.div>
-                        )})}
+                            </motion.div>
+                          )
+                        })}
                       </AnimatePresence>
                     </div>
                   )}
@@ -163,7 +167,7 @@ export default function Cart() {
                     {/* Delivery Info */}
                     <div className="space-y-3">
                       <h3 className="text-white font-semibold mb-3">📍 Dane dostawy</h3>
-                      
+
                       <div className="grid grid-cols-2 gap-3">
                         <input
                           type="text"
@@ -182,7 +186,7 @@ export default function Cart() {
                           className="rounded-lg bg-black/40 border border-white/10 px-4 py-2 text-white placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
                         />
                       </div>
-                      
+
                       <input
                         type="text"
                         placeholder="Adres dostawy"
@@ -191,7 +195,7 @@ export default function Cart() {
                         required
                         className="w-full rounded-lg bg-black/40 border border-white/10 px-4 py-2 text-white placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
                       />
-                      
+
                       <textarea
                         placeholder="Uwagi do zamówienia (opcjonalnie)"
                         value={deliveryInfo.notes}
@@ -235,4 +239,3 @@ export default function Cart() {
     </Transition>
   );
 }
-

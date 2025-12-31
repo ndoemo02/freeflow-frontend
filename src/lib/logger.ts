@@ -10,6 +10,14 @@ interface LogEntry {
 class Logger {
     private logs: LogEntry[] = [];
     private maxLogs = 500;
+    private subscribers: ((entry: LogEntry) => void)[] = [];
+
+    subscribe(callback: (entry: LogEntry) => void) {
+        this.subscribers.push(callback);
+        return () => {
+            this.subscribers = this.subscribers.filter(cb => cb !== callback);
+        };
+    }
 
     private addLog(level: LogLevel, message: string, data?: any) {
         const entry: LogEntry = {
@@ -23,6 +31,9 @@ class Logger {
         if (this.logs.length > this.maxLogs) {
             this.logs.pop();
         }
+
+        // Notify subscribers
+        this.subscribers.forEach(cb => cb(entry));
 
         // Console output for Development Experience
         // W produkcji możemy to wyciszyć, ale błędy zawsze logujemy

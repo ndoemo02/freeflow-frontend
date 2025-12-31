@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Utensils, ShoppingBag, CheckCircle } from 'lucide-react';
+import { Search, Utensils, ShoppingBag, CheckCircle, Trash2 } from 'lucide-react';
 import { getApiUrl } from '../../lib/config';
 
 // Konfiguracja etapów rozmowy
@@ -125,6 +125,31 @@ export default function ConversationViewer({ adminToken }) {
             });
     }
 
+    const clearLogs = async () => {
+        if (!window.confirm('Czy na pewno chcesz usunąć całą historię rozmów? Ta operacja jest nieodwracalna.')) return;
+
+        try {
+            setLoading(true);
+            const res = await fetch(getApiUrl('/api/admin/conversations'), {
+                method: 'DELETE',
+                headers: { 'x-admin-token': adminToken }
+            });
+            const json = await res.json();
+            if (json.ok) {
+                setConversations([]);
+                setSelectedId(null);
+                setTimeline([]);
+            } else {
+                alert('Błąd: ' + json.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Wystąpił błąd podczas usuwania.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Znajdź wybraną rozmowę i jej etap
     const selectedConv = useMemo(() => conversations.find(c => c.id === selectedId), [conversations, selectedId]);
 
@@ -210,7 +235,13 @@ export default function ConversationViewer({ adminToken }) {
                 <div className="md:col-span-1 glass border border-[var(--border)] rounded-xl overflow-hidden flex flex-col">
                     <div className="p-3 border-b border-[var(--border)] bg-[rgba(255,255,255,0.02)] backdrop-blur-md sticky top-0 font-bold text-sm text-[var(--fg0)] flex justify-between items-center">
                         <span>Ostatnie rozmowy</span>
-                        <button onClick={refreshList} className="text-[10px] text-[var(--neon)] hover:underline">Odśwież</button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={clearLogs} className="group flex items-center gap-1 text-[10px] text-red-500 hover:text-red-400 transition-colors">
+                                <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
+                                <span>Wyczyść</span>
+                            </button>
+                            <button onClick={refreshList} className="text-[10px] text-[var(--neon)] hover:underline">Odśwież</button>
+                        </div>
                     </div>
                     <div className="overflow-auto flex-1 tiny-scroll p-2 space-y-2">
                         {conversations.length === 0 && <div className="text-[var(--muted)] text-center p-4 text-xs">Brak zarejestrowanych rozmów (V2).</div>}
